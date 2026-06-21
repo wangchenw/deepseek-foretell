@@ -1,0 +1,62 @@
+"""统计 Tool 单元测试。"""
+
+import json
+
+from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
+
+
+def _parse(result: str) -> dict:
+    return json.loads(result)
+
+
+def test_get_standings() -> None:
+    result = _parse(get_standings.invoke({"league_id": "l_ucl"}))
+    assert result["code"] == "OK"
+    assert result["dimension"] == "standings"
+    assert result["data"]["count"] >= 2
+
+
+def test_get_standings_missing() -> None:
+    result = _parse(get_standings.invoke({"league_id": "l_unknown"}))
+    assert result["code"] == "DATA_MISSING"
+
+
+def test_get_team_season_stats() -> None:
+    result = _parse(get_team_season_stats.invoke({"team_id": "t_psg"}))
+    assert result["code"] == "OK"
+    assert result["dimension"] == "team_season_stats"
+    assert result["data"]["team_id"] == "t_psg"
+
+
+def test_get_team_season_stats_missing() -> None:
+    result = _parse(get_team_season_stats.invoke({"team_id": "t_unknown"}))
+    assert result["code"] == "DATA_MISSING"
+
+
+def test_get_recent_form() -> None:
+    result = _parse(get_recent_form.invoke({"team_id": "t_psg", "n": 3}))
+    assert result["code"] == "OK"
+    assert result["data"]["count"] == 3
+
+
+def test_get_recent_form_home_filter() -> None:
+    result = _parse(get_recent_form.invoke({"team_id": "t_psg", "venue": "home", "n": 5}))
+    assert result["code"] == "OK"
+    assert all(m["venue"] == "home" for m in result["data"]["matches"])
+
+
+def test_get_recent_form_missing() -> None:
+    result = _parse(get_recent_form.invoke({"team_id": "t_unknown"}))
+    assert result["code"] == "DATA_MISSING"
+
+
+def test_get_h2h() -> None:
+    result = _parse(get_h2h.invoke({"team_a": "t_psg", "team_b": "t_bayern"}))
+    assert result["code"] == "OK"
+    assert result["dimension"] == "h2h"
+    assert result["data"]["count"] >= 1
+
+
+def test_get_h2h_missing() -> None:
+    result = _parse(get_h2h.invoke({"team_a": "t_psg", "team_b": "t_lakers"}))
+    assert result["code"] == "DATA_MISSING"

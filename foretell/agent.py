@@ -8,6 +8,7 @@ from foretell.backends import (
     create_store,
 )
 from foretell.prompts import SYSTEM_PROMPT
+from foretell.subagents import get_subagents
 from foretell.tools import get_tools
 
 
@@ -37,6 +38,7 @@ def create_foretell_agent(deploy_env: str = "dev"):
         system_prompt=SYSTEM_PROMPT,
         backend=create_agent_backend,
         skills=[str(FORETELL_SKILLS_DIR)],
+        subagents=get_subagents(),
         checkpointer=create_checkpointer(deploy_env),
         store=create_store(deploy_env),
     )

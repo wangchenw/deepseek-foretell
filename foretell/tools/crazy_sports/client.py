@@ -6,13 +6,25 @@ from typing import Protocol
 
 from config.settings import get_settings
 from foretell.tools.crazy_sports.mock_data import (
+    BETFAIR,
     DEFAULT_FRESHNESS,
+    H2H,
+    INJURY_REPORT,
+    INTEL_TAGS,
+    KELLY,
     LEAGUES,
     LOTTERY_MATCHES,
     LOTTERY_SCHEDULE,
     MATCHES,
+    MATCH_LINEUP,
+    ODDS_SNAPSHOT,
+    ODDS_TREND,
+    RECENT_FORM,
+    SAME_ODDS_HISTORY,
     SCHEDULE_BY_DATE,
+    STANDINGS,
     TEAM_SCHEDULE,
+    TEAM_SEASON_STATS,
     TEAMS,
 )
 from foretell.tools.status_codes import PlayType
@@ -80,6 +92,47 @@ class CrazySportsClient(Protocol):
         period: str | None = None,
     ) -> list[dict]:
         """返回彩票可售场次列表。"""
+
+    def get_standings(self, league_id: str) -> list[dict]:
+        """返回联赛积分榜。"""
+
+    def get_team_season_stats(self, team_id: str) -> dict | None:
+        """返回球队赛季统计。"""
+
+    def get_recent_form(
+        self,
+        team_id: str,
+        venue: str | None = None,
+        n: int = 5,
+    ) -> list[dict]:
+        """返回球队近期战绩。"""
+
+    def get_h2h(self, team_a: str, team_b: str, n: int = 5) -> list[dict]:
+        """返回两队历史交锋。"""
+
+    def get_odds_snapshot(self, match_id: str) -> dict | None:
+        """返回盘口快照。"""
+
+    def get_odds_trend(self, match_id: str) -> list[dict]:
+        """返回赔率走势。"""
+
+    def get_same_odds_history(self, match_id: str) -> list[dict]:
+        """返回同赔历史。"""
+
+    def get_kelly(self, match_id: str) -> dict | None:
+        """返回凯利指数。"""
+
+    def get_betfair(self, match_id: str) -> dict | None:
+        """返回必发成交数据。"""
+
+    def get_match_lineup(self, match_id: str) -> dict | None:
+        """返回预计阵容。"""
+
+    def get_injury_report(self, match_id: str) -> dict | None:
+        """返回伤停报告。"""
+
+    def get_intel_tags(self, match_id: str) -> list[dict]:
+        """返回情报标签。"""
 
     @property
     def freshness(self) -> str:
@@ -187,6 +240,57 @@ class MockCrazySportsClient:
         key = f"{play_type.value}:{date}"
         entries = LOTTERY_SCHEDULE.get(key, [])
         return [dict(e) for e in entries]
+
+    def get_standings(self, league_id: str) -> list[dict]:
+        return [dict(row) for row in STANDINGS.get(league_id, [])]
+
+    def get_team_season_stats(self, team_id: str) -> dict | None:
+        stats = TEAM_SEASON_STATS.get(team_id)
+        return dict(stats) if stats else None
+
+    def get_recent_form(
+        self,
+        team_id: str,
+        venue: str | None = None,
+        n: int = 5,
+    ) -> list[dict]:
+        form = RECENT_FORM.get(team_id, [])
+        if venue is not None:
+            form = [r for r in form if r.get("venue") == venue]
+        return [dict(r) for r in form[:n]]
+
+    def get_h2h(self, team_a: str, team_b: str, n: int = 5) -> list[dict]:
+        key = "|".join(sorted([team_a, team_b]))
+        return [dict(r) for r in H2H.get(key, [])[:n]]
+
+    def get_odds_snapshot(self, match_id: str) -> dict | None:
+        odds = ODDS_SNAPSHOT.get(match_id)
+        return dict(odds) if odds else None
+
+    def get_odds_trend(self, match_id: str) -> list[dict]:
+        return [dict(r) for r in ODDS_TREND.get(match_id, [])]
+
+    def get_same_odds_history(self, match_id: str) -> list[dict]:
+        return [dict(r) for r in SAME_ODDS_HISTORY.get(match_id, [])]
+
+    def get_kelly(self, match_id: str) -> dict | None:
+        kelly = KELLY.get(match_id)
+        return dict(kelly) if kelly else None
+
+    def get_betfair(self, match_id: str) -> dict | None:
+        betfair = BETFAIR.get(match_id)
+        return dict(betfair) if betfair else None
+
+    def get_match_lineup(self, match_id: str) -> dict | None:
+        lineup = MATCH_LINEUP.get(match_id)
+        return dict(lineup) if lineup else None
+
+    def get_injury_report(self, match_id: str) -> dict | None:
+        report = INJURY_REPORT.get(match_id)
+        return dict(report) if report else None
+
+    def get_intel_tags(self, match_id: str) -> list[dict]:
+        return [dict(t) for t in INTEL_TAGS.get(match_id, [])]
 
 
 def get_crazy_sports_client() -> CrazySportsClient:

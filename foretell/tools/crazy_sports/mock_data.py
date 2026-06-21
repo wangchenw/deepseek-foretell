@@ -217,4 +217,146 @@ LOTTERY_SCHEDULE: dict[str, list[dict]] = {
   ],
 }
 
+# 积分榜
+STANDINGS: dict[str, list[dict]] = {
+    "l_ucl": [
+        {"rank": 1, "team_id": "t_psg", "team_name": "巴黎圣曼", "played": 6, "won": 4, "drawn": 1, "lost": 1, "gf": 12, "ga": 5, "points": 13},
+        {"rank": 2, "team_id": "t_bayern", "team_name": "拜仁", "played": 6, "won": 4, "drawn": 0, "lost": 2, "gf": 14, "ga": 8, "points": 12},
+    ],
+    "l_premier": [
+        {"rank": 3, "team_id": "t_liverpool", "team_name": "利物浦", "played": 38, "won": 24, "drawn": 10, "lost": 4, "gf": 86, "ga": 41, "points": 82},
+        {"rank": 5, "team_id": "t_tottenham", "team_name": "热刺", "played": 38, "won": 20, "drawn": 6, "lost": 12, "gf": 74, "ga": 61, "points": 66},
+    ],
+    "l_nba": [
+        {"rank": 3, "team_id": "t_lakers", "team_name": "湖人", "played": 82, "won": 50, "lost": 32, "win_pct": 0.610},
+        {"rank": 6, "team_id": "t_warriors", "team_name": "勇士", "played": 82, "won": 46, "lost": 36, "win_pct": 0.561},
+    ],
+}
+
+# 球队赛季统计
+TEAM_SEASON_STATS: dict[str, dict] = {
+    "t_psg": {"team_id": "t_psg", "league_id": "l_ucl", "home_w": 3, "home_d": 0, "home_l": 0, "away_w": 1, "away_d": 1, "away_l": 1, "goals_for": 12, "goals_against": 5},
+    "t_bayern": {"team_id": "t_bayern", "league_id": "l_ucl", "home_w": 2, "home_d": 0, "home_l": 1, "away_w": 2, "away_d": 0, "away_l": 1, "goals_for": 14, "goals_against": 8},
+    "t_liverpool": {"team_id": "t_liverpool", "league_id": "l_premier", "home_w": 14, "home_d": 4, "home_l": 1, "away_w": 10, "away_d": 6, "away_l": 3, "goals_for": 86, "goals_against": 41},
+    "t_lakers": {"team_id": "t_lakers", "league_id": "l_nba", "home_w": 28, "home_l": 13, "away_w": 22, "away_l": 19, "ppg": 113.2, "opp_ppg": 110.5},
+}
+
+# 近期战绩 team_id -> list of results (W/D/L or W/L for basketball)
+RECENT_FORM: dict[str, list[dict]] = {
+    "t_psg": [
+        {"result": "W", "score": "3-1", "opponent": "马赛", "venue": "home", "date": "2026-04-22"},
+        {"result": "D", "score": "1-1", "opponent": "里昂", "venue": "away", "date": "2026-04-15"},
+        {"result": "W", "score": "2-0", "opponent": "摩纳哥", "venue": "home", "date": "2026-04-08"},
+        {"result": "W", "score": "4-1", "opponent": "南特", "venue": "away", "date": "2026-04-01"},
+        {"result": "L", "score": "0-1", "opponent": "里尔", "venue": "home", "date": "2026-03-25"},
+    ],
+    "t_bayern": [
+        {"result": "W", "score": "2-0", "opponent": "多特蒙德", "venue": "home", "date": "2026-04-20"},
+        {"result": "W", "score": "3-2", "opponent": "勒沃库森", "venue": "away", "date": "2026-04-13"},
+        {"result": "L", "score": "1-2", "opponent": "莱比锡", "venue": "home", "date": "2026-04-06"},
+        {"result": "W", "score": "5-0", "opponent": "弗赖堡", "venue": "away", "date": "2026-03-30"},
+        {"result": "W", "score": "1-0", "opponent": "法兰克福", "venue": "home", "date": "2026-03-23"},
+    ],
+    "t_liverpool": [
+        {"result": "W", "score": "2-1", "opponent": "切尔西", "venue": "home", "date": "2026-06-14"},
+        {"result": "D", "score": "1-1", "opponent": "阿森纳", "venue": "away", "date": "2026-06-07"},
+        {"result": "W", "score": "3-0", "opponent": "埃弗顿", "venue": "home", "date": "2026-05-31"},
+        {"result": "W", "score": "2-0", "opponent": "纽卡斯尔", "venue": "away", "date": "2026-05-24"},
+        {"result": "D", "score": "0-0", "opponent": "曼城", "venue": "home", "date": "2026-05-17"},
+    ],
+    "t_lakers": [
+        {"result": "W", "score": "112-105", "opponent": "掘金", "venue": "home", "date": "2026-06-18"},
+        {"result": "L", "score": "98-110", "opponent": "太阳", "venue": "away", "date": "2026-06-15"},
+        {"result": "W", "score": "120-115", "opponent": "快船", "venue": "home", "date": "2026-06-12"},
+        {"result": "W", "score": "108-102", "opponent": "国王", "venue": "away", "date": "2026-06-09"},
+        {"result": "L", "score": "95-101", "opponent": "雷霆", "venue": "home", "date": "2026-06-06"},
+    ],
+}
+
+# 历史交锋 key: sorted team ids joined
+H2H: dict[str, list[dict]] = {
+    "t_bayern|t_psg": [
+        {"date": "2025-11-26", "home_team_id": "t_bayern", "away_team_id": "t_psg", "score": "1-0", "competition": "欧冠"},
+        {"date": "2025-10-01", "home_team_id": "t_psg", "away_team_id": "t_bayern", "score": "1-1", "competition": "欧冠"},
+        {"date": "2024-04-16", "home_team_id": "t_bayern", "away_team_id": "t_psg", "score": "2-0", "competition": "欧冠"},
+    ],
+    "t_liverpool|t_tottenham": [
+        {"date": "2026-01-15", "home_team_id": "t_liverpool", "away_team_id": "t_tottenham", "score": "3-1", "competition": "英超"},
+        {"date": "2025-08-20", "home_team_id": "t_tottenham", "away_team_id": "t_liverpool", "score": "0-2", "competition": "英超"},
+    ],
+}
+
+# 盘口快照
+ODDS_SNAPSHOT: dict[str, dict] = {
+    "m_psg_bayern": {
+        "european": {"home": 2.10, "draw": 3.40, "away": 3.25, "companies": ["威廉希尔", "Bet365", "澳门"]},
+        "asian": {"line": "平手/半球", "line_cn": "巴黎让平手/半球", "home_water": 0.92, "away_water": 0.98},
+        "over_under": {"line": 2.75, "over": 0.88, "under": 1.02},
+    },
+    "m_liverpool_tottenham": {
+        "european": {"home": 1.75, "draw": 3.80, "away": 4.50},
+        "asian": {"line": "半球/一球", "line_cn": "利物浦让半球/一球", "home_water": 0.95, "away_water": 0.95},
+        "over_under": {"line": 2.5, "over": 0.90, "under": 1.00},
+    },
+    "m_lakers_warriors": {
+        "moneyline": {"home": 1.85, "away": 2.05},
+        "spread": {"line": -2.5, "line_cn": "湖人让2.5分", "home_water": 0.91, "away_water": 0.99},
+        "total": {"line": 224.5, "over": 0.93, "under": 0.97},
+    },
+}
+
+# 赔率走势
+ODDS_TREND: dict[str, list[dict]] = {
+    "m_psg_bayern": [
+        {"time": "2026-04-28 08:00", "european_home": 2.20, "asian_line_cn": "平手", "over_under_line": 2.5},
+        {"time": "2026-04-29 12:00", "european_home": 2.10, "asian_line_cn": "巴黎让平手/半球", "over_under_line": 2.75},
+    ],
+}
+
+# 同赔历史
+SAME_ODDS_HISTORY: dict[str, list[dict]] = {
+    "m_psg_bayern": [
+        {"date": "2024-03-05", "match": "皇马 VS 莱比锡", "result": "2-1", "same_odds_outcome": "主胜"},
+        {"date": "2023-11-08", "match": "曼城 VS 年轻人", "result": "3-0", "same_odds_outcome": "主胜"},
+    ],
+}
+
+# 凯利指数
+KELLY: dict[str, dict] = {
+    "m_psg_bayern": {"home": 0.92, "draw": 0.88, "away": 1.05},
+}
+
+# 必发数据
+BETFAIR: dict[str, dict] = {
+    "m_psg_bayern": {"home_pct": 42.5, "draw_pct": 28.0, "away_pct": 29.5, "volume": 1250000},
+}
+
+# 阵容
+MATCH_LINEUP: dict[str, dict] = {
+    "m_psg_bayern": {
+        "home_formation": "4-3-3",
+        "away_formation": "4-2-3-1",
+        "home_xi": ["多纳鲁马", "阿什拉夫", "马尔基尼奥斯", "卢卡斯", "门德斯", "维蒂尼亚", "法比安", "李刚仁", "登贝莱", "姆巴佩", "巴尔科拉"],
+        "away_xi": ["诺伊尔", "基米希", "于帕", "金玟哉", "戴维斯", "格雷茨卡", "莱默尔", "穆西亚拉", "萨内", "凯恩", "奥利塞"],
+        "status": "predicted",
+    },
+}
+
+# 伤停
+INJURY_REPORT: dict[str, dict] = {
+    "m_psg_bayern": {
+        "home": [{"player": "什克里尼亚尔", "status": "伤缺", "reason": "腿筋"}],
+        "away": [{"player": "格纳布里", "status": "伤缺", "reason": "膝盖"}, {"player": "博伊", "status": "停赛", "reason": "累积黄牌"}],
+    },
+}
+
+# 情报标签
+INTEL_TAGS: dict[str, list[dict]] = {
+    "m_psg_bayern": [
+        {"tag": "主场优势", "weight": "high", "detail": "巴黎近5个欧冠主场4胜1平"},
+        {"tag": "核心复出", "weight": "medium", "detail": "姆巴佩预计首发"},
+        {"tag": "体能隐忧", "weight": "medium", "detail": "拜仁上轮联赛轮换有限"},
+    ],
+}
+
 DEFAULT_FRESHNESS = "mock_static"
