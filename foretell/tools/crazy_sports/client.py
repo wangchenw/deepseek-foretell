@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from config.settings import get_settings
 from foretell.tools.crazy_sports.mock_data import (
@@ -29,6 +29,7 @@ from foretell.tools.crazy_sports.mock_data import (
     TEAMS,
 )
 from foretell.tools.status_codes import PlayType
+from foretell.tools.crazy_sports.team_resolve import pick_best_team, team_matches_query
 
 
 def _normalize_name(name: str) -> str:
@@ -83,7 +84,13 @@ class CrazySportsClient(Protocol):
     ) -> list[dict]:
         """按日期返回赛程列表。"""
 
-    def get_team_schedule(self, team_id: str, limit: int = 5) -> list[dict]:
+    def get_team_schedule(
+        self,
+        team_id: str,
+        limit: int = 5,
+        league_id: str | None = None,
+        direction: Literal["upcoming", "recent", "all"] = "recent",
+    ) -> list[dict]:
         """返回球队近期/未来赛程。"""
 
     def get_lottery_schedule(
@@ -202,10 +209,12 @@ class MockCrazySportsClient:
         return result
 
     def resolve_team(self, name: str) -> dict | None:
-        for team in TEAMS.values():
-            if _match_team_name(name, team):
-                return dict(team)
-        return None
+        candidates = [
+            dict(team)
+            for team in TEAMS.values()
+            if team_matches_query(name, team)
+        ]
+        return pick_best_team(name, candidates)
 
     def resolve_league(self, name: str) -> dict | None:
         for league in LEAGUES.values():
@@ -232,9 +241,31 @@ class MockCrazySportsClient:
             results.append(dict(match))
         return results
 
-    def get_team_schedule(self, team_id: str, limit: int = 5) -> list[dict]:
-        match_ids = TEAM_SCHEDULE.get(team_id, [])[:limit]
-        return [dict(MATCHES[mid]) for mid in match_ids]
+    def get_team_schedule(
+        self,
+        team_id: str,
+        limit: int = 5,
+        league_id: str | None = None,
+        direction: Literal["upcoming", "recent", "all"] = "recent",
+    ) -> list[dict]:
+        matches = []
+        for match in MATCHES.values():
+            if match["home_team_id"] != team_id and match["away_team_id"] != team_id:
+                continue
+            if league_id is not None and match.get("league_id") != league_id:
+                continue
+            matches.append(match)
+
+        if direction == "upcoming":
+            matches = [m for m in matches if m.get("status") == "scheduled"]
+            matches.sort(key=lambda m: m.get("date", ""))
+        elif direction == "recent":
+            matches = [m for m in matches if m.get("status") == "finished"]
+            matches.sort(key=lambda m: m.get("date", ""), reverse=True)
+        else:
+            matches.sort(key=lambda m: m.get("date", ""), reverse=True)
+
+        return [dict(m) for m in matches[:limit]]
 
     def get_lottery_schedule(
         self,
@@ -314,12 +345,14 @@ class MockCrazySportsClient:
 
 
 def get_crazy_sports_client() -> CrazySportsClient:
-    """根据配置返回疯狂体育客户端实例。
-
-    当前仅实现 Mock；真实 API 客户端在 Phase 4 接入。
-    """
+    """根据配置返回疯狂体育客户端实例。"""
     settings = get_settings()
-    if settings.crazy_sports_api_base and settings.crazy_sports_api_key:
-        # Phase 4: 返回真实客户端
-        pass
+    if settings.crazy_sports_data_source == "mysql":
+        if not settings.mysql_configured:
+            raise ValueError(
+                "CRAZY_SPORTS_DATA_SOURCE=mysql 时需配置 MYSQL_HOST/USER/PASSWORD/DATABASE"
+            )
+        from foretell.tools.crazy_sports.mysql_client import MySQLCrazySportsClient
+
+        return MySQLCrazySportsClient()
     return MockCrazySportsClient()

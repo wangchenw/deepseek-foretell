@@ -72,6 +72,21 @@ def test_resolve_team() -> None:
     assert result["data"]["team_id"] == "t_liverpool"
 
 
+def test_resolve_team_portugal_national_team() -> None:
+    result = _parse(resolve_team.invoke({"name": "葡萄牙"}))
+    assert result["code"] == "OK"
+    assert result["data"]["team_id"] == "t_portugal_nt"
+    assert result["data"]["national"] == 1
+    assert result["meta"]["is_national"] is True
+
+
+def test_resolve_team_portugal_sporting_club() -> None:
+    result = _parse(resolve_team.invoke({"name": "葡萄牙体育"}))
+    assert result["code"] == "OK"
+    assert result["data"]["team_id"] == "t_portugal_sporting"
+    assert result["data"]["national"] == 0
+
+
 def test_resolve_league() -> None:
     result = _parse(resolve_league.invoke({"name": "欧冠"}))
     assert result["code"] == "OK"
@@ -98,7 +113,9 @@ def test_get_schedule_by_date_empty() -> None:
 
 
 def test_get_team_schedule() -> None:
-    result = _parse(get_team_schedule.invoke({"team_id": "t_liverpool"}))
+    result = _parse(
+        get_team_schedule.invoke({"team_id": "t_liverpool", "direction": "all"})
+    )
     assert result["code"] == "OK"
     assert result["data"]["count"] == 1
 

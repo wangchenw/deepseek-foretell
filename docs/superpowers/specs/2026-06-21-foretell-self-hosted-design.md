@@ -127,7 +127,9 @@ backend=lambda rt: StateBackend(rt)
 CompositeBackend(default=StateBackend(rt), routes={"/memories/": StoreBackend(rt)})
 ```
 
-Skills：开发环境只读挂载 `foretell/skills/`。**生产禁止** `FilesystemBackend` 作为 default。
+Skills：开发/生产均通过 `CompositeBackend` 将 `/skills/` 路由到只读 `FilesystemBackend(foretell/skills)`（非 default 层，不越权读盘）。`skills=` 使用虚拟路径 `["/skills/"]`。
+
+**MySQL 约定：** `football_match.match_time` 为 Unix 时间戳（`int`），比较须用 `UNIX_TIMESTAMP`，禁止 `DATE(match_time)`。
 
 ---
 
@@ -206,7 +208,7 @@ JWT / Session 解析出 `user_id`，不信任客户端传入的 `user_id` 字段
 ### 6.2 主智能体职责
 
 1. 理解意图，加载对应 Skill（A–H）
-2. 决定是否调用 `entity-resolver` 子智能体
+2. 决定是否调用 `entity-resolver` 子智能体（消歧、对阵、竞彩编号、G7、球队+赛事过滤）；简单单队赛程主智能体直达
 3. 选择轻量 / 深度 / 批量路径
 4. 委派维度子智能体（深度路径），收集各 `task` 返回的结构化 JSON
 5. 按场景 Skill 模板归纳输出
@@ -216,7 +218,7 @@ JWT / Session 解析出 `user_id`，不信任客户端传入的 `user_id` 字段
 
 | 名称 | 工具 | 输出 |
 |------|------|------|
-| `entity-resolver` | `resolve_*` | `match_id`、定位证据 |
+| `entity-resolver` | `resolve_*`、`get_team_schedule` | `match_id`、定位证据、实体链赛程 JSON |
 | `fundamentals-analyst` | 积分、近况、交锋、球员 | 结构化统计 JSON |
 | `odds-analyst` | 欧赔、亚盘、大小球、走势、同赔 | 结构化统计 JSON |
 | `intel-analyst` | 阵容、伤停、情报 | 结构化统计 JSON |

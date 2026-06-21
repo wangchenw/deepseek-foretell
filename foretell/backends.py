@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from deepagents.backends import StateBackend
+from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 
-from config.settings import get_settings
+from config.settings import FORETELL_SKILLS_DIR, get_settings
 
 if TYPE_CHECKING:
     from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -65,6 +65,14 @@ def create_store(deploy_env: str | None = None) -> BaseStore | None:
     raise ValueError(f"未知 DEPLOY_ENV: {env!r}")
 
 
-def create_agent_backend(runtime: Any):
-    """创建 Agent Harness Backend。Phase 0 统一使用 StateBackend。"""
-    return StateBackend(runtime)
+def create_agent_backend(runtime: Any = None):
+    """创建 Agent Harness Backend：State 默认层 + 只读 Skills 路由。"""
+    return CompositeBackend(
+        default=StateBackend(),
+        routes={
+            "/skills/": FilesystemBackend(
+                root_dir=str(FORETELL_SKILLS_DIR),
+                virtual_mode=True,
+            ),
+        },
+    )

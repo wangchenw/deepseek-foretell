@@ -61,6 +61,23 @@ TEAMS: dict[str, dict] = {
         "name_en": "Oklahoma City Thunder",
         "sport": "basketball",
         "aliases": ["俄克拉荷马雷霆"],
+        "national": 0,
+    },
+    "t_portugal_nt": {
+        "team_id": "t_portugal_nt",
+        "name": "葡萄牙",
+        "name_en": "Portugal",
+        "sport": "football",
+        "aliases": ["葡萄牙国家队"],
+        "national": 1,
+    },
+    "t_portugal_sporting": {
+        "team_id": "t_portugal_sporting",
+        "name": "葡萄牙体育",
+        "name_en": "Sporting CP",
+        "sport": "football",
+        "aliases": ["葡萄牙体育俱乐部"],
+        "national": 0,
     },
 }
 
@@ -86,6 +103,13 @@ LEAGUES: dict[str, dict] = {
         "name_en": "Premier League",
         "sport": "football",
         "aliases": ["英格兰超级联赛"],
+    },
+    "l_world_cup": {
+        "league_id": "l_world_cup",
+        "name": "世界杯",
+        "name_en": "FIFA World Cup",
+        "sport": "football",
+        "aliases": ["国际足联世界杯"],
     },
 }
 
@@ -155,6 +179,21 @@ MATCHES: dict[str, dict] = {
         "sport": "basketball",
         "series_game": 7,
         "status": "scheduled",
+        "match_time_beijing": "2026-06-18 20:00:00",
+    },
+    "m_portugal_wc": {
+        "match_id": "m_portugal_wc",
+        "home_team_id": "t_portugal_nt",
+        "away_team_id": "t_bayern",
+        "home_name": "葡萄牙",
+        "away_name": "拜仁",
+        "date": "2026-07-01",
+        "league_id": "l_world_cup",
+        "league_name": "世界杯",
+        "sport": "football",
+        "series_game": None,
+        "status": "scheduled",
+        "match_time_beijing": "2026-07-01 03:00:00",
     },
 }
 
@@ -202,6 +241,7 @@ TEAM_SCHEDULE: dict[str, list[str]] = {
     "t_liverpool": ["m_liverpool_tottenham"],
     "t_psg": ["m_psg_bayern"],
     "t_spurs": ["m_spurs_thunder_g6", "m_spurs_thunder_g7"],
+    "t_portugal_nt": ["m_portugal_wc"],
 }
 
 # 十四场 / 任九期号样本（26061 期，4 场用于批量初筛测试）

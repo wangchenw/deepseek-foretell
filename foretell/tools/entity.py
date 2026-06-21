@@ -117,11 +117,19 @@ def resolve_team(name: str) -> str:
             meta=_default_meta(client),
         )
 
+    meta = _default_meta(client)
+    if "national" in result:
+        meta["is_national"] = bool(result.get("national"))
+    if result.get("_disambiguation_note"):
+        meta["disambiguation_note"] = result["_disambiguation_note"]
+
+    data = {k: v for k, v in result.items() if not k.startswith("_")}
+
     return make_envelope(
         StatusCode.OK,
         "team_entity",
-        result,
-        meta=_default_meta(client),
+        data,
+        meta=meta,
     )
 
 

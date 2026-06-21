@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from config.settings import FORETELL_SKILLS_DIR
 from foretell.tools.deep import get_injury_report, get_intel_tags, get_match_lineup
 from foretell.tools.entity import (
     resolve_league,
@@ -17,16 +16,18 @@ from foretell.tools.odds import (
     get_odds_trend,
     get_same_odds_history,
 )
+from foretell.tools.schedule import get_team_schedule
 from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
 
-_STATUS_SKILL = str(FORETELL_SKILLS_DIR / "foretell-status-dictionary")
-_ENTITY_SKILL = str(FORETELL_SKILLS_DIR / "foretell-entity-resolution")
-
+_STATUS_SKILL = "/skills/foretell-status-dictionary/"
+_ENTITY_SKILL = "/skills/foretell-entity-resolution/"
+  
 ENTITY_RESOLVER_TOOLS = [
     resolve_match,
     resolve_lottery_match,
     resolve_team,
     resolve_league,
+    get_team_schedule,
 ]
 
 FUNDAMENTALS_TOOLS = [
@@ -91,12 +92,14 @@ def get_subagents() -> list[dict]:
             "name": "entity-resolver",
             "description": (
                 "定位比赛、球队、联赛实体，返回 match_id 与定位证据。"
-                "当用户提及具体对阵、竞彩编号或需先确认对象时使用。"
+                "当用户提及具体对阵、竞彩编号、球队+赛事+下一场赛程，或需消歧（如葡萄牙国家队）时使用。"
             ),
             "system_prompt": (
                 "你是 Foretell 实体定位专家。按 foretell-entity-resolution Skill 执行："
                 "先定位再查询；保留 G7 等系列赛约束；未找到时如实报告。"
-                "完成后返回 JSON：dimension=entity, match_id, stats（含定位证据）, "
+                "处理「某队+某赛事+下一场」时：resolve_team → resolve_league（若提及赛事）"
+                "→ get_team_schedule(direction=upcoming)。"
+                "完成后返回 JSON：dimension=entity, match_id（若有）, stats（含定位证据与赛程摘要）, "
                 "status_map, insights。"
             ),
             "tools": ENTITY_RESOLVER_TOOLS,

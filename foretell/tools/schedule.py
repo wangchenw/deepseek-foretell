@@ -50,28 +50,51 @@ def get_schedule_by_date(
 
 
 @tool
-def get_team_schedule(team_id: str, limit: int = 5) -> str:
+def get_team_schedule(
+    team_id: str,
+    limit: int = 5,
+    league_id: str | None = None,
+    direction: Literal["upcoming", "recent", "all"] = "recent",
+) -> str:
     """查询球队近期或未来赛程。
 
     Args:
         team_id: 球队 ID，须先通过 resolve_team 获取。
         limit: 返回场次数量上限，默认 5。
+        league_id: 赛事 ID 过滤，格式 fc_<id>（可选）。
+        direction: upcoming=下一场/未来，recent=最近已结束，all=全部按时间倒序。
     """
     client = get_crazy_sports_client()
-    results = client.get_team_schedule(team_id, limit=limit)
+    results = client.get_team_schedule(
+        team_id,
+        limit=limit,
+        league_id=league_id,
+        direction=direction,
+    )
 
     if not results:
         return make_envelope(
             StatusCode.DATA_MISSING,
             "team_schedule",
-            {"team_id": team_id, "matches": []},
+            {
+                "team_id": team_id,
+                "league_id": league_id,
+                "direction": direction,
+                "matches": [],
+            },
             meta=_default_meta(client),
         )
 
     return make_envelope(
         StatusCode.OK,
         "team_schedule",
-        {"team_id": team_id, "matches": results, "count": len(results)},
+        {
+            "team_id": team_id,
+            "league_id": league_id,
+            "direction": direction,
+            "matches": results,
+            "count": len(results),
+        },
         meta=_default_meta(client),
     )
 

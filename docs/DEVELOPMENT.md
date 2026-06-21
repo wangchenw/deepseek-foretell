@@ -40,7 +40,7 @@ scope: agent | tools | api | skills | config
 ```
 foretell/
   agent.py          # create_foretell_agent
-  backends.py       # StateBackend / Postgres 工厂
+  backends.py       # CompositeBackend + Skills 只读路由
   prompts.py
   subagents/        # 子智能体定义
   tools/            # DB Tool + envelope
@@ -57,6 +57,24 @@ docs/superpowers/
   specs/
   plans/
 ```
+
+## 疯狂体育 MySQL（data_center）
+
+`.env` 配置（**勿提交 `.env`**）：
+
+```bash
+CRAZY_SPORTS_DATA_SOURCE=mysql
+MYSQL_HOST=your-host
+MYSQL_PORT=33306
+MYSQL_USER=...
+MYSQL_PASSWORD=...
+MYSQL_DATABASE=data_center
+```
+
+- `mock`：离线 Mock 样本（pytest 默认）
+- `mysql`：读取 `data_center` 库（`football_*`、`lottery_jczq_*` 等表）
+
+探针：`uv run python scripts/probe_mysql.py`
 
 ## 本地命令
 
@@ -86,6 +104,17 @@ export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 
 开发环境无需 Postgres；会话态使用内存 Checkpointer。
 
+## Skills Backend（Phase 5）
+
+`SkillsMiddleware` 通过 Backend 虚拟路径加载 `foretell/skills/`，**不能**传磁盘绝对路径。
+
+- `create_agent_backend()`：`CompositeBackend`，`default=StateBackend()`，`/skills/` → `FilesystemBackend(root_dir=foretell/skills, virtual_mode=True)`
+- `create_foretell_agent`：`skills=["/skills/"]`
+- 子智能体 `skills`：POSIX 路径，如 `/skills/foretell-entity-resolution/`
+- MySQL `football_match.match_time` 为 Unix `int`；赛程查询用 `UNIX_TIMESTAMP`，勿用 `DATE(match_time)`
+
+验收：`uv run pytest tests/integration/test_skills_loading.py -v`
+
 ## Phase 里程碑
 
 - **Phase 0**：config、backend 工厂、FastAPI 骨架、agent 重构（StateBackend）
@@ -93,3 +122,4 @@ export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 - **Phase 2**：子智能体 + 场景 B/G
 - **Phase 3**：场景 C/D/E/F/H
 - **Phase 4**：Postgres 生产、SSE 流式、LangSmith 评估
+- **Phase 5**：Tool 消歧与 `match_time` 修复、Skills Backend、entity-resolver 赛程链、场景 A 路由

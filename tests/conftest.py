@@ -8,8 +8,9 @@ from config.settings import get_settings
 
 
 @pytest.fixture(autouse=True)
-def _reset_settings_cache() -> None:
-    """Isolate settings singleton between tests."""
+def _reset_settings_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate settings singleton; tests always use mock data source."""
+    monkeypatch.setenv("CRAZY_SPORTS_DATA_SOURCE", "mock")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
