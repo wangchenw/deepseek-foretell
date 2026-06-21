@@ -7,7 +7,7 @@ def get_user_id(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     authorization: str | None = Header(default=None),
 ) -> str:
-    """解析请求中的 user_id。dev 环境使用 X-User-Id；prod 预留 JWT 解析入口。"""
+    """解析请求中的 user_id。dev 环境使用 X-User-Id；prod 仅接受 JWT（Phase 4 实现）。"""
     settings = get_settings()
 
     if settings.is_dev:
@@ -18,17 +18,13 @@ def get_user_id(
             )
         return x_user_id.strip()
 
-    if x_user_id and x_user_id.strip():
-        return x_user_id.strip()
-
     if authorization and authorization.startswith("Bearer "):
-        # Phase 4：接入 JWT 校验；当前为 stub，拒绝未实现路径
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="生产 JWT 鉴权尚未实现，请使用 X-User-Id（仅开发）",
+            detail="生产 JWT 鉴权尚未实现",
         )
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="未提供有效鉴权信息",
+        detail="生产环境需提供有效 JWT，不可使用 X-User-Id",
     )
