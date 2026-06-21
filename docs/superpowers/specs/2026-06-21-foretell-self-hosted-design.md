@@ -1,6 +1,6 @@
 # Foretell 体育赛事智能助手 — 自托管架构设计 Spec
 
-> 状态：已批准 · 持久化以 Checkpointer 为主（2026-06-21 修订）  
+> 状态：已实现（Phase 0–4，81 tests）  
 > 日期：2026-06-21  
 > 部署形态：**自托管（Postgres + 自建 API）**  
 > 产品依据：`Foretell产品.md`

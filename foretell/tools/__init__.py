@@ -18,7 +18,6 @@ from foretell.tools.schedule import (
     get_schedule_by_date,
     get_team_schedule,
 )
-from foretell.tools.search import internet_search
 from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
 
 ENTITY_TOOLS = [
@@ -60,7 +59,7 @@ REVIEW_TOOLS = [
 ]
 
 FORETELL_TOOLS = (
-    ENTITY_TOOLS + SCHEDULE_TOOLS + STATS_TOOLS + ODDS_TOOLS + DEEP_TOOLS + REVIEW_TOOLS + [internet_search]
+    ENTITY_TOOLS + SCHEDULE_TOOLS + STATS_TOOLS + ODDS_TOOLS + DEEP_TOOLS + REVIEW_TOOLS
 )
 
 

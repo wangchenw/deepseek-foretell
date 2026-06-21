@@ -1,3 +1,5 @@
+"""互联网搜索工具（Tavily）。默认未注册到主智能体；仅在结构化 DB 无法覆盖时作 fallback 手动接入。"""
+
 import json
 import os
 from typing import Literal

@@ -67,10 +67,29 @@ uv run python main.py "今晚 NBA 有什么"
 uv run uvicorn api.main:app --reload
 ```
 
+## 生产环境（Postgres）
+
+生产部署需安装可选依赖组 `prod`，并设置 `DEPLOY_ENV=prod` 与 `DATABASE_URL`。
+
+```bash
+uv sync --extra prod
+export DEPLOY_ENV=prod
+export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
+```
+
+首次部署时，Checkpointer 与 Store 会调用 `setup()` 创建表结构（见 `foretell/backends.py`）。建议在 CI/CD 迁移脚本中单独执行一次，避免应用启动时重复建表。
+
+| 变量 | 说明 |
+|------|------|
+| `DEPLOY_ENV` | `dev`（MemorySaver）或 `prod`（PostgresSaver） |
+| `DATABASE_URL` | PostgreSQL 连接串；`prod` 必填 |
+
+开发环境无需 Postgres；会话态使用内存 Checkpointer。
+
 ## Phase 里程碑
 
 - **Phase 0**：config、backend 工厂、FastAPI 骨架、agent 重构（StateBackend）
 - **Phase 1**：status_codes、Mock DB Tools、实体 Skill、场景 A
 - **Phase 2**：子智能体 + 场景 B/G
 - **Phase 3**：场景 C/D/E/F/H
-- **Phase 4**：Postgres 生产、SSE、LangSmith 评估
+- **Phase 4**：Postgres 生产、SSE 流式、LangSmith 评估
