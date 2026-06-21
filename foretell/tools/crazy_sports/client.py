@@ -17,6 +17,7 @@ from foretell.tools.crazy_sports.mock_data import (
     LOTTERY_SCHEDULE,
     MATCHES,
     MATCH_LINEUP,
+    MATCH_RESULTS,
     ODDS_SNAPSHOT,
     ODDS_TREND,
     RECENT_FORM,
@@ -134,6 +135,12 @@ class CrazySportsClient(Protocol):
     def get_intel_tags(self, match_id: str) -> list[dict]:
         """返回情报标签。"""
 
+    def get_match_by_id(self, match_id: str) -> dict | None:
+        """按 ID 返回比赛基础信息。"""
+
+    def get_match_result(self, match_id: str) -> dict | None:
+        """返回已完场比赛的赛果与复盘数据。"""
+
     @property
     def freshness(self) -> str:
         """数据新鲜度标识。"""
@@ -235,6 +242,11 @@ class MockCrazySportsClient:
         date: str | None = None,
         period: str | None = None,
     ) -> list[dict]:
+        if period is not None:
+            key = f"{play_type.value}:{period}"
+            entries = LOTTERY_SCHEDULE.get(key, [])
+            if entries:
+                return [dict(e) for e in entries]
         if date is None:
             date = "2026-06-21"
         key = f"{play_type.value}:{date}"
@@ -291,6 +303,14 @@ class MockCrazySportsClient:
 
     def get_intel_tags(self, match_id: str) -> list[dict]:
         return [dict(t) for t in INTEL_TAGS.get(match_id, [])]
+
+    def get_match_by_id(self, match_id: str) -> dict | None:
+        match = MATCHES.get(match_id)
+        return dict(match) if match else None
+
+    def get_match_result(self, match_id: str) -> dict | None:
+        result = MATCH_RESULTS.get(match_id)
+        return dict(result) if result else None
 
 
 def get_crazy_sports_client() -> CrazySportsClient:

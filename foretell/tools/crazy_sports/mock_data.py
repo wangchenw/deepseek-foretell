@@ -204,17 +204,63 @@ TEAM_SCHEDULE: dict[str, list[str]] = {
     "t_spurs": ["m_spurs_thunder_g6", "m_spurs_thunder_g7"],
 }
 
-# 彩票开售场次
+# 十四场 / 任九期号样本（26061 期，4 场用于批量初筛测试）
+FOURTEEN_PERIOD = "26061"
+FOURTEEN_ENTRIES: list[dict] = [
+    {
+        "lottery_code": "第1场",
+        "play_type": PlayType.FOURTEEN_MATCHES.value,
+        "period": FOURTEEN_PERIOD,
+        "match_id": "m_liverpool_tottenham",
+        "date": "2026-06-21",
+        "league_name": "英超",
+        "home_name": "利物浦",
+        "away_name": "热刺",
+    },
+    {
+        "lottery_code": "第2场",
+        "play_type": PlayType.FOURTEEN_MATCHES.value,
+        "period": FOURTEEN_PERIOD,
+        "match_id": "m_psg_bayern",
+        "date": "2026-04-29",
+        "league_name": "欧冠",
+        "home_name": "巴黎圣曼",
+        "away_name": "拜仁",
+    },
+    {
+        "lottery_code": "第3场",
+        "play_type": PlayType.FOURTEEN_MATCHES.value,
+        "period": FOURTEEN_PERIOD,
+        "match_id": "m_lakers_warriors",
+        "date": "2026-06-21",
+        "league_name": "NBA",
+        "home_name": "湖人",
+        "away_name": "勇士",
+    },
+    {
+        "lottery_code": "第4场",
+        "play_type": PlayType.FOURTEEN_MATCHES.value,
+        "period": FOURTEEN_PERIOD,
+        "match_id": "m_spurs_thunder_g6",
+        "date": "2026-06-15",
+        "league_name": "NBA",
+        "home_name": "马刺",
+        "away_name": "雷霆",
+    },
+]
+
+# 彩票开售场次（键：玩法:日期 或 玩法:期号）
 LOTTERY_SCHEDULE: dict[str, list[dict]] = {
-  f"{PlayType.JINGCAI_FOOTBALL.value}:2026-06-21": [
-      LOTTERY_MATCHES[f"{PlayType.JINGCAI_FOOTBALL.value}:周二001"],
-  ],
-  f"{PlayType.JINGCAI_FOOTBALL.value}:2026-04-29": [
-      LOTTERY_MATCHES[f"{PlayType.JINGCAI_FOOTBALL.value}:周二004"],
-  ],
-  f"{PlayType.JINGCAI_BASKETBALL.value}:2026-06-21": [
-      LOTTERY_MATCHES[f"{PlayType.JINGCAI_BASKETBALL.value}:周一305"],
-  ],
+    f"{PlayType.JINGCAI_FOOTBALL.value}:2026-06-21": [
+        LOTTERY_MATCHES[f"{PlayType.JINGCAI_FOOTBALL.value}:周二001"],
+    ],
+    f"{PlayType.JINGCAI_FOOTBALL.value}:2026-04-29": [
+        LOTTERY_MATCHES[f"{PlayType.JINGCAI_FOOTBALL.value}:周二004"],
+    ],
+    f"{PlayType.JINGCAI_BASKETBALL.value}:2026-06-21": [
+        LOTTERY_MATCHES[f"{PlayType.JINGCAI_BASKETBALL.value}:周一305"],
+    ],
+    f"{PlayType.FOURTEEN_MATCHES.value}:{FOURTEEN_PERIOD}": FOURTEEN_ENTRIES,
 }
 
 # 积分榜
@@ -303,6 +349,11 @@ ODDS_SNAPSHOT: dict[str, dict] = {
         "spread": {"line": -2.5, "line_cn": "湖人让2.5分", "home_water": 0.91, "away_water": 0.99},
         "total": {"line": 224.5, "over": 0.93, "under": 0.97},
     },
+    "m_spurs_thunder_g6": {
+        "moneyline": {"home": 1.72, "away": 2.18},
+        "spread": {"line": -3.5, "line_cn": "马刺让3.5分", "home_water": 0.90, "away_water": 1.00},
+        "total": {"line": 218.5, "over": 0.92, "under": 0.98},
+    },
 }
 
 # 赔率走势
@@ -357,6 +408,45 @@ INTEL_TAGS: dict[str, list[dict]] = {
         {"tag": "核心复出", "weight": "medium", "detail": "姆巴佩预计首发"},
         {"tag": "体能隐忧", "weight": "medium", "detail": "拜仁上轮联赛轮换有限"},
     ],
+}
+
+# 完场赛果与复盘数据
+MATCH_RESULTS: dict[str, dict] = {
+    "m_spurs_thunder_g6": {
+        "match_id": "m_spurs_thunder_g6",
+        "status": "finished",
+        "final_score": {"home": 118, "away": 112},
+        "score_display": "118-112",
+        "winner": "home",
+        "period_scores": [
+            {"period": "Q1", "home": 28, "away": 30},
+            {"period": "Q2", "home": 32, "away": 26},
+            {"period": "Q3", "home": 31, "away": 28},
+            {"period": "Q4", "home": 27, "away": 24},
+        ],
+        "stats": {
+            "home_fg_pct": 0.48,
+            "away_fg_pct": 0.44,
+            "home_rebounds": 45,
+            "away_rebounds": 41,
+            "home_assists": 26,
+            "away_assists": 22,
+        },
+        "key_events": [
+            {
+                "time": "Q3 05:32",
+                "type": "三分球",
+                "player": "文班亚马",
+                "detail": "三分命中反超比分",
+            },
+            {
+                "time": "Q4 02:15",
+                "type": "关键防守",
+                "player": "文班亚马",
+                "detail": "封盖亚历山大上篮稳住领先",
+            },
+        ],
+    },
 }
 
 DEFAULT_FRESHNESS = "mock_static"

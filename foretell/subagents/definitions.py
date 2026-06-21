@@ -50,6 +50,28 @@ INTEL_TOOLS = [
     get_intel_tags,
 ]
 
+SCREENING_TOOLS = [
+    get_recent_form,
+    get_odds_snapshot,
+]
+
+_SCREENING_JSON_OUTPUT = """
+返回 JSON 对象（不要 markdown 代码块），结构：
+{
+  "dimension": "screening",
+  "match_id": "<比赛ID>",
+  "stats": {
+    "preliminary_direction": "<初筛方向，如主胜/客不败/大球>",
+    "confidence": "<高|中|低>",
+    "form_summary": "<近况一句话>",
+    "odds_summary": "<盘口一句话>"
+  },
+  "status_map": {"recent_form": "<OK|DATA_MISSING|...>", "odds_snapshot": "<OK|SKIP_MATCH|...>"},
+  "insights": ["简短初筛洞察（非最终推荐）"]
+}
+注意：初筛产出仅供候选筛选，不能直接作为对用户最终推荐词。
+"""
+
 _SUBAGENT_JSON_OUTPUT = """
 返回 JSON 对象（不要 markdown 代码块），结构：
 {
@@ -120,6 +142,21 @@ def get_subagents() -> list[dict]:
                 f"{_SUBAGENT_JSON_OUTPUT.replace('fundamentals|odds|intel|entity', 'intel')}"
             ),
             "tools": INTEL_TOOLS,
+            "skills": [_STATUS_SKILL],
+        },
+        {
+            "name": "screening-agent",
+            "description": (
+                "批量初筛专用：基于近况与盘口快照快速打分，产出初筛方向与置信度。"
+                "用于扫盘、串关、十四场/任九等场景 E，不作为最终推荐。"
+            ),
+            "system_prompt": (
+                "你是 Foretell 批量初筛分析师。根据指令中的 match_id 与主客队 team_id，"
+                "调用近况与盘口快照工具，快速评估并返回初筛 JSON。"
+                "欧赔+亚盘均缺失时在 status_map 标注 SKIP_MATCH。"
+                f"{_SCREENING_JSON_OUTPUT}"
+            ),
+            "tools": SCREENING_TOOLS,
             "skills": [_STATUS_SKILL],
         },
     ]

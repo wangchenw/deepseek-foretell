@@ -1,4 +1,5 @@
 from foretell.tools.deep import get_injury_report, get_intel_tags, get_match_lineup
+from foretell.tools.review import get_match_result
 from foretell.tools.entity import (
     resolve_league,
     resolve_lottery_match,
@@ -54,8 +55,12 @@ DEEP_TOOLS = [
     get_intel_tags,
 ]
 
+REVIEW_TOOLS = [
+    get_match_result,
+]
+
 FORETELL_TOOLS = (
-    ENTITY_TOOLS + SCHEDULE_TOOLS + STATS_TOOLS + ODDS_TOOLS + DEEP_TOOLS + [internet_search]
+    ENTITY_TOOLS + SCHEDULE_TOOLS + STATS_TOOLS + ODDS_TOOLS + DEEP_TOOLS + REVIEW_TOOLS + [internet_search]
 )
 
 

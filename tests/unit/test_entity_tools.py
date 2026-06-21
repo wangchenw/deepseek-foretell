@@ -107,3 +107,9 @@ def test_get_lottery_schedule() -> None:
     result = _parse(get_lottery_schedule.invoke({"play_type": "101", "date": "2026-06-21"}))
     assert result["code"] == "OK"
     assert result["data"]["count"] == 1
+
+
+def test_get_lottery_schedule_fourteen_by_period() -> None:
+    result = _parse(get_lottery_schedule.invoke({"play_type": "401", "period": "26061"}))
+    assert result["code"] == "OK"
+    assert result["data"]["count"] == 4

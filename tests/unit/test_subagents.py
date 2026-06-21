@@ -11,6 +11,7 @@ def test_subagent_names() -> None:
         "fundamentals-analyst",
         "odds-analyst",
         "intel-analyst",
+        "screening-agent",
     }
 
 
