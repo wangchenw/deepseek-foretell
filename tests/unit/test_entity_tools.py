@@ -20,7 +20,9 @@ def _parse(result: str) -> dict:
 
 
 def test_resolve_match_found() -> None:
-    result = _parse(resolve_match.invoke({"home": "巴黎圣曼", "away": "拜仁", "date": "2026-04-29"}))
+    result = _parse(
+        resolve_match.invoke({"home": "巴黎圣曼", "away": "拜仁", "date": "2026-04-29"})
+    )
     assert result["code"] == "OK"
     assert result["dimension"] == "match_entity"
     assert result["match_id"] == "m_psg_bayern"
@@ -34,35 +36,27 @@ def test_resolve_match_not_found() -> None:
 
 
 def test_resolve_match_series_game_g7() -> None:
-    result = _parse(
-        resolve_match.invoke({"home": "马刺", "away": "雷霆", "series_game": 7})
-    )
+    result = _parse(resolve_match.invoke({"home": "马刺", "away": "雷霆", "series_game": 7}))
     assert result["code"] == "OK"
     assert result["match_id"] == "m_spurs_thunder_g7"
     assert result["data"]["series_game"] == 7
 
 
 def test_resolve_match_series_game_not_found() -> None:
-    result = _parse(
-        resolve_match.invoke({"home": "马刺", "away": "雷霆", "series_game": 99})
-    )
+    result = _parse(resolve_match.invoke({"home": "马刺", "away": "雷霆", "series_game": 99}))
     assert result["code"] == "NOT_APPLICABLE"
     assert "series_game" in result["data"]
 
 
 def test_resolve_lottery_match() -> None:
-    result = _parse(
-        resolve_lottery_match.invoke({"play_type": "101", "code": "周二004"})
-    )
+    result = _parse(resolve_lottery_match.invoke({"play_type": "101", "code": "周二004"}))
     assert result["code"] == "OK"
     assert result["match_id"] == "m_psg_bayern"
     assert result["data"]["lottery_code"] == "周二004"
 
 
 def test_resolve_lottery_match_not_found() -> None:
-    result = _parse(
-        resolve_lottery_match.invoke({"play_type": "101", "code": "周二999"})
-    )
+    result = _parse(resolve_lottery_match.invoke({"play_type": "101", "code": "周二999"}))
     assert result["code"] == "ENTITY_NOT_FOUND"
 
 
@@ -100,9 +94,7 @@ def test_get_schedule_by_date() -> None:
 
 
 def test_get_schedule_by_date_football_filter() -> None:
-    result = _parse(
-        get_schedule_by_date.invoke({"date": "2026-06-21", "sport": "football"})
-    )
+    result = _parse(get_schedule_by_date.invoke({"date": "2026-06-21", "sport": "football"}))
     assert result["code"] == "OK"
     assert result["data"]["count"] == 1
 
@@ -113,9 +105,7 @@ def test_get_schedule_by_date_empty() -> None:
 
 
 def test_get_team_schedule() -> None:
-    result = _parse(
-        get_team_schedule.invoke({"team_id": "t_liverpool", "direction": "all"})
-    )
+    result = _parse(get_team_schedule.invoke({"team_id": "t_liverpool", "direction": "all"}))
     assert result["code"] == "OK"
     assert result["data"]["count"] == 1
 

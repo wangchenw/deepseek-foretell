@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from deepagents.backends import CompositeBackend, FilesystemBackend, StateBackend
+from deepagents.backends import CompositeBackend, FilesystemBackend
 from langgraph.checkpoint.memory import MemorySaver
 
 from foretell.backends import create_agent_backend, create_checkpointer

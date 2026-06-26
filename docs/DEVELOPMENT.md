@@ -85,6 +85,33 @@ uv run python main.py "今晚 NBA 有什么"
 uv run uvicorn api.main:app --reload
 ```
 
+## 代码质量（ruff / mypy / pre-commit / CI）
+
+| 工具 | 作用 | 命令 |
+|------|------|------|
+| ruff | lint + 格式化 | `uv run ruff check` / `uv run ruff format --check` |
+| mypy | 类型检查（仅 `foretell/ api/ config/`，非严格） | `uv run mypy` |
+| pre-commit | 提交钩子（ruff + 基础卫生检查） | `uv run pre-commit run --all-files` |
+| CI | push/PR 全量跑 ruff/mypy/pytest | `.github/workflows/ci.yml` |
+
+配置位置：`pyproject.toml` 的 `[tool.ruff]`、`[tool.mypy]`；钩子定义：`.pre-commit-config.yaml`。
+
+```bash
+# 安装 dev 工具
+uv sync --extra dev
+
+# 首次启用提交钩子
+uv run pre-commit install
+
+# ruff 自动修复
+uv run ruff check --fix
+uv run ruff format
+```
+
+测试可离线运行：`conftest.py` autouse fixture 强制 `CRAZY_SPORTS_DATA_SOURCE=mock`，CI 仅需 `MINIMAX_API_KEY=test-key-for-pytest`（用于 agent 图编译测试，不发起网络请求）。
+
+
+
 ## 生产环境（Postgres）
 
 生产部署需安装可选依赖组 `prod`，并设置 `DEPLOY_ENV=prod` 与 `DATABASE_URL`。

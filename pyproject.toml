@@ -1,5 +1,5 @@
 [project]
-name = "learnlangchain"
+name = "foretell"
 version = "0.1.0"
 description = "Foretell — Deep Agents 深度研究与趋势研判智能体"
 readme = "README.md"
@@ -21,6 +21,10 @@ prod = [
     "langgraph-checkpoint-postgres>=2.0.0",
     "psycopg[binary,pool]>=3.2.0",
 ]
+dev = [
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -32,3 +36,29 @@ packages = ["config", "foretell", "api"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+# ---------- Lint (ruff) ----------
+# 源码已用现代语法（PEP 604 `str | None`）且导入分组规范，E/F/I/UP 规则集零改动起步。
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = [".venv", "frontend", ".cursor", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+# E501 行长交给 formatter 处理；UP 系列默认随 target-version py314 升级，保留全部。
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["foretell", "api", "config"]
+
+# ---------- Type check (mypy) ----------
+# 非严格起步，仅扫描核心代码。scripts/、tests/、deepagents/langchain 三方无 stub 的部分豁免。
+[tool.mypy]
+python_version = "3.14"
+files = ["foretell", "api", "config"]
+exclude = ["scripts/", "tests/", "\\.cursor/", "frontend/"]
+strict = false
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true

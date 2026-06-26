@@ -1,7 +1,6 @@
 """Phase 3 Skills 存在性与 frontmatter 单元测试。"""
 
 import re
-from pathlib import Path
 
 import pytest
 

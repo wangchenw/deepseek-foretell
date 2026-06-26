@@ -1,5 +1,4 @@
 from foretell.tools.deep import get_injury_report, get_intel_tags, get_match_lineup
-from foretell.tools.review import get_match_result
 from foretell.tools.entity import (
     resolve_league,
     resolve_lottery_match,
@@ -13,6 +12,7 @@ from foretell.tools.odds import (
     get_odds_trend,
     get_same_odds_history,
 )
+from foretell.tools.review import get_match_result
 from foretell.tools.schedule import (
     get_lottery_schedule,
     get_schedule_by_date,

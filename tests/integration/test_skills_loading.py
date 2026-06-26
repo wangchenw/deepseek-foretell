@@ -1,7 +1,6 @@
 """Skills 加载集成测试。"""
 
 import pytest
-
 from deepagents.middleware.skills import _list_skills_with_errors
 
 from foretell.backends import create_agent_backend

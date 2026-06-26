@@ -11,6 +11,21 @@ wheels/
 
 # Test / cache
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # Secrets
 .env
+
+# Frontend (Next.js / Node) — frontend/ 有独立 .gitignore，此处兜底防误提交 node_modules
+node_modules/
+.next/
+out/
+build/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE / OS
+.DS_Store
+Thumbs.db

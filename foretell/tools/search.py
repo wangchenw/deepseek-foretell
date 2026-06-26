@@ -11,9 +11,7 @@ from tavily import TavilyClient
 def _get_tavily_client() -> TavilyClient:
     api_key = os.environ.get("TAVILY_API_KEY")
     if not api_key:
-        raise ValueError(
-            "未设置 TAVILY_API_KEY。请在环境变量中配置，用于互联网搜索。"
-        )
+        raise ValueError("未设置 TAVILY_API_KEY。请在环境变量中配置，用于互联网搜索。")
     return TavilyClient(api_key=api_key)
 
 

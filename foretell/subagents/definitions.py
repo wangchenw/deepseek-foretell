@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from deepagents.middleware.subagents import SubAgent
+
 from foretell.tools.deep import get_injury_report, get_intel_tags, get_match_lineup
 from foretell.tools.entity import (
     resolve_league,
@@ -21,7 +23,7 @@ from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_te
 
 _STATUS_SKILL = "/skills/foretell-status-dictionary/"
 _ENTITY_SKILL = "/skills/foretell-entity-resolution/"
-  
+
 ENTITY_RESOLVER_TOOLS = [
     resolve_match,
     resolve_lottery_match,
@@ -85,7 +87,7 @@ _SUBAGENT_JSON_OUTPUT = """
 """
 
 
-def get_subagents() -> list[dict]:
+def get_subagents() -> list[SubAgent]:
     """返回 create_deep_agent(subagents=...) 所需的子智能体配置列表。"""
     return [
         {
@@ -108,8 +110,7 @@ def get_subagents() -> list[dict]:
         {
             "name": "fundamentals-analyst",
             "description": (
-                "分析积分排名、赛季统计、近期近况、历史交锋等基本面维度。"
-                "深度分析路径中并行调用。"
+                "分析积分排名、赛季统计、近期近况、历史交锋等基本面维度。深度分析路径中并行调用。"
             ),
             "system_prompt": (
                 "你是 Foretell 基本面分析师。根据指令中的 match_id 与球队 ID "
@@ -122,8 +123,7 @@ def get_subagents() -> list[dict]:
         {
             "name": "odds-analyst",
             "description": (
-                "分析欧赔、亚盘、大小球、走势、同赔、凯利、必发等盘口维度。"
-                "深度分析路径中并行调用。"
+                "分析欧赔、亚盘、大小球、走势、同赔、凯利、必发等盘口维度。深度分析路径中并行调用。"
             ),
             "system_prompt": (
                 "你是 Foretell 盘口分析师。根据 match_id 调用盘口工具。"
@@ -137,8 +137,7 @@ def get_subagents() -> list[dict]:
         {
             "name": "intel-analyst",
             "description": (
-                "分析预计阵容、伤停停赛、情报标签等深度情报维度。"
-                "深度分析路径中并行调用。"
+                "分析预计阵容、伤停停赛、情报标签等深度情报维度。深度分析路径中并行调用。"
             ),
             "system_prompt": (
                 "你是 Foretell 情报分析师。根据 match_id 调用阵容、伤停、情报工具。"

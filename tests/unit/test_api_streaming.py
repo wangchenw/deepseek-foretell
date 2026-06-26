@@ -62,12 +62,12 @@ def test_stream_returns_sse_events(client, dev_env, monkeypatch) -> None:
 
         body = response.read().decode()
 
-    assert 'event: thread' in body
+    assert "event: thread" in body
     assert '"thread_id"' in body
-    assert 'event: token' in body
+    assert "event: token" in body
     assert "你好" in body
     assert "世界" in body
-    assert 'event: done' in body
+    assert "event: done" in body
 
 
 def test_stream_uses_provided_thread_id(client, dev_env, monkeypatch) -> None:

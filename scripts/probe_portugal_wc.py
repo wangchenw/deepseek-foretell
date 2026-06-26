@@ -1,8 +1,9 @@
-from dotenv import load_dotenv
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-from foretell.tools.crazy_sports.db import mysql_connection
+from foretell.tools.crazy_sports.db import mysql_connection  # noqa: E402
 
 PT_ID = 13152
 

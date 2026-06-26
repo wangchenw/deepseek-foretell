@@ -1,9 +1,9 @@
 """Foretell Tool 层状态码与玩法枚举。"""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class StatusCode(str, Enum):
+class StatusCode(StrEnum):
     """Tool envelope 状态码，由 Tool 层判定，不由 LLM 猜测。"""
 
     OK = "OK"
@@ -14,7 +14,7 @@ class StatusCode(str, Enum):
     PARTIAL = "PARTIAL"
 
 
-class PlayType(str, Enum):
+class PlayType(StrEnum):
     """中国体育彩票玩法内部编码，与 Foretell 产品文档一致。"""
 
     JINGCAI_FOOTBALL = "101"  # 竞彩足球

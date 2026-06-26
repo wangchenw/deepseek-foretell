@@ -15,21 +15,20 @@ from foretell.tools.crazy_sports.mock_data import (
     LEAGUES,
     LOTTERY_MATCHES,
     LOTTERY_SCHEDULE,
-    MATCHES,
     MATCH_LINEUP,
     MATCH_RESULTS,
+    MATCHES,
     ODDS_SNAPSHOT,
     ODDS_TREND,
     RECENT_FORM,
     SAME_ODDS_HISTORY,
     SCHEDULE_BY_DATE,
     STANDINGS,
-    TEAM_SCHEDULE,
     TEAM_SEASON_STATS,
     TEAMS,
 )
-from foretell.tools.status_codes import PlayType
 from foretell.tools.crazy_sports.team_resolve import pick_best_team, team_matches_query
+from foretell.tools.status_codes import PlayType
 
 
 def _normalize_name(name: str) -> str:
@@ -209,11 +208,7 @@ class MockCrazySportsClient:
         return result
 
     def resolve_team(self, name: str) -> dict | None:
-        candidates = [
-            dict(team)
-            for team in TEAMS.values()
-            if team_matches_query(name, team)
-        ]
+        candidates = [dict(team) for team in TEAMS.values() if team_matches_query(name, team)]
         return pick_best_team(name, candidates)
 
     def resolve_league(self, name: str) -> dict | None:

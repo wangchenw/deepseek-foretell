@@ -33,7 +33,7 @@ def test_stream_agent_messages_yields_token_events() -> None:
     )
 
     joined = "".join(events)
-    assert 'event: thread' in joined
+    assert "event: thread" in joined
     assert '"content": "A"' in joined
     assert '"content": "B"' in joined
-    assert 'event: done' in joined
+    assert "event: done" in joined

@@ -28,7 +28,7 @@ def run_interactive(agent, user_id: str, thread_id: str) -> None:
     while True:
         try:
             question = input("你: ").strip()
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             print("\n再见。")
             break
 

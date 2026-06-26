@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from foretell.tools.crazy_sports.db import mysql_connection
+from foretell.tools.crazy_sports.team_resolve import pick_best_team
 from foretell.tools.lottery_code import format_jczq_code, parse_jczq_issue_num
 from foretell.tools.status_codes import PlayType
-from foretell.tools.crazy_sports.team_resolve import pick_best_team
 
 _FINISHED_STATUS_IDS = {8, 9, 10, 11, 12}
 
@@ -89,13 +89,12 @@ def _row_league(row: dict) -> dict:
     }
 
 
-
 class MySQLCrazySportsClient:
     """从 data_center MySQL 读取结构化体育数据。"""
 
     @property
     def freshness(self) -> str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def resolve_team(self, name: str) -> dict | None:
         sql = """
@@ -357,9 +356,7 @@ class MySQLCrazySportsClient:
     def get_team_season_stats(self, team_id: str) -> dict | None:
         return None
 
-    def get_recent_form(
-        self, team_id: str, venue: str | None = None, n: int = 5
-    ) -> list[dict]:
+    def get_recent_form(self, team_id: str, venue: str | None = None, n: int = 5) -> list[dict]:
         raw_id = team_id.replace("ft_", "")
         sql = """
             SELECT m.id, m.home_team_id, m.away_team_id, m.home_scores, m.away_scores,
@@ -538,7 +535,9 @@ class MySQLCrazySportsClient:
             "match_id": match_id,
             "home_scores": home_scores,
             "away_scores": away_scores,
-            "full_time": f"{home_scores[0]}-{away_scores[0]}" if home_scores and away_scores else "",
+            "full_time": f"{home_scores[0]}-{away_scores[0]}"
+            if home_scores and away_scores
+            else "",
             "match_time": row.get("match_time_str"),
             "status": "finished",
         }

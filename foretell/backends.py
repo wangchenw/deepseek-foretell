@@ -27,9 +27,7 @@ def create_checkpointer(deploy_env: str | None = None) -> BaseCheckpointSaver:
         try:
             from langgraph.checkpoint.postgres import PostgresSaver
         except ImportError as exc:
-            raise ImportError(
-                "生产 Checkpointer 需要安装 langgraph-checkpoint-postgres"
-            ) from exc
+            raise ImportError("生产 Checkpointer 需要安装 langgraph-checkpoint-postgres") from exc
 
         checkpointer = PostgresSaver.from_conn_string(settings.database_url)
         if hasattr(checkpointer, "setup"):
@@ -54,7 +52,7 @@ def create_store(deploy_env: str | None = None) -> BaseStore | None:
             from langgraph.store.postgres import PostgresStore
         except ImportError as exc:
             raise ImportError(
-                "生产 Store 需要安装 langgraph-store-postgres"
+                "生产 Store 需要安装 langgraph-checkpoint-postgres（PostgresStore 随该包提供）"
             ) from exc
 
         store = PostgresStore.from_conn_string(settings.database_url)

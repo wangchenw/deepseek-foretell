@@ -1,6 +1,7 @@
 import os
 
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from config.settings import DEFAULT_BASE_URL, DEFAULT_MODEL
 
@@ -20,6 +21,6 @@ def get_chat_model(
 
     return ChatOpenAI(
         model=model or DEFAULT_MODEL,
-        api_key=resolved_api_key,
+        api_key=SecretStr(resolved_api_key),
         base_url=base_url or DEFAULT_BASE_URL,
     )

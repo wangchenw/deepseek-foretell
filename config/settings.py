@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
-WORKSPACE_DIR = PROJECT_ROOT / "data" / "workspace"
 FORETELL_SKILLS_DIR = PROJECT_ROOT / "foretell" / "skills"
 
 DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M3")
@@ -44,10 +43,7 @@ class Settings:
     @property
     def mysql_configured(self) -> bool:
         return bool(
-            self.mysql_host
-            and self.mysql_user
-            and self.mysql_password
-            and self.mysql_database
+            self.mysql_host and self.mysql_user and self.mysql_password and self.mysql_database
         )
 
     def mysql_connection_kwargs(self) -> dict:
@@ -72,9 +68,7 @@ def _load_settings() -> Settings:
 
     data_source = os.environ.get("CRAZY_SPORTS_DATA_SOURCE", "mock").lower()
     if data_source not in {"mock", "mysql"}:
-        raise ValueError(
-            f"CRAZY_SPORTS_DATA_SOURCE must be 'mock' or 'mysql', got {data_source!r}"
-        )
+        raise ValueError(f"CRAZY_SPORTS_DATA_SOURCE must be 'mock' or 'mysql', got {data_source!r}")
 
     return Settings(
         deploy_env=deploy_env,
