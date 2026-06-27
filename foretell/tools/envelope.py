@@ -1,9 +1,21 @@
 """统一 Tool 响应 envelope 构造。"""
 
 import json
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from foretell.tools.status_codes import StatusCode
+
+
+def _json_default(obj: Any) -> Any:
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, date):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def make_envelope(
@@ -31,4 +43,4 @@ def make_envelope(
         envelope["match_id"] = match_id
     if meta is not None:
         envelope["meta"] = meta
-    return json.dumps(envelope, ensure_ascii=False)
+    return json.dumps(envelope, ensure_ascii=False, default=_json_default)

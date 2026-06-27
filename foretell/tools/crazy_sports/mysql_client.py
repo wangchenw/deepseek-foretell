@@ -228,7 +228,7 @@ class MySQLCrazySportsClient:
         if sport == "basketball":
             return []
 
-        sql = """
+        sql = f"""
             SELECT m.id, m.home_team_id, m.away_team_id, m.competition_id,
                    m.match_time, m.match_time_str, m.status_id,
                    ht.short_name_zh AS home_name, at.short_name_zh AS away_name,

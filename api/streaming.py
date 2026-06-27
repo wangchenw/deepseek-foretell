@@ -26,21 +26,50 @@ def _extract_text_content(content: str | list[Any]) -> str:
     return "".join(parts)
 
 
+def _collect_final_assistant_text(chunks: Iterator[tuple[Any, Any]]) -> str:
+    """Collect tokens from the last assistant message in a LangGraph messages stream.
+
+    Deep Agents / tool-calling graphs emit one AIMessage per model turn. Intermediate
+    turns (planning, tool selection) must not be streamed to the client — same rule
+    as non-streaming ``result["messages"][-1].content``.
+    """
+    message_order: list[str] = []
+    message_parts: dict[str, list[str]] = {}
+
+    for chunk in chunks:
+        token, _metadata = chunk
+        if not isinstance(token, AIMessageChunk):
+            continue
+
+        msg_id = token.id or "__anonymous__"
+        if msg_id not in message_parts:
+            message_order.append(msg_id)
+            message_parts[msg_id] = []
+
+        text = _extract_text_content(token.content)
+        if text:
+            message_parts[msg_id].append(text)
+
+    if not message_order:
+        return ""
+
+    final_msg_id = message_order[-1]
+    return "".join(message_parts.get(final_msg_id, []))
+
+
 def stream_agent_messages(
     agent: Any,
     input_state: dict[str, Any],
     config: dict[str, Any],
     thread_id: str,
 ) -> Iterator[str]:
-    """Stream final assistant tokens as SSE events."""
+    """Stream the final assistant reply as SSE events."""
     yield format_sse("thread", {"thread_id": thread_id})
 
-    for chunk in agent.stream(input_state, config=config, stream_mode="messages"):
-        token, _metadata = chunk
-        if not isinstance(token, AIMessageChunk) or not token.content:
-            continue
-        text = _extract_text_content(token.content)
-        if text:
-            yield format_sse("token", {"content": text})
+    raw_stream = agent.stream(input_state, config=config, stream_mode="messages")
+    final_text = _collect_final_assistant_text(raw_stream)
+
+    if final_text:
+        yield format_sse("token", {"content": final_text})
 
     yield format_sse("done", {"thread_id": thread_id})

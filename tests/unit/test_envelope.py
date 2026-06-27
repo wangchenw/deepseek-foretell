@@ -1,6 +1,7 @@
 """make_envelope 单元测试。"""
 
 import json
+from decimal import Decimal
 
 from foretell.tools.envelope import make_envelope
 from foretell.tools.status_codes import StatusCode
@@ -43,3 +44,18 @@ def test_envelope_string_code() -> None:
     parsed = json.loads(raw)
     assert parsed["code"] == "CUSTOM"
     assert parsed["data"] == {}
+
+
+def test_envelope_serializes_mysql_decimal_odds() -> None:
+    raw = make_envelope(
+        StatusCode.OK,
+        "odds_snapshot",
+        {
+            "european": [
+                {"odd1": Decimal("1.85"), "odd2": Decimal("3.40"), "odd3": Decimal("4.20")}
+            ]
+        },
+        match_id="fm_123",
+    )
+    parsed = json.loads(raw)
+    assert parsed["data"]["european"][0]["odd1"] == 1.85

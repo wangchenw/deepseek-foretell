@@ -1,4 +1,6 @@
+from datetime import datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -14,9 +16,17 @@ app = FastAPI(title="Foretell API", version="0.1.0")
 
 
 @lru_cache
-def get_agent():
+def _get_agent_for_date(current_date: str):
     settings = get_settings()
     return create_foretell_agent(deploy_env=settings.deploy_env)
+
+
+def get_agent():
+    current_date = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    return _get_agent_for_date(current_date)
+
+
+get_agent.cache_clear = _get_agent_for_date.cache_clear
 
 
 def _resolve_thread_id(body: ChatRequest, user_id: str) -> str:
