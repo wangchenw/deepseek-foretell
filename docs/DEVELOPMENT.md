@@ -63,7 +63,6 @@ docs/superpowers/
 `.env` 配置（**勿提交 `.env`**）：
 
 ```bash
-CRAZY_SPORTS_DATA_SOURCE=mysql
 MYSQL_HOST=your-host
 MYSQL_PORT=33306
 MYSQL_USER=...
@@ -71,8 +70,7 @@ MYSQL_PASSWORD=...
 MYSQL_DATABASE=data_center
 ```
 
-- `mock`：离线 Mock 样本（pytest 默认）
-- `mysql`：读取 `data_center` 库（`football_*`、`lottery_jczq_*` 等表）
+疯狂体育数据直接读取 `data_center` 库（`football_*`、`lottery_jczq_*` 等表）。
 
 探针：`uv run python scripts/probe_mysql.py`
 
@@ -81,18 +79,17 @@ MYSQL_DATABASE=data_center
 ```bash
 uv sync
 uv run pytest
-uv run python main.py "今晚 NBA 有什么"
+uv run python main.py "今晚足球有什么"
 uv run uvicorn api.main:app --reload
 ```
 
-## 代码质量（ruff / mypy / pre-commit / CI）
+## 代码质量（ruff / mypy / pre-commit）
 
 | 工具 | 作用 | 命令 |
 |------|------|------|
 | ruff | lint + 格式化 | `uv run ruff check` / `uv run ruff format --check` |
 | mypy | 类型检查（仅 `foretell/ api/ config/`，非严格） | `uv run mypy` |
 | pre-commit | 提交钩子（ruff + 基础卫生检查） | `uv run pre-commit run --all-files` |
-| CI | push/PR 全量跑 ruff/mypy/pytest | `.github/workflows/ci.yml` |
 
 配置位置：`pyproject.toml` 的 `[tool.ruff]`、`[tool.mypy]`；钩子定义：`.pre-commit-config.yaml`。
 
@@ -108,7 +105,7 @@ uv run ruff check --fix
 uv run ruff format
 ```
 
-测试可离线运行：`conftest.py` autouse fixture 强制 `CRAZY_SPORTS_DATA_SOURCE=mock`，CI 仅需 `MINIMAX_API_KEY=test-key-for-pytest`（用于 agent 图编译测试，不发起网络请求）。
+测试默认读取本地 `.env` 中的 MySQL 配置，需确保 `data_center` 可访问。
 
 
 
@@ -122,7 +119,7 @@ export DEPLOY_ENV=prod
 export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 ```
 
-首次部署时，Checkpointer 与 Store 会调用 `setup()` 创建表结构（见 `foretell/backends.py`）。建议在 CI/CD 迁移脚本中单独执行一次，避免应用启动时重复建表。
+首次部署时，Checkpointer 与 Store 会调用 `setup()` 创建表结构（见 `foretell/backends.py`）。建议在部署迁移脚本中单独执行一次，避免应用启动时重复建表。
 
 | 变量 | 说明 |
 |------|------|
@@ -145,7 +142,7 @@ export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 ## Phase 里程碑
 
 - **Phase 0**：config、backend 工厂、FastAPI 骨架、agent 重构（StateBackend）
-- **Phase 1**：status_codes、Mock DB Tools、实体 Skill、场景 A
+- **Phase 1**：status_codes、DB Tools、实体 Skill、场景 A
 - **Phase 2**：子智能体 + 场景 B/G
 - **Phase 3**：场景 C/D/E/F/H
 - **Phase 4**：Postgres 生产、SSE 流式、LangSmith 评估

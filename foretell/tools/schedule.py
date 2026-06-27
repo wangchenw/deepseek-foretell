@@ -31,37 +31,47 @@ def get_schedule_by_date(
         league_preset: 联赛名称过滤，如「欧冠」「NBA」（可选）。
     """
     client = get_crazy_sports_client()
-    results = client.get_schedule_by_date(date, sport=sport, league_preset=league_preset)
+    result = client.get_schedule_by_date(date, sport=sport, league_preset=league_preset)
+    matches = result["matches"]
 
-    if not results:
+    meta = _default_meta(client)
+    meta["limit"] = result["limit"]
+    meta["truncated"] = result["truncated"]
+
+    if not matches:
         return make_envelope(
             StatusCode.DATA_MISSING,
             "schedule_by_date",
             {"date": date, "sport": sport, "league_preset": league_preset, "matches": []},
-            meta=_default_meta(client),
+            meta=meta,
         )
 
     return make_envelope(
         StatusCode.OK,
         "schedule_by_date",
-        {"date": date, "matches": results, "count": len(results)},
-        meta=_default_meta(client),
+        {
+            "date": date,
+            "league_preset": league_preset,
+            "matches": matches,
+            "count": result["count"],
+        },
+        meta=meta,
     )
 
 
 @tool
 def get_team_schedule(
-    team_id: str,
+    team_id: int | str,
     limit: int = 5,
-    league_id: str | None = None,
+    league_id: int | str | None = None,
     direction: Literal["upcoming", "recent", "all"] = "recent",
 ) -> str:
     """查询球队近期或未来赛程。
 
     Args:
-        team_id: 球队 ID，须先通过 resolve_team 获取。
+        team_id: MySQL football_team.id，须先通过 resolve_team 获取。
         limit: 返回场次数量上限，默认 5。
-        league_id: 赛事 ID 过滤，格式 fc_<id>（可选）。
+        league_id: MySQL football_competition.id（可选）。
         direction: upcoming=下一场/未来，recent=最近已结束，all=全部按时间倒序。
     """
     client = get_crazy_sports_client()

@@ -106,7 +106,7 @@ uv sync
 # --- 环境变量文件 ---
 if [[ ! -f "$ROOT/.env" ]]; then
   cp "$ROOT/.env.example" "$ROOT/.env"
-  warn "已创建 .env，请填入 MINIMAX_API_KEY 等密钥后重新运行（mock 数据可离线查赛程）"
+  warn "已创建 .env，请填入 MINIMAX_API_KEY 与 MYSQL_* 等配置后重新运行"
 fi
 
 if [[ ! -f "$ROOT/frontend/.env.local" ]]; then

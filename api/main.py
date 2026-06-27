@@ -15,6 +15,7 @@ from foretell import create_foretell_agent
 app = FastAPI(title="Foretell API", version="0.1.0")
 
 
+# 「同一天内大家共用同一个 Agent；到了新的一天，缓存 miss，重建一个带新日期的 Agent。」
 @lru_cache
 def _get_agent_for_date(current_date: str):
     settings = get_settings()
@@ -26,7 +27,7 @@ def get_agent():
     return _get_agent_for_date(current_date)
 
 
-get_agent.cache_clear = _get_agent_for_date.cache_clear
+setattr(get_agent, "cache_clear", _get_agent_for_date.cache_clear)
 
 
 def _resolve_thread_id(body: ChatRequest, user_id: str) -> str:

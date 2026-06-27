@@ -370,6 +370,7 @@ dependencies = [
     { name = "pytest" },
     { name = "python-dotenv" },
     { name = "tavily-python" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -402,6 +403,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0" },
     { name = "tavily-python", specifier = ">=0.7.26" },
+    { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
 ]
 provides-extras = ["prod", "dev"]

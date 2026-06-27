@@ -93,15 +93,15 @@ def get_subagents() -> list[SubAgent]:
         {
             "name": "entity-resolver",
             "description": (
-                "定位比赛、球队、联赛实体，返回 match_id 与定位证据。"
-                "当用户提及具体对阵、竞彩编号、球队+赛事+下一场赛程，或需消歧（如葡萄牙国家队）时使用。"
+                "查询比赛、球队、联赛候选，返回候选与定位证据。"
+                "当用户提及具体对阵、竞彩编号、球队+赛事+下一场赛程，或需从候选中选定 ID 时使用。"
             ),
             "system_prompt": (
                 "你是 Foretell 实体定位专家。按 foretell-entity-resolution Skill 执行："
-                "先定位再查询；保留 G7 等系列赛约束；未找到时如实报告。"
-                "处理「某队+某赛事+下一场」时：resolve_team → resolve_league（若提及赛事）"
-                "→ get_team_schedule(direction=upcoming)。"
-                "完成后返回 JSON：dimension=entity, match_id（若有）, stats（含定位证据与赛程摘要）, "
+                "先获取候选与证据，再结合用户语义选择 ID；保留 G7 等系列赛约束；未找到时如实报告。"
+                "处理「某队+某赛事+下一场」时：resolve_team 返回候选并选择正确 team_id → "
+                "resolve_league 返回候选并选择正确 league_id（若提及赛事）→ get_team_schedule(direction=upcoming)。"
+                "完成后返回 JSON：dimension=entity, match_id（已确认唯一时）, stats（含候选证据与赛程摘要）, "
                 "status_map, insights。"
             ),
             "tools": ENTITY_RESOLVER_TOOLS,

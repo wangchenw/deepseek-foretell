@@ -1,0 +1,112 @@
+description: P0 regression cases for tool-chain verification
+cases:
+- id: TC-A08-REG-003
+  type_id: A08
+  turns:
+  - 今晚的葡萄牙比赛什么时候开始
+  - 明天早上的
+  - 葡萄牙明天早上世界杯比赛啊
+  expected_behaviors:
+  - 不得假阴性
+  - 6/28 07:30 哥伦比亚vs葡萄牙
+  - 含主客场
+  - 不暴露内部编号
+  related_feedback:
+  - '#003'
+  verify: tool_chain
+- id: TC-A17-REG-001
+  type_id: A17
+  turns:
+  - 最近世界杯赛程法国队的比赛安排？
+  expected_behaviors:
+  - 含日期对手状态
+  - 含北京时间
+  - 含主客场
+  - 默认法国男足2026世界杯
+  related_feedback:
+  - '#001'
+  verify: tool_chain
+- id: TC-B01-001
+  type_id: B01
+  turns:
+  - 分析【2026-06-15 01:00:00 竞彩足球周日009 世界杯 德国 VS 库拉索】的赛事的胜平负、比分结果，并描写100-300字的分析内容
+  expected_behaviors:
+  - 多维度深度分析
+  - 数据诚实规则
+  - 不暴露工具名
+  related_feedback: []
+  verify: tool_chain
+- id: TC-B09-REG-006
+  type_id: B09
+  turns:
+  - 马刺对雷霆 G7 分析
+  expected_behaviors:
+  - 保留G7约束
+  - 找不到时不得降级G6
+  related_feedback: []
+  verify: tool_chain
+- id: TC-E05-REG-007
+  type_id: E05
+  turns:
+  - 本期十四场给个方案
+  expected_behaviors:
+  - 两阶段初筛
+  - 含风险提示
+  related_feedback: []
+  verify: tool_chain
+- id: TC-G01-REG-004
+  type_id: G01
+  turns:
+  - 分析竞彩足球周二004 巴黎 VS 拜仁胜平负、比分
+  - 比分预测
+  expected_behaviors:
+  - 保持同场定位
+  - 给出比分区间
+  - 不重复完整六段
+  related_feedback: []
+  verify: tool_chain
+- id: TC-G02-REG-005
+  type_id: G02
+  turns:
+  - 分析竞彩足球周二004 巴黎 VS 拜仁胜平负、比分
+  - 比分预测
+  - 哪一队率先进球
+  expected_behaviors:
+  - 保持同场定位
+  - 先进球概率判断
+  related_feedback: []
+  verify: tool_chain
+- id: TC-X05-REG-008
+  type_id: X05
+  turns:
+  - 葡萄牙明天早上世界杯有比赛吗
+  expected_behaviors:
+  - 禁止未穷尽前断言无比赛
+  - 交叉验证赛程
+  related_feedback:
+  - '#003'
+  verify: tool_chain
+- id: TC-X06-REG-009
+  type_id: X06
+  turns:
+  - 法国 vs 挪威具体哪场
+  expected_behaviors:
+  - 不输出正在查询
+  - 不输出未找到过程
+  - 仅最终结论
+  related_feedback:
+  - '#002'
+  verify: tool_chain
+- id: TC-X12-REG-002
+  type_id: X12
+  turns:
+  - 法国 vs 挪威 2024-06-27
+  - 应该是2026世界杯那场
+  expected_behaviors:
+  - 最终定位2026-06-27
+  - 挪威主场
+  - 不输出中间态
+  - 不暴露match_id
+  related_feedback:
+  - '#002'
+  verify: tool_chain

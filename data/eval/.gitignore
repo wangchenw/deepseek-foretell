@@ -1,0 +1,4 @@
+# Intermediate pipeline outputs (regenerate via scripts/)
+raw_questions.jsonl
+raw_questions.checkpoint.json
+classified_by_type.json

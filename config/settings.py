@@ -20,7 +20,6 @@ LANGSMITH_PROJECT = os.environ.get("LANGSMITH_PROJECT", "foretell")
 class Settings:
     deploy_env: str
     database_url: str | None
-    crazy_sports_data_source: str
     crazy_sports_api_base: str | None
     crazy_sports_api_key: str | None
     mysql_host: str | None
@@ -66,14 +65,9 @@ def _load_settings() -> Settings:
     if deploy_env not in {"dev", "prod"}:
         raise ValueError(f"DEPLOY_ENV must be 'dev' or 'prod', got {deploy_env!r}")
 
-    data_source = os.environ.get("CRAZY_SPORTS_DATA_SOURCE", "mock").lower()
-    if data_source not in {"mock", "mysql"}:
-        raise ValueError(f"CRAZY_SPORTS_DATA_SOURCE must be 'mock' or 'mysql', got {data_source!r}")
-
     return Settings(
         deploy_env=deploy_env,
         database_url=os.environ.get("DATABASE_URL") or None,
-        crazy_sports_data_source=data_source,
         crazy_sports_api_base=os.environ.get("CRAZY_SPORTS_API_BASE") or None,
         crazy_sports_api_key=os.environ.get("CRAZY_SPORTS_API_KEY") or None,
         mysql_host=os.environ.get("MYSQL_HOST") or None,

@@ -16,11 +16,11 @@ def _default_meta(client) -> dict:
 
 
 @tool
-def get_match_result(match_id: str) -> str:
+def get_match_result(match_id: int | str) -> str:
     """查询已完场比赛的赛果、技术统计与关键事件，用于赛后复盘。
 
     Args:
-        match_id: 比赛 ID，须先通过实体定位获取；仅已完场比赛有数据。
+        match_id: MySQL football_match.id，须先通过实体定位获取；仅已完场比赛有数据。
     """
     client = get_crazy_sports_client()
     result = client.get_match_result(match_id)

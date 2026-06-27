@@ -18,11 +18,11 @@ def _default_meta(client) -> dict:
 
 
 @tool
-def get_standings(league_id: str) -> str:
+def get_standings(league_id: int | str) -> str:
     """查询联赛积分榜。
 
     Args:
-        league_id: 联赛 ID，须先通过 resolve_league 获取。
+        league_id: MySQL football_competition.id，须先通过 resolve_league 获取。
     """
     client = get_crazy_sports_client()
     results = client.get_standings(league_id)
@@ -44,11 +44,11 @@ def get_standings(league_id: str) -> str:
 
 
 @tool
-def get_team_season_stats(team_id: str) -> str:
+def get_team_season_stats(team_id: int | str) -> str:
     """查询球队赛季统计（主客场拆分、进失球等）。
 
     Args:
-        team_id: 球队 ID，须先通过 resolve_team 获取。
+        team_id: MySQL football_team.id，须先通过 resolve_team 获取。
     """
     client = get_crazy_sports_client()
     result = client.get_team_season_stats(team_id)
@@ -71,14 +71,14 @@ def get_team_season_stats(team_id: str) -> str:
 
 @tool
 def get_recent_form(
-    team_id: str,
+    team_id: int | str,
     venue: Literal["home", "away"] | None = None,
     n: int = 5,
 ) -> str:
     """查询球队近期战绩。
 
     Args:
-        team_id: 球队 ID，须先通过 resolve_team 获取。
+        team_id: MySQL football_team.id，须先通过 resolve_team 获取。
         venue: 主客场过滤，home 或 away（可选）。
         n: 返回场次数量，默认 5。
     """
@@ -102,12 +102,12 @@ def get_recent_form(
 
 
 @tool
-def get_h2h(team_a: str, team_b: str, n: int = 5) -> str:
+def get_h2h(team_a: int | str, team_b: int | str, n: int = 5) -> str:
     """查询两队历史交锋记录。
 
     Args:
-        team_a: 球队 A 的 team_id。
-        team_b: 球队 B 的 team_id。
+        team_a: 球队 A 的 MySQL football_team.id。
+        team_b: 球队 B 的 MySQL football_team.id。
         n: 返回场次数量，默认 5。
     """
     client = get_crazy_sports_client()

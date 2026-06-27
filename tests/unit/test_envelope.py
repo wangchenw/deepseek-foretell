@@ -22,11 +22,11 @@ def test_envelope_with_match_id_and_meta() -> None:
         StatusCode.OK,
         "schedule_by_date",
         {"matches": []},
-        match_id="m_12345",
-        meta={"source": "crazy_sports_db", "freshness": "mock"},
+        match_id=12345,
+        meta={"source": "crazy_sports_db", "freshness": "2026-06-27T00:00:00Z"},
     )
     parsed = json.loads(raw)
-    assert parsed["match_id"] == "m_12345"
+    assert parsed["match_id"] == 12345
     assert parsed["meta"]["source"] == "crazy_sports_db"
 
 
@@ -55,7 +55,7 @@ def test_envelope_serializes_mysql_decimal_odds() -> None:
                 {"odd1": Decimal("1.85"), "odd2": Decimal("3.40"), "odd3": Decimal("4.20")}
             ]
         },
-        match_id="fm_123",
+        match_id=123,
     )
     parsed = json.loads(raw)
     assert parsed["data"]["european"][0]["odd1"] == 1.85

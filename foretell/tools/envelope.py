@@ -22,7 +22,7 @@ def make_envelope(
     code: StatusCode | str,
     dimension: str,
     data: Any = None,
-    match_id: str | None = None,
+    match_id: Any | None = None,
     meta: dict[str, Any] | None = None,
 ) -> str:
     """构造标准 envelope 并返回 JSON 字符串。

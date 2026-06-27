@@ -2,29 +2,16 @@ from fastapi import Header, HTTPException, status
 
 from config.settings import get_settings
 
+# get_user_id 是 FastAPI 的依赖注入函数，用来从请求头里解析当前用户是谁，并作为 user_id 传给需要鉴权的路由。
 
 def get_user_id(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-    authorization: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),  # 保留参数，便于以后接 JWT
 ) -> str:
-    """解析请求中的 user_id。dev 环境使用 X-User-Id；prod 仅接受 JWT（Phase 4 实现）。"""
-    settings = get_settings()
-
-    if settings.is_dev:
-        if not x_user_id or not x_user_id.strip():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="开发环境需在请求头中提供 X-User-Id",
-            )
-        return x_user_id.strip()
-
-    if authorization and authorization.startswith("Bearer "):
+    """解析请求中的 user_id。当前 dev/prod 均使用 X-User-Id。"""
+    if not x_user_id or not x_user_id.strip():
         raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="生产 JWT 鉴权尚未实现",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="需在请求头中提供 X-User-Id",
         )
-
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="生产环境需提供有效 JWT，不可使用 X-User-Id",
-    )
+    return x_user_id.strip()

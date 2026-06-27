@@ -1,0 +1,119 @@
+{
+  "project": "Foretell Complex Question Eval Dataset",
+  "created": "2026-06-27",
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "编写 taxonomy.yaml",
+      "module": "taxonomy",
+      "description": "定义 120 个 type_id、regex 规则、场景 A–H/X 映射",
+      "files": ["data/eval/taxonomy.yaml", "scripts/_gen_taxonomy.py"],
+      "dependencies": [],
+      "acceptance_criteria": [
+        {"id": "T001-C1", "criterion": "taxonomy.yaml 含 120 个 type", "test_hint": "uv run python -c \"import yaml; print(len(yaml.safe_load(open('data/eval/taxonomy.yaml'))['types']))\""}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": ""
+    },
+    {
+      "id": "T002",
+      "title": "实现抽取脚本",
+      "module": "extract",
+      "description": "分批读 foretell_sessions.runs，输出 raw_questions.jsonl",
+      "files": ["scripts/extract_session_questions.py", "scripts/eval_common.py"],
+      "dependencies": ["T001"],
+      "acceptance_criteria": [
+        {"id": "T002-C1", "criterion": "raw_questions.jsonl 行数 >= 140000", "test_hint": "wc -l data/eval/raw_questions.jsonl"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": "145109 sessions extracted"
+    },
+    {
+      "id": "T003",
+      "title": "实现分类脚本",
+      "module": "classify",
+      "description": "归一化竞彩模板 + 规则分类到 type_id",
+      "files": ["scripts/classify_questions.py"],
+      "dependencies": ["T002"],
+      "acceptance_criteria": [
+        {"id": "T003-C1", "criterion": "classified_by_type.json 覆盖 >= 100 types", "test_hint": "检查 classification_stats.json"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": "110 production types"
+    },
+    {
+      "id": "T004",
+      "title": "构建评测集 JSONL",
+      "module": "build",
+      "description": "按 type 选代表样本、组装多轮链",
+      "files": ["scripts/build_eval_dataset.py", "data/eval/foretell_complex_questions.jsonl"],
+      "dependencies": ["T003"],
+      "acceptance_criteria": [
+        {"id": "T004-C1", "criterion": "JSONL >= 120 行，每 type 1 条", "test_hint": "wc -l data/eval/foretell_complex_questions.jsonl"},
+        {"id": "T004-C2", "criterion": "multi_turn >= 20", "test_hint": "coverage_report.json multi_turn_cases"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": "104 multi-turn cases"
+    },
+    {
+      "id": "T005",
+      "title": "覆盖率报告",
+      "module": "report",
+      "description": "生成 coverage_report.json，missing_types 为空",
+      "files": ["data/eval/coverage_report.json"],
+      "dependencies": ["T004"],
+      "acceptance_criteria": [
+        {"id": "T005-C1", "criterion": "missing_types 为空数组", "test_hint": "jq .missing_types data/eval/coverage_report.json"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": ""
+    },
+    {
+      "id": "T006",
+      "title": "环境变量与需求文档",
+      "module": "docs",
+      "description": "更新 .env.example 和 requirements.md",
+      "files": [".env.example", ".task-force/requirements.md"],
+      "dependencies": [],
+      "acceptance_criteria": [
+        {"id": "T006-C1", "criterion": ".env.example 含 FORETELL_SESSION_DB_URL", "test_hint": "grep FORETELL_SESSION .env.example"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": ""
+    },
+    {
+      "id": "T007",
+      "title": "抽检与 feedback 回归",
+      "module": "qa",
+      "description": "spot_check_report.json + feedback #001-#003",
+      "files": ["data/eval/spot_check_report.json", "scripts/spot_check_dataset.py"],
+      "dependencies": ["T004"],
+      "acceptance_criteria": [
+        {"id": "T007-C1", "criterion": "含 #001 #002 #003 回归用例", "test_hint": "coverage_report feedback_regression_ids"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": ""
+    },
+    {
+      "id": "T008",
+      "title": "P0 pytest 子集",
+      "module": "tests",
+      "description": "导出 tests/eval/test_cases.yaml",
+      "files": ["tests/eval/test_cases.yaml", "scripts/export_p0_test_cases.py"],
+      "dependencies": ["T004"],
+      "acceptance_criteria": [
+        {"id": "T008-C1", "criterion": "test_cases.yaml 含 >= 10 条 P0 用例", "test_hint": "grep -c '^  id:' tests/eval/test_cases.yaml"}
+      ],
+      "status": "completed",
+      "assigned": false,
+      "notes": "10 P0 cases exported"
+    }
+  ]
+}

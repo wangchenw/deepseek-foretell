@@ -16,11 +16,11 @@ def _default_meta(client) -> dict:
 
 
 @tool
-def get_match_lineup(match_id: str) -> str:
+def get_match_lineup(match_id: int | str) -> str:
     """查询比赛预计首发阵容。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     result = client.get_match_lineup(match_id)
@@ -44,11 +44,11 @@ def get_match_lineup(match_id: str) -> str:
 
 
 @tool
-def get_injury_report(match_id: str) -> str:
+def get_injury_report(match_id: int | str) -> str:
     """查询比赛伤停与停赛报告。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     result = client.get_injury_report(match_id)
@@ -72,11 +72,11 @@ def get_injury_report(match_id: str) -> str:
 
 
 @tool
-def get_intel_tags(match_id: str) -> str:
+def get_intel_tags(match_id: int | str) -> str:
     """查询比赛情报标签（主场优势、核心复出、体能隐忧等）。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     results = client.get_intel_tags(match_id)

@@ -10,19 +10,19 @@ def _parse(result: str) -> dict:
 
 
 def test_get_match_result_finished() -> None:
-    result = _parse(get_match_result.invoke({"match_id": "m_spurs_thunder_g6"}))
+    result = _parse(get_match_result.invoke({"match_id": 4531806}))
     assert result["code"] == "OK"
     assert result["dimension"] == "match_result"
-    assert result["data"]["score_display"] == "118-112"
-    assert result["data"]["key_events"]
+    assert result["data"]["full_time"]
+    assert result["data"]["status"] == "finished"
 
 
 def test_get_match_result_not_finished() -> None:
-    result = _parse(get_match_result.invoke({"match_id": "m_psg_bayern"}))
+    result = _parse(get_match_result.invoke({"match_id": 4460934}))
     assert result["code"] == "NOT_APPLICABLE"
     assert "尚未结束" in result["data"]["reason"]
 
 
 def test_get_match_result_missing() -> None:
-    result = _parse(get_match_result.invoke({"match_id": "m_unknown"}))
+    result = _parse(get_match_result.invoke({"match_id": 0}))
     assert result["code"] == "DATA_MISSING"

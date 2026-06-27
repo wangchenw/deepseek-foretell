@@ -1,0 +1,478 @@
+{
+  "total_cases_in_dataset": 120,
+  "spot_check_count": 30,
+  "feedback_regression_included": [
+    "TC-A08-REG-003",
+    "TC-A17-REG-001",
+    "TC-X05-REG-008",
+    "TC-X06-REG-009",
+    "TC-X12-REG-002"
+  ],
+  "sample": [
+    {
+      "id": "TC-A08-REG-003",
+      "type_id": "A08",
+      "scenario": "A",
+      "multi_turn": true,
+      "turn_count": 3,
+      "turns_preview": [
+        "今晚的葡萄牙比赛什么时候开始",
+        "明天早上的",
+        "葡萄牙明天早上世界杯比赛啊"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [
+        "#003"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-A17-REG-001",
+      "type_id": "A17",
+      "scenario": "A",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "最近世界杯赛程法国队的比赛安排？"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [
+        "#001"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-X05-REG-008",
+      "type_id": "X05",
+      "scenario": "X",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "葡萄牙明天早上世界杯有比赛吗"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [
+        "#003"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-X06-REG-009",
+      "type_id": "X06",
+      "scenario": "X",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "法国 vs 挪威具体哪场"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [
+        "#002"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-X12-REG-002",
+      "type_id": "X12",
+      "scenario": "X",
+      "multi_turn": true,
+      "turn_count": 2,
+      "turns_preview": [
+        "法国 vs 挪威 2024-06-27",
+        "应该是2026世界杯那场"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [
+        "#002"
+      ],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-A04-001",
+      "type_id": "A04",
+      "scenario": "A",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "赔率变化，球队预期进球，防守漏洞指数，主客场差异，球队真实战意，近五轮攻防数据，核查核心球员伤病，XG数据分析英超利物浦VS切尔西",
+        "赔率变化，球队预期进球，防守漏洞指数，主客场差异，球队真实战意，近五轮攻防数据，核查核心球员伤病，XG数据分析西甲埃尔切VS阿拉维斯",
+        "是否是最新的数据报告",
+        "赔率变化，球队预期进球，防守漏洞指数，主客场差异，球队真实战意，近五轮攻防数据，核查核心球员伤病，XG数据分析西甲埃尔切VS阿拉维斯"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-A01-001",
+      "type_id": "A01",
+      "scenario": "A",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "今晚竞彩足球，从专业角度，深度思考，给我推荐最有可能出平局的场次，",
+        "从盘口，历史交战各个纬度推荐今晚比分",
+        "给我竞彩足球，已经结束的比赛结果，他们的赔率分别多少",
+        "昨天所有竞彩足球比赛结果的赔率"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-B09-REG-006",
+      "type_id": "B09",
+      "scenario": "B",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "马刺对雷霆 G7 分析"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-B04-001",
+      "type_id": "B04",
+      "scenario": "B",
+      "multi_turn": true,
+      "turn_count": 12,
+      "turns_preview": [
+        "FIFA官方管辖、在FIFA指定国际比赛日周期内举办的男子国家队国际A级赛事，禁止引入世界杯决赛圈正赛的赛会制分析逻辑、数据样本、胜负规律，包括但不限于世界杯小",
+        "2026年3月27日中国队对阵库拉索的双方对阵首发球员名单。",
+        "FIFA国际赛，2026年3月27日14:00中国VS库拉索，强制摒弃杯赛联赛循环赛的长期均值回归分析逻辑，完全采用FIFA国际赛事件分析逻辑，按照“总指挥官+",
+        "IFA国际赛，2026年3月27日14:00中国VS库拉索，强制摒弃杯赛联赛循环赛的长期均值回归分析逻辑，完全采用FIFA国际赛事件分析逻辑，按照“总指挥官+数"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-B15-001",
+      "type_id": "B15",
+      "scenario": "B",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态，有无演戏等等，还有推荐2串一，3串一，最有把握啊",
+        "我说4.14号体彩，14号晚上或者15号凌晨的，刚刚口误，有7场",
+        "DeepSeek 推荐的是，第一梯队0021:1，0051:12:1，第二梯队0011比12比1，0042比02比1，三梯队，0061",
+        "0061比0，007.20，003，01。这是刚刚没有打完的，承接上面，综合的分析"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-C03-001",
+      "type_id": "C03",
+      "scenario": "C",
+      "multi_turn": true,
+      "turn_count": 14,
+      "turns_preview": [
+        "推荐一下2026年6月18日）：  · 00:00 世界杯：捷克 VS 南非 · 03:00 世界杯：瑞士 VS 波黑 · 06:00 世界杯：加拿大 VS 卡",
+        "赛事指令 * 具体日期：6月19日世界杯比赛 * 具体场次：· 00:00 世界杯：捷克 VS 南非 怎么买 * 时间范围：如\"今晚有哪些比赛可买\" * 资金分",
+        "推荐一两个最我可能得比分，并说明原因和逻辑",
+        "* 具体日期：6月19日世界杯比赛 * 具体场次：03:00 世界杯：瑞士 VS 波黑，06:00 世界杯：加拿大 VS 卡塔尔比赛怎么买 * 资金分配：高置信"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-C06-SYN",
+      "type_id": "C06",
+      "scenario": "C",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "[焦点战回顾示例问法]"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-C01-001",
+      "type_id": "C01",
+      "scenario": "C",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "请根据赔率盘口资金流向变化等，来分析下接下来的四场世界杯比赛胜负走向，大小球，比分",
+        "分析结果还没出来吗",
+        "你昨天可分析了刚刚比完的四场世界杯赛，也就是西班牙vs佛得角，比利时vs埃及，沙特vs乌拉圭，伊朗vs新西兰，分析与比赛实际结果有差异吗",
+        "需要"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-D09-001",
+      "type_id": "D09",
+      "scenario": "D",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "我给你发一个我的6.0系统模板  你帮我看看优化可以更好预测胜平负 进球数 比分等",
+        "算了 我先看看你的  “请列出你在分析一场足球比赛时，会考量的所有核心维度。”",
+        "以上全部text代码发给我",
+        "“除了球队近期战绩，你还会重点分析哪些高阶数据（例如预期进球xG、压迫强度PPDA等）？”"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-D02-001",
+      "type_id": "D02",
+      "scenario": "D",
+      "multi_turn": true,
+      "turn_count": 15,
+      "turns_preview": [
+        "你的固定分析指令（已存）\n \n1. 用4步盘口逻辑（基本面、初盘、升盘时机、水位）\n2. 结合竞彩让球规则（-1 / +1）\n3. 综合维度：排名、状态、主客场",
+        "步骤 检查内容 诱盘信号 真实看好信号\n1 基本面差距 两队实际差距小于盘口体现的差距 客队有明显优势（伤病、体能、战意）\n2 初盘合理性 初盘偏浅（如平手），",
+        "步骤 检查内容 诱盘信号 真实看好信号\n1 基本面差距 两队实际差距小于盘口体现的差距 客队有明显优势（伤病、体能、战意）\n2 初盘合理性 初盘偏浅（如平手），",
+        "我发给你别的两个ai的预测，你可以借鉴分析总结吗？"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-D07-001",
+      "type_id": "D07",
+      "scenario": "D",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "明天竞彩篮球场次分析",
+        "今天竞彩篮球场次分析",
+        "今天竞彩篮球场次分析",
+        "大小球呢"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-E01-001",
+      "type_id": "E01",
+      "scenario": "E",
+      "multi_turn": true,
+      "turn_count": 15,
+      "turns_preview": [
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 1/10 部分\n版本：v6.0-Final | 最后更新：2026-05-05\n\n版本信息\n版本名称：v6.0",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 2/10 部分\n模块 A：竞彩足球扫盘筛选（第一步）\n\n模块 A 工具调用\n\n1. query_lottery",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 3/10 部分\n模块 B：单场深度预测（第二步）- 工具调用链\n\n模块 B 工具调用链 - 基本面\n\n工具名称",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 4/10 部分\n模块 B：单场深度预测（第二步）- 分析核心逻辑\n\n分析核心逻辑 - 五要素基本面\n\n1. 五"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-E14-001",
+      "type_id": "E14",
+      "scenario": "E",
+      "multi_turn": true,
+      "turn_count": 3,
+      "turns_preview": [
+        "篮球竞篮的大小分走向分析",
+        "所有竞篮",
+        "胜负"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-E02-001",
+      "type_id": "E02",
+      "scenario": "E",
+      "multi_turn": true,
+      "turn_count": 12,
+      "turns_preview": [
+        "从基本面，伤停战意，数据指数，战术对位，数据变量，历史盘口，市场资金七大核心维度分析两场比赛，做一个主推方案和比分二串一方案。",
+        "分析今日三场日职，冈山绿雉vs大阪樱花，水户蜀葵vs川崎前锋，东京绿茵vs横兵水手，三场比赛首发都出来了，你查一下，然后从基本面，伤停战意，数据指数，战术对位，",
+        "冈山绿雉2-3大阪樱花全场结束，上半场结束水户蜀葵0-0川崎前锋，上半场结束东京绿茵0-3横兵水手。目前已经黑了。",
+        "日职提后一轮了，不怪你。"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-F04-001",
+      "type_id": "F04",
+      "scenario": "F",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "艾阿利(中)\n巴林超 2026-04-28 00:00 星期二\nVS席特拉\n按格式写上面这场比赛的赛事前瞻。格式参考：周二001 墨尔本城VS中央海岸  墨尔本",
+        "安集延(主)\n乌兹超 2026-04-28 22:00 星期二 \nVS萨马尔罕迪纳摩 按格式写赛事前瞻",
+        "沙贝波(主)\n巴林超 2026-04-29 00:00 星期三\nVS巴林SC 相同格式赛事前瞻",
+        "周二001\t\n沙职\n新未来SCVS拉斯决心\t2026-04-29 00:45 赛事前瞻"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-F10-001",
+      "type_id": "F10",
+      "scenario": "F",
+      "multi_turn": true,
+      "turn_count": 10,
+      "turns_preview": [
+        "4 点半刚开赛，印尼超级联赛佩斯克对杰帕拉，佩斯克主场由半球由让半球降为让平半。结合近期的状态、历史战绩、战术打法。分析本场亚盘降盘的这种原因，并结合欧洲赔率、",
+        "一会的 9 场比赛，分析亚盘上下盘啊。波兰甲级联赛 5 点半，克拉科夫莱茨纳，主队让一球球半低水。澳大利亚杯外围赛 5 点半墨尔本骑士亚拉维尔，主队让 2.5-",
+        "这九场比赛，有哪几场是亚盘和欧赔有异常的，从中间重点",
+        "今晚所有的足球比赛当中，盘口，亚洲盘口有异常的，就是与球队实力排名和开盘不符的，有哪些比赛？并通过欧洲赔率的升降进行欧亚对比验证。最后做出重点的推荐，并标明信心"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-F01-001",
+      "type_id": "F01",
+      "scenario": "F",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "今天足球竞彩有哪些场次？",
+        "我需了解这七场比赛的详细分析、赔率对比或投注推荐",
+        "七场比赛都更加深入分析下",
+        "这七场比赛，场次确定没搞错？"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-G18-001",
+      "type_id": "G18",
+      "scenario": "G",
+      "multi_turn": true,
+      "turn_count": 13,
+      "turns_preview": [
+        "美国VS澳大利亚 比分预测",
+        "世界杯",
+        "其他三场比赛",
+        "巴西与海地"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-G07-001",
+      "type_id": "G07",
+      "scenario": "G",
+      "multi_turn": true,
+      "turn_count": 15,
+      "turns_preview": [
+        "请根据以下5条标准，帮我判断一场比赛是否值得投注（猜比分）。   每条标准请回答“是/否”，最后给出综合结论。  1. 联赛是否属于：五大联赛、欧冠、英冠、荷乙",
+        "那有没有能优化筛选标准的？怎么样选择合适的比赛？还有这些有没有参考的？（高置信度 + 正价值 + 低市场效率）",
+        "我没有概率估算  还有我在其他窗口 你帮我推荐的今天002和010的比分就是正确的  他们条件是什么？",
+        "之前推荐的比分002 1-1  0-1  0-2  010推荐的比分1-0  2-0  2-1  你是不是搞错了？"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-G20-001",
+      "type_id": "G20",
+      "scenario": "G",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "艾阿利(中)\n巴林超 2026-04-28 00:00 星期二\nVS席特拉\n按格式写上面这场比赛的赛事前瞻。格式参考：周二001 墨尔本城VS中央海岸  墨尔本",
+        "安集延(主)\n乌兹超 2026-04-28 22:00 星期二 \nVS萨马尔罕迪纳摩 按格式写赛事前瞻",
+        "沙贝波(主)\n巴林超 2026-04-29 00:00 星期三\nVS巴林SC 相同格式赛事前瞻",
+        "周二001\t\n沙职\n新未来SCVS拉斯决心\t2026-04-29 00:45 赛事前瞻"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-H07-001",
+      "type_id": "H07",
+      "scenario": "H",
+      "multi_turn": true,
+      "turn_count": 16,
+      "turns_preview": [
+        "中乙",
+        "# 体育赛事投注分析框架（终极版）\n\n## 权重分配\n| 维度 | 权重 | 说明 |\n|------|------|------|\n| 基本面三要素 | 15",
+        "请先用此框架对最近三天完赛的中乙比赛进行预测和复盘，验证一下准确率",
+        "复盘6.23长春喜都对兰州陇原进行验证"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-H02-001",
+      "type_id": "H02",
+      "scenario": "H",
+      "multi_turn": true,
+      "turn_count": 6,
+      "turns_preview": [
+        "周二赛事 周二001韩职全北现代vs仁川联2026-04-21 18:30\t 周二002韩职金泉尚武vs江原FC2026-04-21 18:30\t 周二003亚",
+        "你考虑这3场各球队的战意吗？",
+        "据说金泉尚武的什么协议快到期了，根据协议规定，不管金泉尚武本赛季是什么排名，赛季末铁定降入K2联赛，如果属实，金泉尚武就没有保级动",
+        "我把金泉尚武2026赛季“铁定降级、和排名无关”的真实原因一次性说透、说完整。   一、核心原因：军方球队 + 城市协议到期 + K联赛特殊规则   金泉尚武不"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-H04-SYN",
+      "type_id": "H04",
+      "scenario": "H",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "[冠军已锁定示例问法]"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-X13-SYN",
+      "type_id": "X13",
+      "scenario": "X",
+      "multi_turn": false,
+      "turn_count": 1,
+      "turns_preview": [
+        "[数据诚实示例问法]"
+      ],
+      "origin": "synthetic",
+      "related_feedback": [],
+      "review_status": "pending"
+    },
+    {
+      "id": "TC-X07-001",
+      "type_id": "X07",
+      "scenario": "X",
+      "multi_turn": true,
+      "turn_count": 15,
+      "turns_preview": [
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 1/10 部分\n版本：v6.0-Final | 最后更新：2026-05-05\n\n版本信息\n版本名称：v6.0",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 2/10 部分\n模块 A：竞彩足球扫盘筛选（第一步）\n\n模块 A 工具调用\n\n1. query_lottery",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 3/10 部分\n模块 B：单场深度预测（第二步）- 工具调用链\n\n模块 B 工具调用链 - 基本面\n\n工具名称",
+        "v6.0 足球赛事分析工作流 终极完整版 - 第 4/10 部分\n模块 B：单场深度预测（第二步）- 分析核心逻辑\n\n分析核心逻辑 - 五要素基本面\n\n1. 五"
+      ],
+      "origin": "production",
+      "related_feedback": [],
+      "review_status": "pending"
+    }
+  ]
+}

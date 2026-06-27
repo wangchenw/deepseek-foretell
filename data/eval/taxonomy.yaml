@@ -1,0 +1,1512 @@
+version: '1.0'
+description: Foretell complex question taxonomy (120 types)
+types:
+- id: A01
+  scenario: A
+  name: 按日期热门赛程
+  description: 今日/今晚五大联赛或NBA热门赛程
+  entity_entry: date
+  sport: any
+  complexity: medium
+  patterns:
+  - 今晚.*(五大联赛|NBA|足球|篮球|比赛)
+  - 今天.*有什么.*比赛
+  - 今日.*赛程
+  keywords: []
+  priority: 80
+  tags:
+  - schedule
+  - date
+- id: A02
+  scenario: A
+  name: 指定联赛日期赛程
+  description: 某日某联赛全部比赛
+  entity_entry: date+league
+  sport: any
+  complexity: medium
+  patterns:
+  - (英超|西甲|意甲|德甲|法甲|欧冠|中超).*(今天|今晚|明天|赛程)
+  - (今天|今晚|明天).*(英超|西甲|意甲|德甲|法甲|欧冠)
+  keywords: []
+  priority: 78
+  tags: []
+- id: A03
+  scenario: A
+  name: 球队未来赛程
+  description: 某队接下来打谁
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - (接下来|未来|下场|后面).*(打|踢|对阵|比赛)
+  - .*(接下来打谁|接下来.*赛程)
+  keywords: []
+  priority: 85
+  tags:
+  - schedule
+  - team
+- id: A04
+  scenario: A
+  name: 球队近期赛程
+  description: 某队最近几场
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - (最近|近)\d*场
+  - .*最近.*(赛程|比赛|对阵)
+  keywords: []
+  priority: 75
+  tags: []
+- id: A05
+  scenario: A
+  name: 实时比分查询
+  description: 进行中比赛比分
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 实时比分
+  - (现在|目前|当前).*(比分|几比几)
+  - 比分多少
+  keywords: []
+  priority: 70
+  tags: []
+- id: A06
+  scenario: A
+  name: 完场赛果
+  description: 已结束比赛结果
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 完场|赛果|最终结果|比分结果
+  - 昨天.*(比分|结果)
+  keywords: []
+  priority: 72
+  tags: []
+- id: A07
+  scenario: A
+  name: 时间窗_今晚
+  description: 今晚是否有某队比赛
+  entity_entry: team+time
+  sport: football
+  complexity: high
+  patterns:
+  - 今晚.*(比赛|开始|踢|赛)
+  - 今晚的.*
+  keywords: []
+  priority: 88
+  tags:
+  - time_window
+- id: A08
+  scenario: A
+  name: 时间窗_明早
+  description: 明早/凌晨场次
+  entity_entry: team+time
+  sport: any
+  complexity: high
+  patterns:
+  - 明早|明天早上|明天.*(世界杯|比赛|开始)
+  - 凌晨.*场
+  keywords: []
+  priority: 90
+  tags:
+  - time_window
+  - regression
+- id: A09
+  scenario: A
+  name: 时间窗_几点开赛
+  description: 开赛时间查询
+  entity_entry: team+time
+  sport: any
+  complexity: medium
+  patterns:
+  - 什么时候开始|几点开|开球时间|几点踢
+  keywords: []
+  priority: 86
+  tags: []
+- id: A10
+  scenario: A
+  name: 积分榜
+  description: 联赛积分排名
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 积分榜|积分表|积分排名
+  keywords: []
+  priority: 82
+  tags: []
+- id: A11
+  scenario: A
+  name: 射手榜
+  description: 球员进球榜
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 射手榜|进球榜|金靴
+  keywords: []
+  priority: 80
+  tags: []
+- id: A12
+  scenario: A
+  name: 球队赛季统计
+  description: 球队进失球等赛季数据
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - 本赛季.*(进|失|数据|统计|战绩)
+  - .*进了多少球
+  keywords: []
+  priority: 78
+  tags: []
+- id: A13
+  scenario: A
+  name: 历史交锋
+  description: 两队历史对战
+  entity_entry: team_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 历史交锋|交手记录|对战记录|交锋战绩
+  keywords: []
+  priority: 80
+  tags: []
+- id: A14
+  scenario: A
+  name: 球队阵容
+  description: 大名单/阵容
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - 阵容|大名单|球员名单
+  keywords: []
+  priority: 76
+  tags: []
+- id: A15
+  scenario: A
+  name: 比赛首发
+  description: 单场首发阵容
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 首发阵容|首发名单|预计首发
+  keywords: []
+  priority: 74
+  tags: []
+- id: A16
+  scenario: A
+  name: NBA赛程
+  description: NBA球队或日期赛程
+  entity_entry: team
+  sport: basketball
+  complexity: medium
+  patterns:
+  - NBA.*(赛程|比赛|对阵)
+  - (湖人|勇士|凯尔特人|雷霆|掘金|热火).*(赛程|比赛|对阵)
+  keywords: []
+  priority: 84
+  tags: []
+- id: A17
+  scenario: A
+  name: 实体消歧_国家队
+  description: 国家队vs俱乐部消歧
+  entity_entry: team
+  sport: any
+  complexity: high
+  patterns:
+  - (男足|女足|国家队|U21|俱乐部)
+  - 法国.*世界杯|葡萄牙.*世界杯
+  keywords: []
+  priority: 92
+  tags:
+  - disambiguation
+- id: A18
+  scenario: A
+  name: 语义精度_锁定排名
+  description: 锁定精确名次vs下限
+  entity_entry: league
+  sport: any
+  complexity: high
+  patterns:
+  - 锁定.*(冠军|降级|季后赛|排名)
+  - 已经降级|已经夺冠|还有悬念
+  keywords: []
+  priority: 88
+  tags:
+  - semantic
+- id: B01
+  scenario: B
+  name: 竞彩模板分析
+  description: 竞彩足球周X00X标准模板
+  entity_entry: lottery_code
+  sport: football
+  complexity: high
+  patterns:
+  - 分析【.*竞彩足球周[一二三四五六日]\d{3}
+  keywords: []
+  priority: 95
+  tags:
+  - lottery_template
+- id: B02
+  scenario: B
+  name: 竞彩篮球模板
+  description: 竞彩篮球编号分析
+  entity_entry: lottery_code
+  sport: basketball
+  complexity: medium
+  patterns:
+  - 竞彩篮球.*周[一二三四五六日]\d{3}
+  - 分析【.*竞彩篮球
+  keywords: []
+  priority: 93
+  tags: []
+- id: B03
+  scenario: B
+  name: 对阵加日期分析
+  description: A VS B + 日期
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 分析.*\d{4}-\d{2}-\d{2}.*VS
+  - \d{4}-\d{2}-\d{2}.*VS.*分析
+  keywords: []
+  priority: 88
+  tags: []
+- id: B04
+  scenario: B
+  name: 对阵无日期分析
+  description: 仅两队名称深度分析
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 分析.*VS
+  - .*VS.*(分析|预测|怎么样)
+  keywords: []
+  priority: 86
+  tags: []
+- id: B05
+  scenario: B
+  name: 谁会赢
+  description: 简短胜负预测
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 谁会赢|能赢吗|胜负走向|赢面
+  keywords: []
+  priority: 84
+  tags: []
+- id: B06
+  scenario: B
+  name: 全面深度分析
+  description: 六段式完整分析
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 全面分析|深度分析|详细分析|六段
+  keywords: []
+  priority: 87
+  tags: []
+- id: B07
+  scenario: B
+  name: 自定义模板
+  description: 用户指定输出结构
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 按.*模板|主队一段|四步稳球|自定义
+  keywords: []
+  priority: 80
+  tags: []
+- id: B08
+  scenario: B
+  name: 篮球五段分析
+  description: NBA单场深度
+  entity_entry: match
+  sport: basketball
+  complexity: medium
+  patterns:
+  - (NBA|篮球).*(分析|预测).*(让分|大小分)
+  keywords: []
+  priority: 85
+  tags: []
+- id: B09
+  scenario: B
+  name: 系列赛G7
+  description: 季后赛G7约束
+  entity_entry: match
+  sport: basketball
+  complexity: high
+  patterns:
+  - \bG7\b|抢七|第七场|系列赛第
+  keywords: []
+  priority: 94
+  tags:
+  - series
+- id: B10
+  scenario: B
+  name: 淘汰赛排名不适用
+  description: 杯赛淘汰赛问联赛排名
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 世界杯.*排名|淘汰赛.*积分
+  keywords: []
+  priority: 82
+  tags: []
+- id: B11
+  scenario: B
+  name: 盘口不足跳过
+  description: 数据不足应跳过
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 盘口.*不足|数据不足.*跳过|建议跳过
+  keywords: []
+  priority: 78
+  tags: []
+- id: B12
+  scenario: B
+  name: 换线重定价
+  description: 初盘即时盘换线
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 换线|重定价|已换盘
+  keywords: []
+  priority: 76
+  tags: []
+- id: B13
+  scenario: B
+  name: 伤病结合分析
+  description: 伤病+状态+盘口
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 结合伤病
+  - 伤病名单.*影响
+  keywords: []
+  priority: 89
+  tags: []
+- id: B14
+  scenario: B
+  name: 进球数深度
+  description: 总进球/大小球分析
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 进球数.*分析|大小球.*分析|总进球
+  keywords: []
+  priority: 83
+  tags: []
+- id: B15
+  scenario: B
+  name: 半全场分析
+  description: 半全场玩法分析
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 半全场
+  keywords: []
+  priority: 81
+  tags: []
+- id: B16
+  scenario: B
+  name: 实力对比
+  description: 两队实力对比无明确购彩
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 实力对比|实力分析|谁更强
+  keywords: []
+  priority: 79
+  tags: []
+- id: C01
+  scenario: C
+  name: 昨天比赛复盘
+  description: 昨日赛果回顾
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 昨天.*(怎么回事|复盘|回顾|那场)
+  keywords: []
+  priority: 80
+  tags: []
+- id: C02
+  scenario: C
+  name: 上周比赛复盘
+  description: 相对时间复盘
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 上周|上一场.*(复盘|回顾)
+  keywords: []
+  priority: 78
+  tags: []
+- id: C03
+  scenario: C
+  name: 对阵复盘
+  description: 队名对阵复盘
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - 复盘.*VS|回顾.*VS
+  keywords: []
+  priority: 82
+  tags: []
+- id: C04
+  scenario: C
+  name: 竞彩编号复盘
+  description: 按编号复盘
+  entity_entry: lottery_code
+  sport: any
+  complexity: medium
+  patterns:
+  - 复盘.*周[一二三四五六日]\d{3}
+  keywords: []
+  priority: 84
+  tags: []
+- id: C05
+  scenario: C
+  name: 篮球复盘
+  description: NBA赛后回顾
+  entity_entry: match
+  sport: basketball
+  complexity: medium
+  patterns:
+  - (NBA|篮球).*复盘
+  keywords: []
+  priority: 80
+  tags: []
+- id: C06
+  scenario: C
+  name: 焦点战回顾
+  description: 焦点战/重要比赛回顾
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 焦点战.*回顾|重要.*回顾
+  keywords: []
+  priority: 76
+  tags: []
+- id: C07
+  scenario: C
+  name: 近期战绩复盘
+  description: 球队近期表现回顾
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - 近期战绩复盘|最近.*战绩.*复盘
+  keywords: []
+  priority: 74
+  tags: []
+- id: C08
+  scenario: C
+  name: 欧冠复盘
+  description: 欧冠场次复盘
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 欧冠.*复盘
+  keywords: []
+  priority: 78
+  tags: []
+- id: D01
+  scenario: D
+  name: 这场怎么买
+  description: 单场购彩方案
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 怎么买|如何买|这场.*买
+  keywords: []
+  priority: 88
+  tags: []
+- id: D02
+  scenario: D
+  name: 主不败推荐
+  description: 主不败/不败推荐
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 主不败|不败可以吗|主队不败
+  keywords: []
+  priority: 86
+  tags: []
+- id: D03
+  scenario: D
+  name: 让球推荐
+  description: 让球胜平负推荐
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 让球.*(推荐|买|方案|能赢)
+  keywords: []
+  priority: 84
+  tags: []
+- id: D04
+  scenario: D
+  name: 大小球推荐
+  description: 大小球/进球数推荐
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 大小球|大分小分|大\d|小\d|总进球.*(推荐|买)
+  keywords: []
+  priority: 84
+  tags: []
+- id: D05
+  scenario: D
+  name: 比分玩法
+  description: 比分投注建议
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 比分.*(推荐|买|方案|串)
+  keywords: []
+  priority: 82
+  tags: []
+- id: D06
+  scenario: D
+  name: 单场方案
+  description: 明确要方案
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 单场方案|给个方案|赛事方案
+  keywords: []
+  priority: 85
+  tags: []
+- id: D07
+  scenario: D
+  name: 篮球让分购彩
+  description: NBA让分投注
+  entity_entry: match
+  sport: basketball
+  complexity: medium
+  patterns:
+  - 让分.*(能赢|推荐|买)
+  keywords: []
+  priority: 86
+  tags: []
+- id: D08
+  scenario: D
+  name: 胜平负推荐
+  description: 胜平负明确推荐
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 胜平负.*(推荐|买|倾向)
+  keywords: []
+  priority: 83
+  tags: []
+- id: D09
+  scenario: D
+  name: 稳胆推荐
+  description: 稳胆/稳场
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 稳胆|稳场|稳赢
+  keywords: []
+  priority: 80
+  tags: []
+- id: D10
+  scenario: D
+  name: 购彩风险提示
+  description: 需含风险声明
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 推荐.*串|方案.*串
+  keywords: []
+  priority: 75
+  tags:
+  - disclaimer
+- id: E01
+  scenario: E
+  name: 扫盘
+  description: 批量初筛
+  entity_entry: lottery_batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 扫盘|扫一下|帮我扫
+  keywords: []
+  priority: 90
+  tags: []
+- id: E02
+  scenario: E
+  name: 四串一
+  description: 四串一方案
+  entity_entry: lottery_batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 四串一|4串1
+  keywords: []
+  priority: 92
+  tags: []
+- id: E03
+  scenario: E
+  name: 三串一
+  description: 三串一方案
+  entity_entry: lottery_batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 三串一|3串1|3串一
+  keywords: []
+  priority: 91
+  tags: []
+- id: E04
+  scenario: E
+  name: 二串一
+  description: 二串一方案
+  entity_entry: lottery_batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 二串一|2串1|2串一
+  keywords: []
+  priority: 90
+  tags: []
+- id: E05
+  scenario: E
+  name: 十四场
+  description: 胜负彩十四场
+  entity_entry: lottery_period
+  sport: any
+  complexity: medium
+  patterns:
+  - 十四场|胜负彩
+  keywords: []
+  priority: 93
+  tags: []
+- id: E06
+  scenario: E
+  name: 任九
+  description: 任选九场
+  entity_entry: lottery_period
+  sport: any
+  complexity: medium
+  patterns:
+  - 任九|任选.*9
+  keywords: []
+  priority: 92
+  tags: []
+- id: E07
+  scenario: E
+  name: 北单
+  description: 北京单场
+  entity_entry: lottery_batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 北单
+  keywords: []
+  priority: 88
+  tags: []
+- id: E08
+  scenario: E
+  name: 今日竞彩列表
+  description: 今日可售竞彩场次
+  entity_entry: date
+  sport: any
+  complexity: medium
+  patterns:
+  - 今天竞彩|今日竞彩|竞彩.*有哪些
+  keywords: []
+  priority: 86
+  tags: []
+- id: E09
+  scenario: E
+  name: 批量世界杯
+  description: 多场世界杯一起分析
+  entity_entry: batch
+  sport: any
+  complexity: high
+  patterns:
+  - (四场|多场|接下来.*场).*世界杯
+  - 世界杯.*(四场|多场)
+  keywords: []
+  priority: 94
+  tags: []
+- id: E10
+  scenario: E
+  name: 初筛vs深核
+  description: 初筛后深度核验
+  entity_entry: batch
+  sport: any
+  complexity: high
+  patterns:
+  - 重新深度分析|综合.*后再给|深度核验
+  keywords: []
+  priority: 88
+  tags: []
+- id: E11
+  scenario: E
+  name: 比分串方案
+  description: 比分串关
+  entity_entry: batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 比分串
+  keywords: []
+  priority: 87
+  tags: []
+- id: E12
+  scenario: E
+  name: 在售方案
+  description: 引用已发布方案
+  entity_entry: batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 在售方案|你发布的.*方案
+  keywords: []
+  priority: 85
+  tags: []
+- id: E13
+  scenario: E
+  name: 推荐N场
+  description: 推荐多场靠谱场次
+  entity_entry: batch
+  sport: any
+  complexity: medium
+  patterns:
+  - 推荐\d场|推荐.*场.*靠谱
+  keywords: []
+  priority: 84
+  tags: []
+- id: E14
+  scenario: E
+  name: 竞篮今日
+  description: 今日竞彩篮球场次
+  entity_entry: date
+  sport: basketball
+  complexity: medium
+  patterns:
+  - 竞篮|竞彩篮球.*(今天|有哪些)
+  keywords: []
+  priority: 86
+  tags: []
+- id: F01
+  scenario: F
+  name: 赔率对比
+  description: 多家公司快照对比
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 赔率对比|对比.*赔率|各家赔率
+  keywords: []
+  priority: 88
+  tags: []
+- id: F02
+  scenario: F
+  name: 赔率走势
+  description: 赔率变化追踪
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 赔率.*(变化|走势|变动|升降)
+  keywords: []
+  priority: 90
+  tags: []
+- id: F03
+  scenario: F
+  name: 变动最大
+  description: 当日赔率变动排名
+  entity_entry: date
+  sport: any
+  complexity: medium
+  patterns:
+  - 变动最大|变化最大.*赔率
+  keywords: []
+  priority: 84
+  tags: []
+- id: F04
+  scenario: F
+  name: 凯利指数
+  description: 凯利查询
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 凯利
+  keywords: []
+  priority: 86
+  tags: []
+- id: F05
+  scenario: F
+  name: 赔率时间线
+  description: 完整赔率历史
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 赔率.*时间线|历史赔率
+  keywords: []
+  priority: 82
+  tags: []
+- id: F06
+  scenario: F
+  name: 盘口解读
+  description: 亚盘/让球盘口
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 盘口.*(解读|分析|怎么看)
+  keywords: []
+  priority: 85
+  tags: []
+- id: F07
+  scenario: F
+  name: 临场盘口
+  description: 临场水位变化
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 临场|即时盘
+  keywords: []
+  priority: 83
+  tags: []
+- id: F08
+  scenario: F
+  name: 现在盘口
+  description: 追问当前盘口
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 现在盘口|现在是.*加\d|盘口是
+  keywords: []
+  priority: 87
+  tags:
+  - follow_up
+- id: F09
+  scenario: F
+  name: 水位方向
+  description: 水位与盘口一致性
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 水位|上盘|下盘
+  keywords: []
+  priority: 80
+  tags: []
+- id: F10
+  scenario: F
+  name: 欧赔亚盘
+  description: 欧赔亚盘联合
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 欧赔.*亚盘|亚盘.*欧赔
+  keywords: []
+  priority: 81
+  tags: []
+- id: G01
+  scenario: G
+  name: 比分预测追问
+  description: 分析后比分预测
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - ^比分预测$|^预测比分$
+  keywords: []
+  priority: 98
+  tags:
+  - follow_up
+- id: G02
+  scenario: G
+  name: 率先进球追问
+  description: 先进球概率
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 率先进球|先进球
+  keywords: []
+  priority: 98
+  tags:
+  - follow_up
+- id: G03
+  scenario: G
+  name: 各比分概率
+  description: 比分矩阵
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 各比分|比分概率|比分之间的概率
+  keywords: []
+  priority: 97
+  tags:
+  - follow_up
+- id: G04
+  scenario: G
+  name: 上半场进球概率
+  description: 时段概率
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 上半场.*进球|时段.*概率
+  keywords: []
+  priority: 96
+  tags:
+  - follow_up
+- id: G05
+  scenario: G
+  name: 继续
+  description: 短追问继续
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - ^继续$
+  keywords: []
+  priority: 95
+  tags:
+  - follow_up
+- id: G06
+  scenario: G
+  name: 复述原文
+  description: 原样再发
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 原样.*发|再发一遍|刚才.*再
+  keywords: []
+  priority: 94
+  tags:
+  - follow_up
+- id: G07
+  scenario: G
+  name: 优化方案
+  description: 优化先前输出
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 优化|改进.*方案|再综合
+  keywords: []
+  priority: 93
+  tags:
+  - follow_up
+- id: G08
+  scenario: G
+  name: 同样逻辑
+  description: 沿用上一轮逻辑
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 同样逻辑|同样.*分析|一样的逻辑
+  keywords: []
+  priority: 96
+  tags:
+  - follow_up
+  - context
+- id: G09
+  scenario: G
+  name: 换场追问
+  description: 同会话换一场比赛
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 呢$|这场呢|那边呢
+  keywords: []
+  priority: 85
+  tags:
+  - follow_up
+- id: G10
+  scenario: G
+  name: 重新分析
+  description: 要求重新深度分析
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 重新分析|再分析|重新深度
+  keywords: []
+  priority: 92
+  tags:
+  - follow_up
+- id: G11
+  scenario: G
+  name: 用户纠正
+  description: 用户纠正系统误解
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 不对|你搞错|明明是|我说的是
+  keywords: []
+  priority: 97
+  tags:
+  - regression
+- id: G12
+  scenario: G
+  name: 时间窗纠正
+  description: 纠正时间理解
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 明天早上.*世界杯|今晚.*世界杯
+  keywords: []
+  priority: 98
+  tags:
+  - regression
+  - time_window
+- id: G13
+  scenario: G
+  name: 进球数追问
+  description: 深度分析进球数
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - ^进球数$|进球数深度
+  keywords: []
+  priority: 90
+  tags:
+  - follow_up
+- id: G14
+  scenario: G
+  name: 半全场追问
+  description: 追问半全场
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - ^半全场$
+  keywords: []
+  priority: 89
+  tags:
+  - follow_up
+- id: G15
+  scenario: G
+  name: 综合分析追问
+  description: 需要综合分析
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 需要.*综合|综合分析
+  keywords: []
+  priority: 88
+  tags:
+  - follow_up
+- id: G16
+  scenario: G
+  name: 盘口变化追问
+  description: 盘口数字变化
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - '[-+]\d+\.?\d*了$|让分.*了$'
+  keywords: []
+  priority: 91
+  tags:
+  - follow_up
+- id: G17
+  scenario: G
+  name: 多场比赛追问
+  description: 批量中追问单场
+  entity_entry: context
+  sport: any
+  complexity: high
+  patterns:
+  - 这场呢|那场呢|土耳其这场|摩洛哥这场
+  keywords: []
+  priority: 90
+  tags:
+  - follow_up
+- id: G18
+  scenario: G
+  name: 球员情况追问
+  description: 追问球员伤停
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 球员情况|能出战|能不能出场
+  keywords: []
+  priority: 87
+  tags:
+  - follow_up
+- id: G19
+  scenario: G
+  name: 短确认
+  description: 嗯/好/对
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - ^(嗯|好|是的|对|可以|ok|OK)$
+  keywords: []
+  priority: 70
+  tags:
+  - follow_up
+- id: G20
+  scenario: G
+  name: 格式重写
+  description: 指定格式重写
+  entity_entry: context
+  sport: any
+  complexity: medium
+  patterns:
+  - 按.*写|主队一段.*客队
+  keywords: []
+  priority: 86
+  tags:
+  - follow_up
+- id: H01
+  scenario: H
+  name: 争冠悬念
+  description: 联赛争冠
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 争冠.*悬念|还能夺冠
+  keywords: []
+  priority: 88
+  tags: []
+- id: H02
+  scenario: H
+  name: 降级确定
+  description: 降级球队
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 降级|降班
+  keywords: []
+  priority: 86
+  tags: []
+- id: H03
+  scenario: H
+  name: 季后赛锁定
+  description: NBA季后赛席位
+  entity_entry: league
+  sport: basketball
+  complexity: medium
+  patterns:
+  - 锁定.*季后赛|季后赛.*锁定
+  keywords: []
+  priority: 90
+  tags: []
+- id: H04
+  scenario: H
+  name: 冠军已锁定
+  description: 冠军归属已定
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 锁定冠军|已经冠军|夺冠.*锁定
+  keywords: []
+  priority: 88
+  tags: []
+- id: H05
+  scenario: H
+  name: 保级形势
+  description: 保级分析
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 保级
+  keywords: []
+  priority: 84
+  tags: []
+- id: H06
+  scenario: H
+  name: 欧战席位
+  description: 欧冠欧联资格
+  entity_entry: league
+  sport: any
+  complexity: medium
+  patterns:
+  - 欧战|欧冠资格|欧联资格
+  keywords: []
+  priority: 82
+  tags: []
+- id: H07
+  scenario: H
+  name: 世界杯进程
+  description: 杯赛打到哪一轮
+  entity_entry: competition
+  sport: any
+  complexity: medium
+  patterns:
+  - 打到哪|进程|走到哪一步
+  keywords: []
+  priority: 80
+  tags: []
+- id: H08
+  scenario: H
+  name: 数学出线
+  description: 出线形势计算
+  entity_entry: league
+  sport: any
+  complexity: high
+  patterns:
+  - 出线形势|出线.*计算|末轮.*出线
+  keywords: []
+  priority: 86
+  tags: []
+- id: X01
+  scenario: X
+  name: 非体育拒答
+  description: 政治色情等
+  entity_entry: none
+  sport: any
+  complexity: medium
+  patterns:
+  - 政治|色情|暴力|赌博诈骗
+  keywords: []
+  priority: 100
+  tags:
+  - safety
+- id: X02
+  scenario: X
+  name: 英文提问
+  description: 英文自然语言
+  entity_entry: any
+  sport: any
+  complexity: medium
+  patterns:
+  - ^[A-Za-z\s,\.?']{10,}$
+  keywords: []
+  priority: 60
+  tags:
+  - language
+- id: X03
+  scenario: X
+  name: 粤语意图
+  description: 粤语表达
+  entity_entry: any
+  sport: any
+  complexity: medium
+  patterns: []
+  keywords:
+  - 唔该
+  - 点解
+  - 几时
+  - 场波
+  priority: 60
+  tags:
+  - language
+- id: X04
+  scenario: X
+  name: 定位失败
+  description: 找不到比赛
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 找不到|未找到|没有这场
+  keywords: []
+  priority: 85
+  tags:
+  - edge
+- id: X05
+  scenario: X
+  name: 假阴性风险
+  description: 不得断言无赛
+  entity_entry: team
+  sport: any
+  complexity: high
+  patterns:
+  - 没有比赛|均无比赛|无比赛
+  keywords: []
+  priority: 99
+  tags:
+  - regression
+- id: X06
+  scenario: X
+  name: 中间态外露
+  description: 不应输出查询过程
+  entity_entry: none
+  sport: any
+  complexity: high
+  patterns:
+  - 让我查|未找到.*再试|换.*英文名
+  keywords: []
+  priority: 98
+  tags:
+  - output_discipline
+- id: X07
+  scenario: X
+  name: 内部ID外露
+  description: match_id不应出现
+  entity_entry: none
+  sport: any
+  complexity: high
+  patterns:
+  - match_id|football_match\.id
+  keywords: []
+  priority: 97
+  tags:
+  - output_discipline
+- id: X08
+  scenario: X
+  name: 用户辱骂
+  description: 辱骂后回到正题
+  entity_entry: none
+  sport: any
+  complexity: medium
+  patterns:
+  - 你妈的|他妈|傻逼|瞎.*扯
+  keywords: []
+  priority: 55
+  tags:
+  - edge
+- id: X09
+  scenario: X
+  name: 冷门赛事
+  description: 澳超韩K等
+  entity_entry: team
+  sport: any
+  complexity: medium
+  patterns:
+  - 澳超|韩K|沙特联|J联赛
+  keywords: []
+  priority: 75
+  tags: []
+- id: X10
+  scenario: X
+  name: 无分隔符对阵
+  description: 利物浦热刺
+  entity_entry: match_pair
+  sport: any
+  complexity: medium
+  patterns:
+  - ^\S+对\S+$|^\S+和\S+这场
+  keywords: []
+  priority: 83
+  tags: []
+- id: X11
+  scenario: X
+  name: 年份误锚
+  description: 错误年份定位
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 2024-\d{2}-\d{2}.*VS
+  keywords: []
+  priority: 96
+  tags:
+  - regression
+- id: X12
+  scenario: X
+  name: 主客颠倒
+  description: 纠正主客场
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 主场|客场|挪威.*法国
+  keywords: []
+  priority: 94
+  tags:
+  - regression
+- id: X13
+  scenario: X
+  name: 数据诚实
+  description: 缺失字段声明
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 数据暂缺|数据不足
+  keywords: []
+  priority: 70
+  tags: []
+- id: X14
+  scenario: X
+  name: 矛盾推荐
+  description: 避免双向推荐
+  entity_entry: match
+  sport: any
+  complexity: high
+  patterns:
+  - 主不败.*客不败
+  keywords: []
+  priority: 88
+  tags:
+  - guardrail
+- id: X15
+  scenario: X
+  name: 盈利承诺
+  description: 不得承诺盈利
+  entity_entry: none
+  sport: any
+  complexity: medium
+  patterns:
+  - 保证.*赢|100%.*命中
+  keywords: []
+  priority: 92
+  tags:
+  - guardrail
+- id: X16
+  scenario: X
+  name: 网络兜底
+  description: 搜索后重新定位
+  entity_entry: match
+  sport: any
+  complexity: medium
+  patterns:
+  - 搜索.*确认|网上.*查
+  keywords: []
+  priority: 72
+  tags: []

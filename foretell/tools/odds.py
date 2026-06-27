@@ -24,11 +24,11 @@ def _odds_missing(snapshot: dict | None) -> bool:
 
 
 @tool
-def get_odds_snapshot(match_id: str) -> str:
+def get_odds_snapshot(match_id: int | str) -> str:
     """查询比赛盘口快照（欧赔、亚盘/让分、大小球/大小分）。
 
     Args:
-        match_id: 比赛 ID，须先通过实体定位获取。
+        match_id: MySQL football_match.id，须先通过实体定位获取。
     """
     client = get_crazy_sports_client()
     result = client.get_odds_snapshot(match_id)
@@ -59,11 +59,11 @@ def get_odds_snapshot(match_id: str) -> str:
 
 
 @tool
-def get_odds_trend(match_id: str) -> str:
+def get_odds_trend(match_id: int | str) -> str:
     """查询赔率走势（初盘到即时盘变动）。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     results = client.get_odds_trend(match_id)
@@ -87,11 +87,11 @@ def get_odds_trend(match_id: str) -> str:
 
 
 @tool
-def get_same_odds_history(match_id: str) -> str:
+def get_same_odds_history(match_id: int | str) -> str:
     """查询同赔历史赛果。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     results = client.get_same_odds_history(match_id)
@@ -115,11 +115,11 @@ def get_same_odds_history(match_id: str) -> str:
 
 
 @tool
-def get_kelly(match_id: str) -> str:
+def get_kelly(match_id: int | str) -> str:
     """查询凯利指数。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     result = client.get_kelly(match_id)
@@ -143,11 +143,11 @@ def get_kelly(match_id: str) -> str:
 
 
 @tool
-def get_betfair(match_id: str) -> str:
+def get_betfair(match_id: int | str) -> str:
     """查询必发成交数据。
 
     Args:
-        match_id: 比赛 ID。
+        match_id: MySQL football_match.id。
     """
     client = get_crazy_sports_client()
     result = client.get_betfair(match_id)

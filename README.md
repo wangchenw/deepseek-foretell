@@ -35,7 +35,7 @@ cp .env.example .env
 
 ```bash
 # 单次提问
-uv run python main.py "今晚 NBA 有什么比赛？"
+uv run python main.py "今晚足球有什么比赛？"
 
 # 交互模式
 uv run python main.py
@@ -55,7 +55,7 @@ uv run python main.py --thread-id my-session
 
 ## 开发工具链
 
-代码质量由 **ruff（lint + format）+ mypy（类型）+ pre-commit + GitHub Actions CI** 守护。
+代码质量由 **ruff（lint + format）+ mypy（类型）+ pre-commit** 守护。
 
 ```bash
 # 安装 dev 工具（ruff / mypy）
@@ -73,5 +73,5 @@ uv run pytest
 uv run pre-commit install
 ```
 
-提交时 pre-commit 会自动跑 ruff 与基础检查；CI（`.github/workflows/ci.yml`）在 push/PR 时全量跑 ruff/mypy/pytest。
+提交时 pre-commit 会自动跑 ruff 与基础检查；完整测试和类型检查在本地执行。
 

@@ -24,18 +24,19 @@ def resolve_match(
     date: str | None = None,
     series_game: int | None = None,
 ) -> str:
-    """按主客队名称定位具体比赛。
+    """按主客队名称模糊查询比赛候选。
 
     Args:
         home: 主队名称（支持中文简称或全称）。
         away: 客队名称。
         date: 比赛日期，格式 YYYY-MM-DD（可选）。
         series_game: 系列赛场次编号，如 G7 传 7（可选）。
+            返回多个候选时，结合日期、赛事、主客队和上下文自行选择正确 match_id。
     """
     client = get_crazy_sports_client()
-    result = client.resolve_match(home, away, date=date, series_game=series_game)
+    candidates = client.resolve_match(home, away, date=date, series_game=series_game)
 
-    if result is None:
+    if not candidates:
         if series_game is not None:
             return make_envelope(
                 StatusCode.NOT_APPLICABLE,
@@ -58,8 +59,13 @@ def resolve_match(
     return make_envelope(
         StatusCode.OK,
         "match_entity",
-        result,
-        match_id=result["match_id"],
+        {
+            "home": home,
+            "away": away,
+            "date": date,
+            "candidates": candidates,
+            "count": len(candidates),
+        },
         meta=_default_meta(client),
     )
 
@@ -101,15 +107,16 @@ def resolve_lottery_match(
 
 @tool
 def resolve_team(name: str) -> str:
-    """按名称定位球队实体。
+    """按名称模糊查询球队候选。
 
     Args:
         name: 球队名称或常用简称，如「利物浦」「湖人」。
+            返回多个候选时，结合 name/name_en/national/aliases 自行选择正确 team_id。
     """
     client = get_crazy_sports_client()
-    result = client.resolve_team(name)
+    candidates = client.resolve_team(name)
 
-    if result is None:
+    if not candidates:
         return make_envelope(
             StatusCode.ENTITY_NOT_FOUND,
             "team_entity",
@@ -117,33 +124,26 @@ def resolve_team(name: str) -> str:
             meta=_default_meta(client),
         )
 
-    meta = _default_meta(client)
-    if "national" in result:
-        meta["is_national"] = bool(result.get("national"))
-    if result.get("_disambiguation_note"):
-        meta["disambiguation_note"] = result["_disambiguation_note"]
-
-    data = {k: v for k, v in result.items() if not k.startswith("_")}
-
     return make_envelope(
         StatusCode.OK,
         "team_entity",
-        data,
-        meta=meta,
+        {"name": name, "candidates": candidates, "count": len(candidates)},
+        meta=_default_meta(client),
     )
 
 
 @tool
 def resolve_league(name: str) -> str:
-    """按名称定位联赛实体。
+    """按名称模糊查询联赛候选。
 
     Args:
         name: 联赛名称或简称，如「欧冠」「NBA」「英超」。
+            返回多个候选时，结合日期、国家、赛事语境自行选择正确 league_id。
     """
     client = get_crazy_sports_client()
-    result = client.resolve_league(name)
+    candidates = client.resolve_league(name)
 
-    if result is None:
+    if not candidates:
         return make_envelope(
             StatusCode.ENTITY_NOT_FOUND,
             "league_entity",
@@ -154,6 +154,6 @@ def resolve_league(name: str) -> str:
     return make_envelope(
         StatusCode.OK,
         "league_entity",
-        result,
+        {"name": name, "candidates": candidates, "count": len(candidates)},
         meta=_default_meta(client),
     )
