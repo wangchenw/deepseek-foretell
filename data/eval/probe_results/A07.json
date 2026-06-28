@@ -1,0 +1,25 @@
+{
+  "type_id": "A07",
+  "case_id": "TC-A07-001",
+  "steps": [
+    {
+      "tool": "resolve_team",
+      "params": {
+        "name": "葡萄牙"
+      },
+      "code": "OK",
+      "stub": false
+    },
+    {
+      "tool": "get_team_schedule",
+      "params": {
+        "team_id": 11331,
+        "direction": "all",
+        "limit": 5
+      },
+      "code": "OK",
+      "count": 5,
+      "stub": false
+    }
+  ]
+}

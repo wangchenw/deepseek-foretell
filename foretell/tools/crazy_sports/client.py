@@ -39,6 +39,7 @@ class CrazySportsClient(Protocol):
         date: str,
         sport: str | None = None,
         league_preset: str | None = None,
+        tier: Literal["top", "all"] | None = None,
     ) -> dict:
         """按日期返回赛程列表与截断元信息。"""
 
@@ -105,6 +106,35 @@ class CrazySportsClient(Protocol):
 
     def get_match_result(self, match_id: int | str) -> dict | None:
         """返回已完场比赛的赛果与复盘数据。"""
+
+    def get_top_scorers(self, competition_id: int | str, limit: int = 20) -> list[dict]:
+        """返回赛事当前赛季射手榜。"""
+
+    def get_team_squad(self, team_id: int | str) -> list[dict]:
+        """返回球队大名单。"""
+
+    def get_series_matchup(
+        self,
+        sport: str,
+        team_id: int | str | None = None,
+        limit: int = 20,
+    ) -> list[dict]:
+        """返回系列赛对阵（含 NBA 季后赛 G7 等多回合对阵）。"""
+
+    def get_basketball_standings(self, league_id: int | str) -> list[dict]:
+        """返回篮球联赛积分榜。"""
+
+    def get_match_tlive(self, match_id: int | str, limit: int = 100) -> list[dict]:
+        """返回比赛实时文字直播事件流。"""
+
+    def get_match_incidents(self, match_id: int | str) -> list[dict]:
+        """返回比赛关键事件（进球/红黄牌/换人/VAR）。"""
+
+    def get_match_team_stats(self, match_id: int | str) -> list[dict]:
+        """返回比赛球队技术统计。"""
+
+    def get_match_player_stats(self, match_id: int | str, limit: int = 30) -> list[dict]:
+        """返回比赛球员技术统计（含评分）。"""
 
     @property
     def freshness(self) -> str:

@@ -19,6 +19,7 @@ from foretell.tools.odds import (
     get_same_odds_history,
 )
 from foretell.tools.schedule import get_team_schedule
+from foretell.tools.search import internet_search
 from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
 
 _STATUS_SKILL = "/skills/foretell-status-dictionary/"
@@ -30,6 +31,7 @@ ENTITY_RESOLVER_TOOLS = [
     resolve_team,
     resolve_league,
     get_team_schedule,
+    internet_search,
 ]
 
 FUNDAMENTALS_TOOLS = [

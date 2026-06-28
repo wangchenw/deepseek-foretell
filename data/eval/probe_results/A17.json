@@ -1,0 +1,25 @@
+{
+  "type_id": "A17",
+  "case_id": "TC-A17-REG-001",
+  "steps": [
+    {
+      "tool": "resolve_team",
+      "params": {
+        "name": "法国"
+      },
+      "code": "OK",
+      "stub": false
+    },
+    {
+      "tool": "get_team_schedule",
+      "params": {
+        "team_id": 10234,
+        "direction": "all",
+        "limit": 10
+      },
+      "code": "OK",
+      "count": 10,
+      "stub": false
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+type_id: "A02"
+case_id: "TC-A02-001"
+exploration_log:
+  - step: 1
+    action: "SQL 查 lottery_jczq_odds 确认 4.15-4.16 竞彩足球场次总数"
+    query: "SELECT COUNT(*) AS cnt, MIN(match_time_str), MAX(match_time_str), COUNT(DISTINCT issue) FROM lottery_jczq_odds WHERE match_time_str LIKE '2026-04-15%' OR match_time_str LIKE '2026-04-16%'"
+    result: "15 场,跨 2 个 issue(260414 含 2001-2007,260415 含 3001-3008),时间 4-15 02:00~4-16 08:30"
+    reasoning: "用户口语'158场体彩'是泛指/夸大,数据库实际 15 场。需诚实告知用户实际可分析场次为 15 场而非 158 场"
+    next: "查全部 15 场明细"
+  - step: 2
+    action: "SQL 查 4.15-4.16 全部 15 场明细,识别欧冠场次"
+    query: "SELECT issue, issue_num, match_time_str, comp, home, away, spf, sell_status FROM lottery_jczq_odds WHERE match_time_str LIKE '2026-04-15%' OR match_time_str LIKE '2026-04-16%' ORDER BY match_time_str"
+    result: "15 场含 4 场欧冠:4-15 03:00 马竞vs巴萨(2002,spf 3.95/4.58/1.52)、利物浦vs巴黎(2003,2.24/4.06/2.29);4-16 03:00 阿森纳vs里斯本(3005,1.40/4.05/5.95)、拜仁vs皇马(3006,1.44/5.40/4.00)。其余 11 场:沙特联/英冠/南美解放者杯/K联赛/亚冠/挪超"
+    reasoning: "用户 turn 1 提到'马季巴萨221221'(马竞vs巴萨)、'利物浦和大巴黎122221 结果02'与 4-15 两场对应;turn 6'4月16号凌晨两场欧冠'对应 4-16 两场。需求路径清晰"
+    next: "验证 resolve_lottery_match 对欧冠场次的解析"
+  - step: 3
+    action: "调 resolve_lottery_match(code='周三005', date='2026-04-16') 解析阿森纳vs里斯本"
+    result: "OK,返回 issue_num=3005,阿森纳vs里斯本,欧冠,含 spf/rq/bf/jq/bqc 全玩法赔率,但 match_id=null(无 match_candidates 字段)"
+    reasoning: "lottery 层解析正常,但未自动 resolve 到 football_match。需单独 resolve_match 或 SQL 直查"
+    next: "调 resolve_match 用队名定位 match_id"
+  - step: 4
+    action: "调 resolve_match(home='阿森纳', away='里斯本竞技', date='2026-04-16')"
+    result: "ENTITY_NOT_FOUND。客队'里斯本竞技'在数据库里叫'葡萄牙体育'(官方名)"
+    reasoning: "别名映射缺口:resolve_match 不识别'里斯本竞技'同义词。需 SQL 模糊查 football_team 或 LLM 层补全别名"
+    next: "SQL 模糊查 football_match 确认数据存在"
+  - step: 5
+    action: "SQL JOIN football_match+football_team+football_competition 查阿森纳 4-16 03:00 场次"
+    query: "SELECT m.id, m.match_time_str, hc.name_zh AS home, ac.name_zh AS away, c.name_zh AS comp, m.status_id FROM football_match m JOIN football_team hc ... JOIN football_team ac ... JOIN football_competition c ... WHERE m.match_time_str LIKE '2026-04-16 03:00%' AND hc.name_zh LIKE '%阿森纳%'"
+    result: "找到 match_id=4517188,阿森纳vs葡萄牙体育,欧冠,status_id=8(完赛)"
+    reasoning: "数据存在,只是 resolve_match 别名映射失效。SQL 直查可绕过"
+    next: "验证拜仁vs皇马 resolve_match"
+  - step: 6
+    action: "调 resolve_match(home='拜仁慕尼黑', away='皇家马德里', date='2026-04-16')"
+    result: "OK,match_id=4517581,欧冠,finished,含排名(德甲1/西甲2)+环境(11°C/85%/1.1m/s)"
+    reasoning: "主流队名 resolve_match 正常。4-16 两场欧冠 match_id 全部拿到(4517188/4517581)"
+    next: "SQL 查 4-15 两场欧冠 match_id"
+  - step: 7
+    action: "SQL 查 4-15 03:00 欧冠两场"
+    query: "SELECT m.id, m.match_time_str, hc.name_zh AS home, ac.name_zh AS away FROM football_match m JOIN ... WHERE m.match_time_str LIKE '2026-04-15 03:00%' AND c.name_zh='欧洲冠军联赛'"
+    result: "4517582 马竞vs巴萨、4517583 利物浦vs巴黎圣日耳曼"
+    reasoning: "4 场欧冠 match_id 全部到位:4517582/4517583/4517188/4517581"
+    next: "验证赛果+盘口"
+  - step: 8
+    action: "调 get_match_result(4517188) 阿森纳vs葡萄牙体育"
+    result: "OK,0-0 全场,0-0 半场,角球 8-3,黄牌 0-1,无红牌"
+    reasoning: "turn 3 用户质疑'阿森纳不敌里斯本'——实际赛果 0-0 平局,阿森纳未输。可基于此诚实复盘"
+    next: "验证拜仁vs皇马赛果"
+  - step: 9
+    action: "调 get_match_result(4517581) 拜仁vs皇马"
+    result: "OK,4-3 全场,2-3 半场,皇马客场 1 红牌,黄牌 1-3,角球 9-2"
+    reasoning: "赛果完整含红黄牌角球,可回答 turn 4'重点分析欧冠不要漏细节'"
+    next: "A02 探索结束,落盘"
+final_finding: |
+  A02 路径成立。4.15-4.16 数据库实际 15 场竞彩足球(用户口语"158场"为夸大,LLM 层应诚实说明实际场次),
+  含 4 场欧冠:马竞vs巴萨(4517582)、利物浦vs巴黎(4517583)、阿森纳vs葡萄牙体育(4517188)、拜仁vs皇马(4517581)。
+  turn 1"158场综合分析+欧冠单独":get_lottery_schedule(date=2026-04-15/16) 或 SQL lottery_jczq_odds 取全 15 场,
+    欧冠 4 场用 resolve_match/SQL 拿 match_id 后调 get_match_result+get_odds_snapshot+football_odds_europe 深度分析。
+  turn 2"007/005/006/008 编号复核":对应 issue 260415 的 3005-3008,resolve_lottery_match 拿赔率即可。
+  turn 3"阿森纳不敌里斯本可能性":get_match_result 已返回 0-0 平局,可诚实复盘。
+  turn 4"欧冠重点分析":4 场 match_id 全部到位,可深度分析。
+  turn 5-9"两场欧冠预言+成本最低玩法":用 spf/rq/bf/bqc 赔率组合推荐串关+比分,必须含风险声明。
+  数据正确性已验证:拜仁vs皇马 4-3,阿森纳 0-0,与 spf 赔率(阿森纳 1.40 主胜低赔但实际平局)对照可做机构意图分析。
+  隐患:resolve_match 对"里斯本竞技"别名不识别(数据库用"葡萄牙体育"),需 LLM 层补全别名或 SQL 模糊查。
+gaps_encountered:
+  - gap_type: "routing_gap"
+    detail: "resolve_match 不识别'里斯本竞技'别名(数据库用'葡萄牙体育'),返回 ENTITY_NOT_FOUND。冷门队名/同义词映射缺失"
+    location: "foretell/tools/entity.py resolve_match 别名表"
+  - gap_type: "context_gap"
+    detail: "用户口语'158场'与数据库实际 15 场不符。LLM 层需诚实告知实际可分析场次,不应附和'158场'"
+    location: "LLM 编排层意图对齐"
+  - gap_type: "tool_logic_gap"
+    detail: "resolve_lottery_match 对竞彩足球返回 match_id=null 且未自动 resolve_match(对比 A01 的 6071 是自动 resolve 的)。本例 3005 未触发自动 resolve,可能因 home_name '阿森纳' 与 football_team 名称完全匹配但 away_name '里斯本' 模糊匹配失败"
+    location: "mysql_client.py resolve_lottery_match 429-437 行"
+  - gap_type: "tool_logic_gap"
+    detail: "get_odds_trend/get_kelly/get_betfair/get_intel_tags 是 stub(同 A01)"
+    location: "mysql_client.py 854-873"

@@ -1,0 +1,18 @@
+type_id: E12
+type_name: 在售方案
+scenario: E
+entity_entry: batch
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 你发布的世界杯在售方案
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

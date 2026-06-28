@@ -79,7 +79,6 @@ MYSQL_DATABASE=data_center
 ```bash
 uv sync
 uv run pytest
-uv run python main.py "今晚足球有什么"
 uv run uvicorn api.main:app --reload
 ```
 
@@ -94,8 +93,8 @@ uv run uvicorn api.main:app --reload
 配置位置：`pyproject.toml` 的 `[tool.ruff]`、`[tool.mypy]`；钩子定义：`.pre-commit-config.yaml`。
 
 ```bash
-# 安装 dev 工具
-uv sync --extra dev
+# 安装依赖
+uv sync
 
 # 首次启用提交钩子
 uv run pre-commit install
@@ -111,10 +110,10 @@ uv run ruff format
 
 ## 生产环境（Postgres）
 
-生产部署需安装可选依赖组 `prod`，并设置 `DEPLOY_ENV=prod` 与 `DATABASE_URL`。
+生产部署需设置 `DEPLOY_ENV=prod` 与 `DATABASE_URL`（Postgres 相关包已包含在 `uv sync` 中）。
 
 ```bash
-uv sync --extra prod
+uv sync
 export DEPLOY_ENV=prod
 export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 ```
@@ -138,6 +137,20 @@ export DATABASE_URL=postgresql://user:pass@localhost:5432/foretell
 - MySQL `football_match.match_time` 为 Unix `int`；赛程查询用 `UNIX_TIMESTAMP`，勿用 `DATE(match_time)`
 
 验收：`uv run pytest tests/integration/test_skills_loading.py -v`
+
+## 评测集可视化（Eval Explorer）
+
+静态页面浏览 120 题型 taxonomy、代表 case 与 145k 生产分布，无需 dev server。
+
+```bash
+# 更新 taxonomy / JSONL 后重新生成
+uv run python scripts/build_eval_explorer.py
+
+# 浏览器打开（file:// 或静态托管均可）
+# data/eval/eval-explorer.html
+```
+
+深链接：`#type=B01`、`#case=TC-A08-REG-003`。
 
 ## Phase 里程碑
 

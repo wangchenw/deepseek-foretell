@@ -1,0 +1,21 @@
+type_id: X06
+type_name: 中间态外露
+scenario: X
+case_id: TC-X06-REG-009
+turns:
+- turn_index: 0
+  text: 法国 vs 挪威具体哪场
+  atomics:
+  - id: X06-T0-a1
+    category: resolve_entity
+    target: 法国 vs 挪威 对阵场次
+    hard_constraints:
+    - resolve_match 返回候选列表
+    - 默认 2026 世界杯语境
+  - id: X06-T0-a2
+    category: synthesize_answer
+    target: 唯一/最优场次结论
+    hard_constraints:
+    - 不输出「正在查询」「未找到再试」
+    - 不输出中间检索过程
+    - 仅最终结论（日期+赛事+主客）

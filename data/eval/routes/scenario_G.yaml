@@ -1,0 +1,443 @@
+scenario: G
+explored: 20
+entries:
+- type_id: G01
+  type_name: 比分预测追问
+  scenario: G
+  probe_case_id: TC-G01-REG-004
+  priority: P0
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G01.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G02
+  type_name: 率先进球追问
+  scenario: G
+  probe_case_id: TC-G02-REG-005
+  priority: P0
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G02.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G03
+  type_name: 各比分概率
+  scenario: G
+  probe_case_id: TC-G03-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G03.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G04
+  type_name: 上半场进球概率
+  scenario: G
+  probe_case_id: TC-G04-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G04.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G05
+  type_name: 继续
+  scenario: G
+  probe_case_id: TC-G05-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G05.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G06
+  type_name: 复述原文
+  scenario: G
+  probe_case_id: TC-G06-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G06.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G07
+  type_name: 优化方案
+  scenario: G
+  probe_case_id: TC-G07-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G07.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G08
+  type_name: 同样逻辑
+  scenario: G
+  probe_case_id: TC-G08-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G08.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G09
+  type_name: 换场追问
+  scenario: G
+  probe_case_id: TC-G09-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G09.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G10
+  type_name: 重新分析
+  scenario: G
+  probe_case_id: TC-G10-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G10.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G11
+  type_name: 用户纠正
+  scenario: G
+  probe_case_id: TC-G11-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G11.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G12
+  type_name: 时间窗纠正
+  scenario: G
+  probe_case_id: TC-G12-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G12.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G13
+  type_name: 进球数追问
+  scenario: G
+  probe_case_id: TC-G13-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G13.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G14
+  type_name: 半全场追问
+  scenario: G
+  probe_case_id: TC-G14-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G14.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G15
+  type_name: 综合分析追问
+  scenario: G
+  probe_case_id: TC-G15-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G15.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G16
+  type_name: 盘口变化追问
+  scenario: G
+  probe_case_id: TC-G16-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G16.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G17
+  type_name: 多场比赛追问
+  scenario: G
+  probe_case_id: TC-G17-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G17.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G18
+  type_name: 球员情况追问
+  scenario: G
+  probe_case_id: TC-G18-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G18.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G19
+  type_name: 短确认
+  scenario: G
+  probe_case_id: TC-G19-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G19.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G20
+  type_name: 格式重写
+  scenario: G
+  probe_case_id: TC-G20-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G20.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false

@@ -1,0 +1,59 @@
+type_id: "X12"
+case_id: "TC-X12-REG-002"
+user_intent_analysis: |
+  用户多轮对话想定位一场"法国 vs 挪威"的世界杯比赛。turn 1 给出错误的年份 2024-06-27（实为虚拟口误或测试陷阱）；
+  turn 2 主动纠正为"2026 世界杯那场"，意图是把场次锚定到 2026-06-27 世界杯小组赛。
+  隐含需求：(1) 必须按 DB 真实主客方向回答——即挪威主场、法国客场，不能照搬用户字面"法国 vs 挪威"顺序；
+  (2) 不输出中间态、不暴露 match_id（呼应反馈 #002 的 P0 违规教训）；
+  (3) turn 2 是对 turn 1 的修正，应继承上下文而不是重新发起一次独立查询。
+turns:
+  - turn: 1
+    user_text: "法国 vs 挪威 2024-06-27"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {team: 法国, national: true, expected_team_id: 10234}
+        success_criteria: "从 resolve_team('法国') 候选中正确选出国家队（team_id=10234），不被女足/青年队干扰"
+      - id: aq_2
+        category: resolve_entity
+        target: {team: 挪威, national: true, expected_team_id: 13820}
+        success_criteria: "从 resolve_team('挪威') 候选中正确选出国家队（team_id=13820）"
+        depends_on: []
+      - id: aq_3
+        category: fetch_schedule
+        target: {date: "2024-06-27", teams: [法国, 挪威]}
+        success_criteria: "用 SQL 基准独立验证 2024-06-27 当天 DB 是否存在法国 vs 挪威的赛事；如不存在，诚实返回无此场，禁止编造"
+        depends_on: [aq_1, aq_2]
+  - turn: 2
+    user_text: "应该是2026世界杯那场"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherits: [aq_1, aq_2, aq_3], correction: "年份 2024 → 2026，赛事=世界杯"}
+        success_criteria: "正确识别 turn 2 是对 turn 1 的修正（不是新查询）；继承已解析的法国/挪威实体与对阵关系，仅替换时间窗与赛事约束"
+      - id: aq_5
+        category: refine_time_window
+        target: {date: "2026-06-27", competition: 世界杯, teams: [法国, 挪威]}
+        success_criteria: "独立 SQL 基准确认 2026-06-27 世界杯存在法国 vs 挪威场次，且按 DB 真实方向 home=挪威/away=法国；工具返回需与 SQL 基准一致"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target: {rules: [不暴露 match_id, 不输出中间态, 主客方向以 DB 为准]}
+        success_criteria: "最终用户态回答只用自然语言呈现：2026-06-27 03:00 北京时间，挪威主场对阵法国，世界杯小组赛；不出现 match_id=4460928 等内部 ID，不出现'未找到/让我查一下'中间过程"
+        depends_on: [aq_5]
+hard_constraints:
+  - "最终必须定位到 2026-06-27（expected_behaviors + 反馈 #002）"
+  - "主客方向以 DB 真实为准：挪威主场、法国客场，不得沿用用户字面'法国 vs 挪威'顺序（反馈 #002 P1：主客表述反复）"
+  - "不输出中间态：禁止把'未找到/换英文名再试'等推理过程呈现给用户（反馈 #002 P0）"
+  - "不暴露 match_id / 内部字段名给用户（反馈 #002 P0）"
+  - "turn 1 错误年份(2024)必须经 DB 验证后诚实纠正，不得默认接受用户错误也不得编造赛果"
+  - "未穷尽 DB 检索前不得断言无赛（通用 no_false_negative 约束）"
+risk_notes: |
+  本 case 最危险的是用户字面"法国 vs 挪威"被 LLM 直接喂给 resolve_match 作为 home=法国/away=挪威，
+  但 DB 里这场比赛的真实方向是挪威主场、法国客场。预判 resolve_match(home=法国, away=挪威, date=2026-06-27)
+  会因方向不匹配而 ENTITY_NOT_FOUND——这是核心 tool_logic/routing 陷阱。LLM 必须能：
+  (a) 在工具失败后用 SQL 基准或 get_team_schedule 交叉验证，发现 DB 实际存在该场但方向相反；
+  (b) 用主客颠倒的写法重新调用 resolve_match；
+  (c) 最终回答用 DB 真实方向呈现。
+  另外 turn 1 → turn 2 是修正关系，依赖会话上下文继承；当前 foretell 代码库若无 checkpointer，
+  该环节只能由 LLM 在同一 turn 内自己维护，需诚实标注 context_gap。

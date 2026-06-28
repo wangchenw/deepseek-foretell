@@ -1,0 +1,18 @@
+type_id: A10
+type_name: 积分榜
+scenario: A
+entity_entry: league
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 分析今天竞彩5场比赛结果预测，大小球方向给出一个结果，比分多少大概率，记得调用工具核查，不要自己想，实事求是，全方位分析，重点是每一场比赛初盘数据变化水位，大小球盘口数据变化，要调用工具核查最新信息
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

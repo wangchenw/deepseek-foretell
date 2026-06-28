@@ -1,0 +1,60 @@
+type_id: "A11"
+case_id: "TC-A11-SYN"
+user_intent_analysis: |
+  本案是合成单轮射手榜示例问法(type_name=射手榜，entity_entry=league，synthetic origin)。
+  用户文本为占位符"[射手榜示例问法]"，按 taxonomy patterns(射手榜|进球榜|金靴)与 2026 世界杯进行期语境，
+  规范化为：「2026 世界杯射手榜前 10 是谁」。隐含需求：
+  (1) 默认指向当前进行中的 2026 美加墨世界杯(competition_id=1, season_id=13776)，非历史/女足/U20；
+  (2) 射手榜=球员进球榜(按 goals 降序)，含球员名/所属队/进球数/点球数/助攻数/出场数，同进球按助攻→点球细分；
+  (3) 前 10 归纳优先于罗列全量；
+  (4) 不暴露 player_id/team_id/season_id 内部编号；
+  (5) 无原生射手榜工具时须 SQL 直查并提供，或诚实说明工具缺口后用 SQL 兜底。
+  DB 基准(已 SQL)：2026 世界杯 season_id=13776 射手榜前 10：
+  1. 梅西(阿根廷) 6 球 3 场；2. 姆巴佩(法国) 4 球 2 助攻；3. 登贝莱(法国) 4 球 1 助攻；
+  4. 维尼修斯(巴西) 4 球 1 助攻；5. 哈兰德(挪威) 4 球；6. 翁达夫(德国) 3 球 2 助攻；
+  7. 曼赞比(瑞士) 3 球 1 助攻；8. 萨尔(塞内加尔) 3 球 1 助攻；9. 库尼亚(巴西) 3 球；10. 布罗比(荷兰) 3 球。
+  (凯恩 3 球含 1 点球、维萨 3 球含 1 点球同列)
+turns:
+  - turn: 1
+    user_text: "[射手榜示例问法]（规范化：2026 世界杯射手榜前 10 是谁）"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {league: 世界杯, year: 2026, expected_competition_id: 1, expected_season_id: 13776}
+        success_criteria: "resolve_league('世界杯') 返回 league_id=1(FIFA World Cup 2026 进行中)；SQL 确认 season_id=13776(世界杯最新赛季)；排除 U20/女足/预选赛"
+        depends_on: []
+      - id: aq_2
+        category: fetch_stats
+        target: {competition_id_from: aq_1, season_id_from: aq_1, kind: top_scorers, limit: 10, order: "goals DESC, assists DESC, penalty ASC"}
+        success_criteria: "返回 2026 世界杯射手榜前 10(球员名/所属队/进球/点球/助攻/出场)；foretell 无原生射手榜工具→须 SQL 直查 football_competition_players_stats WHERE season_id=13776 ORDER BY goals DESC 实现，或诚实说明工具缺口后用 SQL 兜底"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: cross_validation
+        target: {baseline: SQL 直查, tool: "无射手榜工具"}
+        success_criteria: "SQL 基准(梅西 6 球居首)与工具对照；工具缺失时确认 SQL 基准为唯一来源，不编造"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: synthesize_answer
+        target: {present: 前10射手榜(球员+队+进球+点球+助攻+出场), hide: player_id/team_id/season_id}
+        success_criteria: "输出前 10 排名表，按进球降序、同进球按助攻/点球细分；含球员名/所属国家队/进球数/点球数/助攻数/出场数；不暴露内部编号；归纳优先于罗列全量"
+        depends_on: [aq_2]
+      - id: aq_5
+        category: apply_guardrails
+        target: {check: no_internal_id, no_intermediate_state, no_false_negative}
+        success_criteria: "终态无 player_id/team_id/season_id 内部编号、无中间态、未穷尽前未断言无数据"
+        depends_on: [aq_4]
+hard_constraints:
+  - "意图对齐(expected_behaviors)：射手榜=球员进球榜(按 goals 降序)，非球队榜/非助攻榜/非积分榜；默认 2026 世界杯(进行期)"
+  - "归纳优先于罗列(expected_behaviors)：前 10 排名按进球降序，同进球按助攻→点球细分，不堆砌全量球员"
+  - "数据不足时诚实说明(expected_behaviors)：foretell 无原生射手榜工具，须 SQL 直查 football_competition_players_stats WHERE season_id=13776 ORDER BY goals DESC 提供；或诚实说明工具缺口后用 SQL 兜底，不得编造榜单"
+  - "不暴露内部编号：player_id/team_id/season_id/competition_id 不得出现在用户可见回答"
+  - "不调用 internet_search；discover_via_search 标记 skipped+note"
+  - "resolve_league 消歧：选 league_id=1(2026 美加墨世界杯)，排除 U20/女足/世欧预(id=2)/女世界杯(id=13)"
+risk_notes: |
+  最可能在 aq_2 出问题，对应 expected_behaviors"数据不足时诚实说明"。
+  核心怀疑点：foretell 工具链无原生射手榜工具(get_top_scorers/get_scorer_table 缺失)，
+  football_competition_players_stats 表有 goals/penalty/assists/matches 字段但无工具暴露。
+  若 LLM 不 SQL 直查而直接拒绝或编造榜单，违反 expected_behaviors。
+  次要风险：aq_1 消歧(世界杯有 U20/女足/预选赛同名)；aq_4 同进球排序口径(助攻优先 vs 点球优先)。
+  Agent 2 应优先 SQL 直查 football_competition_players_stats JOIN football_player JOIN football_team
+  WHERE season_id=13776 AND goals>0 ORDER BY goals DESC, assists DESC 建立基准，再确认无工具对照。

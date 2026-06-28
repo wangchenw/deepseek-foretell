@@ -1,0 +1,36 @@
+type_id: E05
+type_name: 十四场
+scenario: E
+case_id: TC-E05-REG-007
+turns:
+- turn_index: 0
+  text: 本期十四场给个方案
+  atomics:
+  - id: E05-T0-a1
+    category: fetch_schedule
+    target: 胜负彩/十四场 401 本期场次
+    hard_constraints:
+    - get_lottery_schedule play_type=401
+    - 返回 14 场列表
+  - id: E05-T0-a2
+    category: delegate_subagent
+    target: screening-agent 两阶段初筛
+    hard_constraints:
+    - 稳胆+搏冷分层
+    - 含风险提示
+  - id: E05-T0-a3
+    category: fetch_stats
+    target: 各场基本面
+    hard_constraints:
+    - get_recent_form stub
+  - id: E05-T0-a4
+    category: fetch_odds_snapshot
+    target: 各场赔率
+    hard_constraints:
+    - stub 实现 gap
+  - id: E05-T0-a5
+    category: synthesize_answer
+    target: 十四场方案输出
+    hard_constraints:
+    - 两阶段初筛结构
+    - 数据诚实

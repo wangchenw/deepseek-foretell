@@ -1,0 +1,66 @@
+type_id: "B09"
+case_id: "TC-B09-REG-006"
+user_intent_analysis: |
+  用户问「马刺对雷霆 G7 分析」，是篮球系列赛（NBA 季后赛七局四胜制）第 7 场（决胜局）的深度分析请求。
+  隐含需求：①定位到马刺 vs 雷霆的系列赛、确认确实打到第 7 场（前 6 场 3:3）；②拿到 G7 这场具体比赛的时间/主客场/状态；
+  ③基于系列赛前 6 场进程 + 两队状态做趋势分析；④产出投注/预测向的结论与风险提示。
+  注意 expected_behaviors 强制：「保留 G7 约束」「找不到时不得降级 G6」——Agent 不能在找不到 G7 时改去分析 G6/其他场次假装满足。
+turns:
+  - turn: 1
+    user_text: "马刺对雷霆 G7 分析"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target:
+          sport: basketball
+          home: 马刺
+          away: 雷霆
+          note: NBA 球队简称，需在篮球表中定位 team_id（注意：foretell 的 resolve_team 工具默认查 football_team，可能不适用篮球）
+        success_criteria: "返回马刺、雷霆两支 NBA 球队的唯一 basketball team_id（非多候选歧义），并确认这是用户所指系列赛对阵双方"
+      - id: aq_2
+        category: fetch_schedule
+        target:
+          series: 马刺 vs 雷霆
+          series_game: 7
+          series_format: best_of_7 (type_id=10)
+          note: 定位 G7 这场具体比赛，必须保留 series_game=7 约束
+        success_criteria: "返回唯一 G7 比赛：match_time、主客队、status_id（未开赛/进行中/已完赛）。若 DB 中无 G7 数据，须明确标记未找到，禁止降级到 G6 或其他场次"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_stats
+        target:
+          series_progress: 前 6 场结果（确认 3:3 才有 G7）
+          h2h: 系列赛期间两队交锋
+        success_criteria: "返回系列赛前 6 场的比分/胜负，能验证当前总比分 3:3、G7 是决胜局；或明确说明无系列赛进程数据"
+        depends_on: [aq_1, aq_2]
+      - id: aq_4
+        category: synthesize_answer
+        target:
+          depth: deep_analysis
+          content: G7 胜负预测 + 系列赛趋势 + 关键变量（主场优势/伤病/体能）+ 风险提示
+        success_criteria: "综合 aq_2/aq_3 输出结构化分析，包含明确预测方向、置信度说明、风险点；若关键数据缺失则诚实告知用户哪个环节缺失，不得编造"
+        depends_on: [aq_2, aq_3]
+      - id: aq_5
+        category: apply_guardrails
+        target:
+          rule: 不得降级 G6 充数
+          rule: 不暴露内部 match_id / team_id / 竞彩编号
+          rule: 数据缺失时明确告知而非伪造
+        success_criteria: "最终回答不含 match_id 等内部 ID；若 G7 找不到，回答明确说「未找到 G7 数据」而非把 G6 当 G7 讲"
+hard_constraints:
+  - "保留 G7 约束：实体定位/赛程查询都必须以 series_game=7 为过滤条件，不得静默丢弃"
+  - "找不到时不得降级 G6（expected_behaviors 显式要求）：若 aq_2 返回空，aq_4 必须诚实告知『未找到 G7 数据』，禁止 fallback 分析其他场次冒充"
+  - "不暴露内部 ID（match_id / team_id / 竞彩编号）给用户"
+  - "数据缺失不得编造：系列赛进程、G7 比赛详情任一缺失都要明示"
+  - "篮球 vs 足球表区分：foretell 工具默认查 football_*，篮球需走 basketball_* 表，避免误用足球工具"
+risk_notes: |
+  我的预判——这个 case 最可能在 3 个环节出问题：
+  1. **工具层 gap（高概率）**：resolve_match 接受 series_game 参数但 mysql_client.py 里 `if series_game is not None: return []`，
+     即工具签名暴露了 series_game 但实现直接返回空。这是典型的 tool_logic_gap / implementation_gap——
+     工具『假装支持』但根本没实现。Agent 2 必须用 SQL 基准查 basketball_bracket_match_up（type_id=10、state_id 已到第7场）来证明 DB 是否真有数据。
+  2. **篮球 vs 足球表混淆（中概率）**：resolve_team / get_team_schedule 默认查 football_team / football_match，
+     对篮球（马刺/雷霆是 NBA 球队）不适用。Agent 2 需先查 basketball_team / basketball_match / basketball_bracket_match_up 表结构。
+  3. **basketball_match 无 series_game 字段（中概率）**：series_game 信息可能只在 basketball_bracket_match_up 里（type_id、state_id、round_id），
+     需要查 information_schema 确认 basketball_match 是否有 series_game 字段，没有则必须通过 bracket 表反推。
+  4. **降级风险（expected_behaviors 显式禁止）**：如果工具/DB 都查不到 G7，Agent 不能用 G6/最近一场冒充。
+  5. 系列赛前 6 场进程数据（aq_3）大概率 data_gap——bracket 表存对阵结构，单场比分可能在 basketball_match 里需要按 round_id 聚合。

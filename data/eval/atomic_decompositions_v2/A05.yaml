@@ -1,0 +1,222 @@
+type_id: "A05"
+case_id: "TC-A05-001"
+user_intent_analysis: |
+  本案 taxonomy 标注为「实时比分查询」，但 16 轮对话的真实意图是「多场赛事深度赛前/临场分析」：
+  用户围绕 5/16 三场比赛（浦和红钻 vs 东京FC、大田市民 vs 首尔FC、横滨水手 vs 柏太阳神），
+  反复要求按 8 大视角（基本面/战术对位/进程推演/市场热度/矛盾点/直觉结论/动态校准/风险量化）
+  做有逻辑递进的篇章式深度分析，并明确强制「所有数据必须用工具查询真实有效、列明来源」、
+  「禁止双向推荐」「禁止用数据不足掩盖分析责任」。
+  对话中用户多次追问首发阵容（turn5「现在不能确认首发阵容吗」、turn11「首发不是出了吗」、
+  turn16「先确认首发阵容然后分析」）、场均进失球/xG/xGA（turn3/4/6/7/16）、
+  赔率走势（turn1 视角4、turn8）、半全场/比分概率（turn9-15），属高密度数据需求。
+  隐含需求：
+  (1) 实体命名容错——用户写「东京FC/首尔FC」，DB 实际存「FC东京/FC首尔」，须能消歧或反向匹配；
+  (2) 数据缺失诚实说明——首发/伤停/赛季统计/情报/赔率走势大面积 DATA_MISSING 时，
+      须按 expected_behaviors「数据不足时诚实说明」逐项声明不可得，并用 recent_form/h2h/odds_snapshot
+      兜底，不得编造首发/xG/伤停；
+  (3) 归纳优先于罗列——8 视角须合成为连贯篇章而非序号化清单；
+  (4) 不暴露内部 ID/工具名/中间态；不输出「主不败+客不败」双向推荐；
+  (5) 多轮上下文：3 场比赛 + 防坑校准模式（turn2/turn8）+ 临场追问（turn9-15）须继承，
+      不得每轮重置已确认实体与赛果。
+  对话发生时点视为 5/16 赛前（反馈记录时点），但评估 DB 中三场均 status_id=8 已完场，
+  故 fetch_result 在评估时点可取到赛果（浦和0-0点球9-10、大田1-2、横滨0-1），
+  答案须以「评估时点可得的真实赛果」为基准，不编造临场未赛比分。
+turns:
+  - turn: 1
+    user_text: "作为资深足球分析师深度剖析 5/16 浦和红钻 vs 东京FC，查找双方首发阵容，8 大视角推演，数据须工具查询真实有效并列明来源，禁止双向推荐与序号化标题"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {pairs: ["浦和红钻→10298", "东京FC→?（用户语序，DB 存 FC东京=10061）", "首尔FC→?（DB 存 FC首尔=10305）", "大田市民→10438", "横滨水手→10336", "柏太阳神→10380"], national: false, prefer: men_club_first_team}
+        success_criteria: "返回唯一确定的 team_id，排除梯队/青年队/女足/B队；用户语序「东京FC/首尔FC」须能解析到 FC东京/FC首尔，不得 ENTITY_NOT_FOUND 后放弃"
+        depends_on: []
+      - id: aq_2
+        category: fetch_schedule
+        target: {matches: ["5/16 浦和vs东京", "5/16 大田vs首尔", "5/16 横滨vs柏"], method: resolve_match or SQL 直查 football_match}
+        success_criteria: "定位 3 个 match_id（预期 4470724/4480359/4470725），含主客/赛事/时间/状态；用户语序 away=东京FC 不得导致漏定位"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_intel
+        target: {match_ids: [4470724,4480359,4470725], tool: get_match_lineup}
+        success_criteria: "返回双方首发 11 人；若 DATA_MISSING 须诚实声明「首发阵容未采集」并说明 coverage_lineup=1 但工具取不到，不得编造首发"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: fetch_intel
+        target: {match_ids: [4470724,4480359,4470725], tool: get_injury_report}
+        success_criteria: "返回伤停/停赛名单；若 DATA_MISSING 须诚实声明「伤停报告未采集」，不得编造伤情"
+        depends_on: [aq_2]
+      - id: aq_5
+        category: fetch_odds_snapshot
+        target: {match_ids: [4470724,4480359,4470725], tools: [get_odds_snapshot, get_odds_trend]}
+        success_criteria: "返回欧赔/亚盘快照（OK）；赔率走势若 DATA_MISSING 须诚实声明，不得编造走势"
+        depends_on: [aq_2]
+      - id: aq_6
+        category: fetch_stats
+        target: {team_ids: [10298,10061,10438,10305,10336,10380], tool: get_team_season_stats, fallback: get_recent_form + SQL 聚合}
+        success_criteria: "返回主场/客场场均进失球、xG/xGA；若 season_stats DATA_MISSING 须用 recent_form 兜底给出近 5-10 场具体进失球序列，并诚实声明「赛季统计未采集，以下为近期序列供估算波动性」"
+        depends_on: [aq_1]
+      - id: aq_7
+        category: fetch_stats
+        target: {team_ids: [10298,10061,10438,10305,10336,10380], tool: get_recent_form, venue: home/away, n: 10}
+        success_criteria: "返回近 5-10 场比分序列与胜负平走势，用于状态/势头校准"
+        depends_on: [aq_1]
+      - id: aq_8
+        category: fetch_stats
+        target: {pairs: ["浦和-东京", "大田-首尔", "横滨-柏"], tool: get_h2h, n: 5}
+        success_criteria: "返回近 3-5 次直接交手比分，判断风格克制/大小球规律；scores 数组须正确解读为半场/全场/角球/点球"
+        depends_on: [aq_1]
+  - turn: 2
+    user_text: "防坑校准模式：忽略高可信常规数据，重点二次推演低可信/延迟风险项与逻辑矛盾，给出最简操作建议，禁止双向推荐"
+    atomics:
+      - id: aq_9
+        category: maintain_context
+        target: {inherit_from_turn: 1, inherit: 3场比赛实体+已有数据缺口, mode: 防坑校准}
+        success_criteria: "继承 turn1 的 3 场比赛与已确认的数据缺口（首发/伤停/统计 MISSING），不重置；对低可信项二次推演"
+        depends_on: [aq_1, aq_2]
+      - id: aq_10
+        category: synthesize_answer
+        target: {present: 矛盾点排查+盲区预警+最简操作建议, hide: 序号化标题/双向推荐/编造数据}
+        success_criteria: "8 视角合成为连贯篇章，归纳优先于罗列；明确主推方向（胜/平/负/让球/大小球）+置信度+仓位建议；不输出「主不败+客不败」"
+        depends_on: [aq_3, aq_4, aq_5, aq_6, aq_7, aq_8, aq_9]
+  - turn: 3
+    user_text: "浦和红钻和东京FC 基础进攻防守数据：主场/客场场均进失球+标准差、xG/xGA、近5-6场比分序列、伤停、战意、赛程体能、历史交锋克制"
+    atomics:
+      - id: aq_11
+        category: maintain_context
+        target: {inherit_from_turn: 1, refine: 浦和vs东京的细化数据维度}
+        success_criteria: "继承 turn1 的浦和(10298)/东京(10061) team_id 与 5/16 match_id，叠加用户细化的 7 类数据维度"
+        depends_on: [aq_1, aq_2]
+  - turn: 4
+    user_text: "大田市民和首尔FC 同 turn3 的细化数据维度"
+    atomics:
+      - id: aq_12
+        category: maintain_context
+        target: {inherit_from_turn: 1, refine: 大田vs首尔的细化数据维度}
+        success_criteria: "继承 turn1 的大田(10438)/首尔(10305) team_id 与 5/16 match_id=4480359，叠加 7 类数据维度"
+        depends_on: [aq_1, aq_2]
+  - turn: 5
+    user_text: "现在不能确认首发阵容吗"
+    atomics:
+      - id: aq_13
+        category: fetch_intel
+        target: {match_ids: [4470724,4480359,4470725], tool: get_match_lineup, user_frustration: true}
+        success_criteria: "诚实回应首发不可得：coverage_lineup=1 但 get_match_lineup DATA_MISSING（implementation_gap），不得编造首发；须说明数据采集状态而非含糊其辞"
+        depends_on: [aq_3]
+  - turn: 6
+    user_text: "横滨水手和柏太阳神 查询首发阵容 + 同 turn3 细化数据"
+    atomics:
+      - id: aq_14
+        category: maintain_context
+        target: {inherit_from_turn: 1, refine: 横滨vs柏的细化数据+首发}
+        success_criteria: "继承 turn1 的横滨(10336)/柏(10380) team_id 与 5/16 match_id=4470725；首发同 aq_13 诚实声明缺失"
+        depends_on: [aq_1, aq_2, aq_3]
+  - turn: 7
+    user_text: "大田市民和首尔FC 用工具查询首发阵容 + 同 turn3 细化数据"
+    atomics:
+      - id: aq_15
+        category: maintain_context
+        target: {inherit_from_turn: 4, refine: 大田vs首尔+首发}
+        success_criteria: "继承 turn4 的大田/首尔上下文；首发同 aq_13 诚实声明缺失"
+        depends_on: [aq_12, aq_3]
+  - turn: 8
+    user_text: "防坑校准模式（同 turn2）：二次推演低可信项+盲区预警+最简操作建议"
+    atomics:
+      - id: aq_16
+        category: maintain_context
+        target: {inherit_from_turn: 2, scope: 当前3场比赛}
+        success_criteria: "继承 turn2 防坑校准框架，应用到当前 3 场；不重置已确认缺口"
+        depends_on: [aq_9, aq_10]
+  - turn: 9
+    user_text: "为什么首选是1-2不是0:2"
+    atomics:
+      - id: aq_17
+        category: synthesize_answer
+        target: {explain: 比分推演逻辑依据, base: recent_form+h2h+赔率}
+        success_criteria: "用 recent_form/h2h/赔率快照解释比分倾向的依据；不编造未采集的 xG 数据"
+        depends_on: [aq_6, aq_7, aq_8, aq_5]
+  - turn: 10
+    user_text: "有没有办法能让让比分更加确认"
+    atomics:
+      - id: aq_18
+        category: synthesize_answer
+        target: {suggest: 提高比分确认度的途径}
+        success_criteria: "诚实说明：首发/伤停/赔率走势缺失会限制确认度，建议待首发公布后复核；不编造确认手段"
+        depends_on: [aq_3, aq_4, aq_5]
+  - turn: 11
+    user_text: "首发不是出了吗"
+    atomics:
+      - id: aq_19
+        category: fetch_intel
+        target: {match_ids: [4470724,4480359,4470725], tool: get_match_lineup, user_assertion: 首发已出}
+        success_criteria: "复核 get_match_lineup 仍 DATA_MISSING；诚实说明工具未采集到首发，不接受用户断言而编造"
+        depends_on: [aq_13]
+  - turn: 12
+    user_text: "半全场会是什么结果"
+    atomics:
+      - id: aq_20
+        category: fetch_result
+        target: {match_ids: [4470724,4480359,4470725], tool: get_match_result, field: half_time+full_time}
+        success_criteria: "返回半全场赛果（浦和半0-0/全0-0点球9-10、大田半0-1/全1-2、横滨半0-1/全0-1）；若未赛须基于 recent_form 推演并标注不确定性"
+        depends_on: [aq_2]
+  - turn: 13
+    user_text: "首尔上半场进球概率多少"
+    atomics:
+      - id: aq_21
+        category: fetch_stats
+        target: {team: 首尔(10305) 客场上半场进球分布, base: recent_form + h2h}
+        success_criteria: "用 recent_form 客场上半场进球频次估算概率；诚实声明非模型概率，不编造精确百分比"
+        depends_on: [aq_7, aq_8]
+  - turn: 14
+    user_text: "为什么现在还有人看这场比赛胜"
+    atomics:
+      - id: aq_22
+        category: synthesize_answer
+        target: {explain: 市场热度与赔率支持}
+        success_criteria: "用 odds_snapshot 欧赔/亚盘解释市场资金流向；不编造赔率走势"
+        depends_on: [aq_5]
+  - turn: 15
+    user_text: "现在比分最大可能是什么"
+    atomics:
+      - id: aq_23
+        category: fetch_result
+        target: {match_ids: [4470724,4480359,4470725], tool: get_match_result}
+        success_criteria: "返回当前赛果（评估时点已完场）；若未赛须基于 recent_form+h2h 给比分分布并标注不确定性"
+        depends_on: [aq_20]
+  - turn: 16
+    user_text: "横滨水手和柏太阳神 先确认首发阵容然后分析 + 同 turn3 细化数据"
+    atomics:
+      - id: aq_24
+        category: maintain_context
+        target: {inherit_from_turn: 6, refine: 横滨vs柏首发复核+细化数据}
+        success_criteria: "继承 turn6 横滨/柏上下文；首发 get_match_lineup 复核仍 DATA_MISSING，诚实声明；细化数据同 turn3"
+        depends_on: [aq_14, aq_13]
+      - id: aq_25
+        category: apply_guardrails
+        target: {check: no_internal_id, no_intermediate_state, no_fabrication, no_double_recommendation, honest_about_missing}
+        success_criteria: "终态守门：无内部 ID/工具名/中间态；无编造首发/伤停/xG；无双向推荐；数据缺失逐项诚实说明"
+        depends_on: [aq_10, aq_17, aq_18, aq_19, aq_22, aq_23, aq_24]
+hard_constraints:
+  - "实体命名容错：用户「东京FC/首尔FC」必须解析到 FC东京(10061)/FC首尔(10305)，不得 ENTITY_NOT_FOUND 后放弃或选错梯队"
+  - "首发阵容缺失须诚实说明：get_match_lineup 三场均 DATA_MISSING，但 coverage_lineup=1（implementation_gap），须声明「工具未采集到首发」而非编造 11 人名单（expected_behaviors 数据不足诚实说明）"
+  - "伤停/赛季统计/情报标签/赔率走势缺失须逐项诚实说明，不得编造伤情/xG/xGA/走势（expected_behaviors）"
+  - "场均进失球须用 recent_form 兜底（season_stats DATA_MISSING），给出近 5-10 场具体序列并标注「非赛季统计」"
+  - "归纳优先于罗列：8 视角须合成为连贯篇章，禁止「模块一/步骤二」序号化标题（expected_behaviors）"
+  - "禁止双向推荐：不得输出「主不败+客不败」，须给出明确主推方向+置信度+仓位建议（用户 turn1/turn2 明确禁止）"
+  - "不暴露内部 ID：match_id/team_id/competition_id/coverage 字段/工具名不得出现在用户可见回答（expected_behaviors）"
+  - "不输出中间态/推理过程外露（如「工具返回 DATA_MISSING」「接口延迟」）（expected_behaviors）"
+  - "赛果须以评估时点真实数据为准：三场已完场（浦和0-0点球9-10、大田1-2、横滨0-1），不编造临场未赛比分"
+  - "不调用 internet_search/Tavily；discover_via_search 标记 skipped"
+  - "多轮上下文继承：turn2/turn8 防坑校准须继承前轮 3 场比赛与数据缺口；turn9-15 临场追问须继承对应 match_id"
+risk_notes: |
+  最可能在 aq_1（实体解析）、aq_3（首发）、aq_6（赛季统计）三个环节出问题。
+  核心怀疑点：(1) resolve_team/resolve_match 对「东京FC/首尔FC」语序反转会 ENTITY_NOT_FOUND，
+  导致后续整条分析链断掉（routing_gap，P1）；
+  (2) get_match_lineup 三场 DATA_MISSING 但 coverage_lineup=1，用户 turn5/turn11/turn16
+  反复追问首发，Foretell 若编造首发会严重违反 expected_behaviors（implementation_gap+造假风险，P1）；
+  (3) get_team_season_stats DATA_MISSING，用户 turn3/4/6/7/16 明确要场均进失球+xG，
+  Foretell 若编造 xG 会严重违反 expected_behaviors（data_gap，P1）；
+  (4) get_team_schedule(direction=upcoming) 语义反转返回 2004 历史升序（P0 bug 复现），
+  若 Foretell 用 upcoming 查「下一场」会得到错误赛程（tool_logic_gap，P1）；
+  (5) 16 轮多 match 上下文继承无原生 checkpointer，依赖 LLM 层显式串接（context_gap，P2）。
+  Agent 2 应优先 SQL 直查 football_match（home/away team_id + match_time_str 5/16）建立 3 场基准，
+  再用 resolve_team/resolve_match（正确语序 FC东京/FC首尔）对照验证 routing_gap。

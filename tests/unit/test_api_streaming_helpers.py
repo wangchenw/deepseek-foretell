@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 from langchain_core.messages import AIMessageChunk
 
 from api.streaming import (
@@ -11,6 +12,11 @@ from api.streaming import (
     format_sse,
     stream_agent_messages,
 )
+
+
+@pytest.fixture(autouse=True)
+def _force_dev_env(dev_env) -> None:
+    """Avoid audit-log writes when local .env is prod."""
 
 
 def test_format_sse_serializes_json() -> None:
@@ -50,6 +56,8 @@ def test_stream_agent_messages_yields_only_final_message() -> None:
             {"messages": [{"role": "user", "content": "hi"}]},
             {"configurable": {"thread_id": "t1"}},
             "t1",
+            "user-1",
+            "hi",
         )
     )
 
@@ -75,6 +83,8 @@ def test_stream_agent_messages_yields_token_events() -> None:
             {"messages": [{"role": "user", "content": "hi"}]},
             {"configurable": {"thread_id": "t1"}},
             "t1",
+            "user-1",
+            "hi",
         )
     )
 

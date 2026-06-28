@@ -1,0 +1,18 @@
+type_id: H06
+type_name: 欧战席位
+scenario: H
+entity_entry: league
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 对今日竞彩足球001-009完整验证，作出两套不同场次的主推方案以及比分六串一。
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

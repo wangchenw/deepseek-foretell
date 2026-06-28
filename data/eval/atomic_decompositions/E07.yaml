@@ -1,0 +1,18 @@
+type_id: E07
+type_name: 北单
+scenario: E
+entity_entry: lottery_batch
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 分析一下今天竞彩001为什么会赢球，为什么赢了两个球！
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

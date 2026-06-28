@@ -1,0 +1,82 @@
+type_id: "A14"
+case_id: "TC-A14-001"
+exploration_log:
+  - step: 1
+    action: "读取 atomic_decompositions_v2/A14.yaml 确认任务范围"
+    query: "Read atomic_v2/A14.yaml"
+    result: "用户在 turn 13-14 要求按 v6.0 工作流执行,模块 B 步骤 4(单场深度)与模块 D 步骤 8(复盘)需 get_match_lineup 取首发+替补+阵型+队长+位置+球衣号;模块 B 五要素「伤停信息」隐含需球队大名单识别核心球员。"
+    reasoning: "atomic 完整可复用,核心是验证 get_match_lineup stub + 大名单 workaround。"
+    next: "SQL 查今日有阵容的比赛 + 验证 lineup 表结构"
+  - step: 2
+    action: "SQL 查近期完赛比赛阵容覆盖率"
+    query: "SELECT COUNT(*), SUM(CASE WHEN coverage_lineup=1 THEN 1 ELSE 0 END) FROM football_match WHERE status_id=8 AND match_time>1778000000 AND match_time<1779000000"
+    result: "近期完赛 7513 场,3166 场 coverage_lineup=1(约 42% 覆盖率)。数据存在。"
+    reasoning: "确认 football_match.coverage_lineup=1 是有阵容的标志,但需进一步验证 lineup 表实际有数据。"
+    next: "取一场具体比赛验证 lineup+detail"
+  - step: 3
+    action: "SQL 取 2026-05-17 川崎vs町田 match_id=4470722"
+    query: "SELECT m.id, m.match_time_str, ht.name_zh, at.name_zh, m.coverage_lineup, m.status_id FROM football_match m JOIN football_team ht... WHERE home=10908 AND away=25413 AND match_time_str LIKE '2026-05-17%'"
+    result: "match_id=4470722,coverage_lineup=1,status_id=8(已完赛)。与 A13 同一场,可交叉验证。"
+    reasoning: "选一场已完赛主流联赛比赛,确认 confirmed=1 正式阵容可取。"
+    next: "查 lineup 父表"
+  - step: 4
+    action: "SQL 查 football_match_lineup 父表"
+    query: "SELECT l.id, l.match_id, l.confirmed, l.home_formation, l.away_formation, l.home_coach_id, l.away_coach_id FROM football_match_lineup l WHERE l.match_id=4470722"
+    result: "lineup_id=71887,confirmed=1(正式阵容),home_formation=4-2-3-1(川崎),away_formation=3-4-2-1(町田),home_coach_id=8582,away_coach_id=11494。阵型+教练全部命中。"
+    reasoning: "阵型字段在父表,confirmed=1 区分正式阵容(复盘用)vs 预计阵容(赛前用)。"
+    next: "查 lineup_detail 22 球员"
+  - step: 5
+    action: "SQL 查 football_match_lineup_detail 22+ 球员"
+    query: "SELECT ld.team_id, t.name_zh, ld.first, ld.captain, ld.name, ld.shirt_number, ld.position, ld.rating FROM football_match_lineup_detail ld JOIN football_team t ON t.id=ld.team_id WHERE ld.lineup_id=71887 ORDER BY ld.team_id, ld.first DESC, ld.shirt_number LIMIT 40"
+    result: "川崎 11 首发+9 替补,町田 11 首发+9 替补,共 40 球员。川崎队长=胁坂泰斗(14号,M,rating 7.8),町田队长=昌子源(3号,D,rating 6.82)。位置 G/D/M/F 全有,球衣号 1-99,rating 评分全有。完全满足 atomic aq_3 success_criteria。"
+    reasoning: "lineup_detail 含 first(首发/替补)+captain+name+shirt_number+position+rating,字段完整,满足模块 B/D 阵容需求。"
+    next: "验证 get_match_lineup 是否 stub"
+  - step: 6
+    action: "调 foretell get_match_lineup(match_id=4470722)对照"
+    query: "tool get_match_lineup {match_id: 4470722}"
+    result: "返回 DATA_MISSING。但 SQL 已确认该 match_id 有 lineup_id=71887 + 40 球员详情 + 阵型 + 教练。工具是 stub(代码 mysql_client.py:866-867),与 db_schema_map 与 atomic risk_notes 一致。"
+    reasoning: "确认 tool_implementation_gap:get_match_lineup 对存在数据的 match_id 返回 DATA_MISSING,SQL 直查即可。"
+    next: "验证球队大名单 workaround"
+  - step: 7
+    action: "SQL 查 football_team_squad 大名单"
+    query: "SELECT team_id, player_id, position, shirt_number, is_captain, COUNT(*) OVER() FROM football_team_squad WHERE team_id IN (10908, 25413) LIMIT 15"
+    result: "川崎+町田共 68 名球员(两支球队大名单),含 player_id/position/shirt_number/is_captain。大名单数据存在。"
+    reasoning: "atomic aq_5 要求球队大名单用于伤停核心球员识别,football_team_squad 表满足。"
+    next: "JOIN football_player 取球员姓名"
+  - step: 8
+    action: "SQL JOIN football_player 取大名单球员中文名"
+    query: "SELECT s.team_id, t.name_zh, p.name_zh AS player, s.position, s.shirt_number, s.is_captain FROM football_team_squad s JOIN football_team t ON t.id=s.team_id JOIN football_player p ON p.id=s.player_id WHERE s.team_id=10908 ORDER BY s.is_captain DESC, s.position, s.shirt_number LIMIT 12"
+    result: "川崎大名单返回球员中文名+位置+球衣号+队长标志(如松长根悠仁 D 2号/佐佐木旭 D 5号/丸山祐市 D 28号等)。JOIN 完全可行。"
+    reasoning: "大名单 workaround 完整:football_team_squad JOIN football_player 取姓名。注意 is_captain 在 squad 表全为 0,队长标注在 lineup_detail 单场表(可能是单场任命)。"
+    next: "A14 路径确认完成,落盘"
+final_finding: |
+  A14「球队阵容」存在完全可行的 SQL 路径,满足 atomic aq_3(单场阵容)+ aq_5(球队大名单)全部需求。
+  单场阵容路径:
+    football_match_lineup(父表,含 confirmed/home_formation/away_formation/coach_id)
+    JOIN football_match_lineup_detail(子表,含 first/captain/name/shirt_number/position/rating)
+    WHERE match_id=? AND confirmed=1,返回双方 11 首发 + 替补 + 阵型 + 队长 + 位置 + 球衣号 + rating。
+  球队大名单路径:
+    football_team_squad JOIN football_player JOIN football_team
+    WHERE team_id=?,返回球员中文名 + 位置 + 球衣号 + is_captain,用于模块 B 伤停核心球员识别。
+  验证样本:2026-05-17 川崎vs町田 match_id=4470722,
+    川崎 4-2-3-1(队长胁坂泰斗 14号),町田 3-4-2-1(队长昌子源 3号),40 球员详情完整。
+    川崎+町田大名单 68 人,JOIN football_player 取姓名成功。
+  foretell get_match_lineup 是 stub(对 4470722 返回 DATA_MISSING,SQL 实有完整阵容),代码 mysql_client.py:866-867。
+  foretell 无 get_team_squad 原生工具,须 SQL 直查 football_team_squad。
+  赛前 vs 复盘:confirmed=1 是正式阵容(复盘用),confirmed=0 是预计阵容(赛前用),LLM 须按场景选取。
+gaps_encountered:
+  - gap_type: "tool_implementation_gap"
+    detail: "get_match_lineup 是 stub,对存在数据的 match_id(4470722,coverage_lineup=1,lineup_id=71887 + 40 球员)返回 DATA_MISSING"
+    location: "foretell/tools/crazy_sports/mysql_client.py:866-867"
+  - gap_type: "tool_implementation_gap"
+    detail: "foretell 无 get_team_squad 原生工具,球队大名单须 SQL 直查 football_team_squad JOIN football_player"
+    location: "foretell/tools/"
+  - gap_type: "squad_is_captain_inconsistency"
+    detail: "football_team_squad.is_captain 全为 0(川崎大名单 34 人无队长标注),队长仅在 football_match_lineup_detail.captain 单场表标注(如川崎单场队长胁坂泰斗)。大名单层级无固定队长,可能是单场任命制"
+    location: "football_team_squad.is_captain 字段"
+  - gap_type: "confirmed_field_semantics"
+    detail: "football_match_lineup.confirmed 区分正式阵容(1,复盘用)vs 预计阵容(0,赛前用),工具若不区分会混淆赛前/复盘场景"
+    location: "football_match_lineup.confirmed 字段"
+  - gap_type: "lineup_data_coverage"
+    detail: "近期完赛 7513 场中仅 3166 场 coverage_lineup=1(约 42%),非所有比赛都有阵容数据;LLM 须先查 coverage_lineup 再决定是否取阵容"
+    location: "football_match.coverage_lineup 字段"

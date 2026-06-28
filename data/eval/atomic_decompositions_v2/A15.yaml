@@ -1,0 +1,146 @@
+type_id: "A15"
+case_id: "TC-A15-001"
+user_intent_analysis: |
+  用户围绕「今日竞彩周六 014/015/016/017 这 4 场德甲比赛」展开 4 轮赛前预测,
+  意图段分组如下:
+  - turn 1 一次性要求对 4 场做「完整赛前预测」,显式点名 5 个维度:
+    赔率 / 凯利 / 阵容 / 交锋 / 近期状态。隐含需求:批量并行处理 4 场,
+    每场 5 维度均不可缺失;「完整」意味着不得只取部分场次或部分维度。
+  - turn 2 转为方法论提问——「首发阵容公布后要从哪些方面补强前面的分析」,
+    属于元问题(方法/角度),不要求再次拉数据,但要求结合已确定的 4 场语境
+    给出针对性补强清单,而非泛泛模板。
+  - turn 3 用户告知「4 场首发已公布,请分析」——要求重新拉取首发(此时
+    confirmed=1 的正式阵容应已落库)并就阵容对前述预测做实质补强。
+  - turn 4 用户指出「首发名单有误,请重新获取」——要求 Foretell 重试/
+    交叉验证首发数据,并在仍不可得时诚实说明,而非再次吐出错误名单或
+    静默跳过。
+  隐含需求汇总:
+  (1) 4 场比赛须先经 resolve_lottery_match(play_type=101, code=周六014..017)
+      批量定位 match_id,不得跳过任一场;
+  (2) 阵容维度须能区分 confirmed=0(预计)与 confirmed=1(正式)两版,
+      turn 3 须确保取到正式版;
+  (3) turn 4 「名单有误」要求工具链具备重取/交叉验证能力,且在数据
+      确实错误或缺失时,按 expected_behaviors「数据不足时诚实说明」,
+      不得用旧数据冒充新数据;
+  (4) 终态输出须归纳优先于罗列,不暴露 match_id/竞彩编号原始字段/
+      工具名/中间态。
+  对话发生时点视为生产样本时间(2026 年某周六),「今天竞彩周六 014-017」
+  锚定当日竞彩足球第 14-17 号,赛事限定德甲(Bundesliga)。
+turns:
+  - turn: 1
+    user_text: "对今天竞彩周六014/015/016/017这4场德甲比赛，做完整赛前预测分析，要包含赔率、凯利、阵容、交锋、近期状态。"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {lottery_play: "101", codes: ["周六014","周六015","周六016","周六017"], league_filter: "德甲"}
+        success_criteria: "对 4 个竞彩编号分别 resolve_lottery_match,返回 4 个唯一 match_id;若某编号未命中或非德甲须显式标注,不得静默跳过"
+        depends_on: []
+      - id: aq_2
+        category: fetch_odds_snapshot
+        target: {match_ids_from: aq_1, dimension: "欧赔/亚盘/大小球快照"}
+        success_criteria: "对 4 场分别 get_odds_snapshot,返回盘口快照;若某场无盘口数据须显式说明"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_odds_snapshot
+        target: {match_ids_from: aq_1, dimension: "凯利指数"}
+        success_criteria: "对 4 场分别 get_kelly,返回凯利指数;若缺失须显式说明"
+        depends_on: [aq_1]
+      - id: aq_4
+        category: fetch_stats
+        target: {match_ids_from: aq_1, dimension: "首发阵容(预计,confirmed=0)"}
+        success_criteria: "对 4 场分别 get_match_lineup,返回预计阵容;turn1 时点允许 confirmed=0;若未发布须显式说明"
+        depends_on: [aq_1]
+      - id: aq_5
+        category: fetch_stats
+        target: {match_ids_from: aq_1, dimension: "历史交锋"}
+        success_criteria: "对 4 场主客队分别 get_h2h,返回历史交锋;若两队无交锋记录须显式说明"
+        depends_on: [aq_1]
+      - id: aq_6
+        category: fetch_stats
+        target: {match_ids_from: aq_1, dimension: "近期战绩"}
+        success_criteria: "对 4 场主客队(共 8 队)分别 get_recent_form,返回近期战绩;若数据不足须显式说明"
+        depends_on: [aq_1]
+      - id: aq_7
+        category: synthesize_answer
+        target: {output: "4 场×5 维度赛前预测归纳", constraint: "归纳优先于罗列,场次不重叠,维度不缺失"}
+        success_criteria: "按场次组织,每场覆盖赔率/凯利/阵容/交锋/近期状态 5 维度并给出归纳结论;不暴露 match_id/工具名/中间态"
+        depends_on: [aq_2, aq_3, aq_4, aq_5, aq_6]
+  - turn: 2
+    user_text: ".当这4场的首发阵容公布后，要从哪些方面去补强前面的分析？"
+    atomics:
+      - id: aq_8
+        category: maintain_context
+        target: {inherit_from_turn: 1, inherit: "4 场 match_id + 已完成 5 维度预测", question_type: "方法论"}
+        success_criteria: "继承 turn 1 的 4 场实体与已完成维度,识别本轮为方法论提问而非数据拉取;不重置已确认实体"
+        depends_on: [aq_1]
+      - id: aq_9
+        category: synthesize_answer
+        target: {output: "首发公布后的补强角度清单", constraint: "结合 4 场已有预测语境,非泛模板"}
+        success_criteria: "给出针对性补强角度(如阵型变化、关键球员复出/缺阵、位置调整对战术的影响、与赔率变动的印证/背离等),并结合 4 场已有数据点举例;不空泛罗列"
+        depends_on: [aq_8]
+  - turn: 3
+    user_text: "4场的首发阵容已公布，请分圻。"
+    atomics:
+      - id: aq_10
+        category: maintain_context
+        target: {inherit_from_turn: 1, inherit: "4 场 match_id", refresh: "阵容从 confirmed=0 → confirmed=1"}
+        success_criteria: "继承 turn 1 的 4 场 match_id,识别本轮要求重取正式阵容;不重新解析实体"
+        depends_on: [aq_1]
+      - id: aq_11
+        category: fetch_stats
+        target: {match_ids_from: aq_1, dimension: "正式首发阵容(confirmed=1)"}
+        success_criteria: "对 4 场分别 get_match_lineup,返回 confirmed=1 的正式阵容;若仍为 confirmed=0 须显式说明未正式发布;不得用预计阵容冒充正式阵容"
+        depends_on: [aq_10]
+      - id: aq_12
+        category: synthesize_answer
+        target: {output: "4 场阵容对比前述预测的补强分析"}
+        success_criteria: "对每场将正式阵容与 turn1 预计阵容/赔率/近期状态交叉印证,给出实质补强结论;不重复 turn1 已有内容"
+        depends_on: [aq_11, aq_7]
+  - turn: 4
+    user_text: "首发名单有误请重新获取。"
+    atomics:
+      - id: aq_13
+        category: maintain_context
+        target: {inherit_from_turn: 3, inherit: "4 场 match_id + 用户反馈名单有误"}
+        success_criteria: "继承 turn 3 的 4 场 match_id 与「名单有误」反馈;不重置实体;识别本轮为纠错重取"
+        depends_on: [aq_11]
+      - id: aq_14
+        category: cross_validation
+        target: {match_ids_from: aq_1, dimension: "首发阵容", action: "重取并交叉验证"}
+        success_criteria: "对 4 场重新 get_match_lineup;若仍异常须交叉验证(直查 football_match_lineup/football_match_lineup_detail SQL 基准);确认是工具返回有误还是底库数据有误"
+        depends_on: [aq_13]
+      - id: aq_15
+        category: apply_guardrails
+        target: {check: "数据不足时诚实说明,不得用旧/错误数据冒充新数据"}
+        success_criteria: "若重取后仍存在错误或缺失,须显式说明哪场哪队阵容不可信/不可得,不得静默跳过或复用 turn3 旧名单;不编造"
+        depends_on: [aq_14]
+      - id: aq_16
+        category: synthesize_answer
+        target: {output: "纠错后的 4 场首发名单或诚实说明"}
+        success_criteria: "对每场给出修正后名单或显式标注「仍不可得」;不暴露 match_id/lineup_id/player_id/工具名/中间态"
+        depends_on: [aq_15]
+hard_constraints:
+  - "批量完整性:必须对周六 014/015/016/017 全部 4 场完成 resolve_lottery_match,不得只查部分场次(expected_behaviors + 归纳优先)"
+  - "维度完整性:turn1 须覆盖赔率/凯利/阵容/交锋/近期状态 5 维度,任一维度数据不足须显式说明而非静默跳过"
+  - "阵容版本区分:get_match_lineup 须能区分 confirmed=0 预计与 confirmed=1 正式;turn3 须取正式版,不得用预计冒充"
+  - "纠错能力:turn4「名单有误」须真实重取并交叉验证(工具+SQL 基准),不得复用旧名单;底库确实错误或缺失时按 expected_behaviors 诚实说明"
+  - "不暴露内部编号:match_id/lineup_id/player_id/team_id/竞彩编号「周六014」均不得出现在用户可见回答"
+  - "归纳优先于罗列:4 场×5 维度输出须按场次归纳,不得扁平罗列原始数据(expected_behaviors)"
+  - "数据不足时诚实说明,不编造基本面/阵容/交锋信息(expected_behaviors)"
+  - "多轮上下文继承:turn2/turn3/turn4 须继承 turn1 的 4 场 match_id,不得每轮重置已确认实体"
+  - "不调用 internet_search/Tavily;discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_1(批量 resolve_lottery_match)与 aq_4/aq_11/aq_14(阵容拉取与纠错)出问题。
+  核心怀疑点:
+  (1) resolve_lottery_match 是否支持「周六014」式 code,4 个编号能否全部命中德甲,
+      还是部分编号对应其他联赛或未开售——若部分失败,Foretell 是否会静默跳过;
+  (2) get_match_lineup 在 confirmed=0/1 两态的返回是否区分清晰,turn3 用户告知
+      「已公布」后工具是否真能返回 confirmed=1 阵容,还是仍返回预计阵容冒充;
+  (3) turn4「名单有误」是最关键边缘情况——工具链是否具备纠错/重取能力,
+      还是同一 match_id 重复调用返回同一份错误数据(无更新机制);
+  (4) football_match_lineup_detail 是否对德甲 4 场有完整 first=1 首发球员记录,
+      还是只有部分球员/位置空缺;
+  (5) 多轮上下文继承是历史失败点——turn3/turn4 是否仍持有 4 场 match_id,
+      还是丢失后重新解析导致实体漂移。
+  Agent 2 应优先用 SQL 直查 football_match_lineup + football_match_lineup_detail
+  (lineup_id JOIN match_id)建立基准,再用 get_match_lineup 工具对照。

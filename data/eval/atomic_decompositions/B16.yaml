@@ -1,0 +1,29 @@
+type_id: B16
+type_name: 实力对比
+scenario: B
+entity_entry: match_pair
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 明天四场世界杯按每个国家战意攻击能力防守能力和慢快节奏伤病和天气首发战术打法思路和进攻强还是划力还是防守固还是弱还是主要靠偷球定位球
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-b1
+    category: delegate_subagent
+    target:
+      agents:
+      - fundamentals
+      - odds
+      - intel
+  - id: T1-b2
+    category: synthesize_answer
+    target:
+      format: six_segment
+hard_constraints: []

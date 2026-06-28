@@ -1,0 +1,70 @@
+type_id: B01
+case_id: TC-B01-001
+diagnosed_at: '2026-06-28'
+rounds:
+- round: 1
+  name: resolve_lottery_match (weekday code)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_lottery_match
+    params:
+      play_type: '101'
+      code: 周日009
+      date: '2026-06-15'
+    code: OK
+  result: OK
+- round: 2
+  name: resolve_lottery_match (numeric code)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_lottery_match
+    params:
+      play_type: '101'
+      code: 009
+      date: '2026-06-15'
+    code: ENTITY_NOT_FOUND
+  result: ENTITY_NOT_FOUND
+- round: 3
+  name: resolve_lottery_match (date slash format)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_lottery_match
+    params:
+      play_type: '101'
+      code: 周日009
+      date: 2026/06/15
+    code: OK
+  result: OK
+- round: 4
+  name: get_lottery_schedule (fall back)
+  tools_attempted: 1
+  attempts:
+  - tool: get_lottery_schedule
+    params:
+      play_type: '101'
+      date: '2026-06-15'
+    code: OK
+    count: 4
+  result: OK
+- round: 5
+  name: get_schedule_by_date (cross-verify)
+  tools_attempted: 1
+  attempts:
+  - tool: get_schedule_by_date
+    params:
+      date: '2026-06-15'
+      tier: all
+    code: OK
+    count: 100
+  result: OK
+summary:
+  ok_rounds: 4
+  blocked_rounds: 1
+  implementation_gap_rounds: 0
+  no_tool_rounds: 0
+  total_rounds: 5
+root_cause: routing_or_parameter_gap
+recommended_fix: adjust_params_or_fallback_path
+sample_ids:
+  match_id: 4460914
+  home_team_id: 11746

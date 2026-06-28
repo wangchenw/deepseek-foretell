@@ -1,0 +1,59 @@
+type_id: "A07"
+case_id: "TC-A07-001"
+classification: "✅"
+classification_reason: |
+  数据库层面路径完整且数据正确,foretell 原生工具层主路径可用,4 个核心彩票码全部原生可解:
+  (1) 竞彩期号 20260402→260402:get_lottery_schedule(101, period=260402) 一次返回 3 场跨日(周四001/002/003 4/2+4/3),与 atomic aq_12 期望完全一致(exploration_log step 1);
+  (2) 北单 044(6/28):resolve_lottery_match(301, 044, 2026-06-28) → 克罗地亚vs加纳 世界杯,与 atomic aq_6 期望一致;SQL 对齐到 4460978 已完场 2-1(step 2-3);
+  (3) 北单 055(6/29):resolve_lottery_match(301, 055, 2026-06-29) → 托尔vs瓦路尔 冰岛超,与 atomic aq_8 期望一致(step 4);
+  (4) 周一001(6/2):resolve_lottery_match(101, 周一001, 2026-06-02) → 保加利亚vs黑山 + match_candidates 含 match_id=4544830,与 atomic aq_21 期望完全一致(step 5)。
+  标记 ✅ 而非 ⚠️ 的原因:foretell resolve_lottery_match/get_lottery_schedule 原生可用,期号转换、跨日、玩法区分、彩票码定位全部 cover;match 对齐竞彩原生提供 match_candidates,北单需 SQL 补充但路径稳健(按 home_name+away_name+date 对齐,已验证 044→4460978);唯一真不可得是「官方发布会/俱乐部官方/联赛官方信息」(无 internet_search),但这是 discover_via_search 已知限制,须按 expected_behaviors 诚实说明,不阻塞核心 15 维度分析路径(赛果/赔率/近况/交锋/情报均可查)。
+path_assessment: |
+  找到的路径分两层:
+  (A) foretell 原生工具层(主路径):resolve_lottery_match(101/301, code, date) 解析彩票码→lottery entry;get_lottery_schedule(101, period=YYMMDD) 取竞彩全期号跨日场次;get_lottery_schedule(301, date) 取北单全表;get_match_result(match_id) 取赛果;get_odds_snapshot/football_odds_europe 取赔率;get_recent_form/get_h2h 取近况/交锋;football_intelligence 取情报。
+  (B) SQL 补充层:北单 match_id 对齐(SELECT id FROM football_match WHERE home_team_id=(team_id by name) AND away_team_id=(team_id by name) AND match_time_str LIKE date%);竞彩 match 对齐由 resolve_lottery_match match_candidates 原生提供。
+  数据正确性已交叉验证:4 个彩票码 home_name/away_name/league_name/date 全部与 atomic 期望一致;周一001 match_candidates 返回 match_id=4544830 与 atomic aq_21 期望完全一致;北单 044 SQL 对齐 4460978 与 atomic aq_7 期望一致;赛果 4460978 home 2-1 away(克罗地亚胜)、4544830 home 0-1 away(保加利亚负)。
+exploration_sufficiency: |
+  探索充分。7 步覆盖 atomic 全部 23 个 atomic 之核心(resolve_entity/fetch_schedule/fetch_odds_deep/fetch_result/refine_time_window/discover_via_search/apply_guardrails):4 个彩票码全部原生验证(竞彩期号跨日 3 场、北单 044/055、周一001)+ match 对齐验证(竞彩原生 match_candidates、北单 SQL 对齐)+ 期号格式转换验证 + 玩法格式区分验证 + 默认期号行为验证。
+  未深入项:十五维度分析所需的「近况/交锋/情报/赔率」未对每个具体场次单独查询(如麦克阿瑟vs纽喷气机的近况),但这些维度有成熟路径(A05 已验证 get_recent_form/get_h2h/football_intelligence/football_odds_europe 均可用),无需重复验证。
+gaps:
+  - gap_type: "data_gap"
+    detail: "北单 resolve_lottery_match 不返回 match_candidates 字段,须 SQL 按 home_name+away_name+date 对齐 football_match;竞彩 resolve 返回 match_candidates(周一001 验证含 match_id=4544830 + 环境数据)。"
+    evidence_ref: "exploration_log step 3 vs step 5"
+    priority: "P2"
+    recommended_action: "resolve_lottery_match 北单分支补 match_candidates 字段,与竞彩分支对齐;或 LLM 层对北单统一用 SQL 按 home_name+away_name+date 对齐。"
+  - gap_type: "routing_gap"
+    detail: "期号格式转换:用户「20260402」(YYYYMMDD) 须 LLM 转「260402」(YYMMDD) 传入 period 参数;foretell period 不接受 YYYYMMDD。"
+    evidence_ref: "exploration_log step 1"
+    priority: "P2"
+    recommended_action: "get_lottery_schedule period 参数同时接受 YYYYMMDD/YYMMDD,或 LLM 层显式转换;须在系统提示中固化「YYYYMMDD→YYMMDD」规则。"
+  - gap_type: "routing_gap"
+    detail: "竞彩场次编号「001」无周前缀须 LLM 推断「周X001」(周X 由日期 weekday 决定);atomic aq_1 担心 ENTITY_NOT_FOUND,实测可解析但需 LLM 推断正确周前缀。"
+    evidence_ref: "exploration_log step 5"
+    priority: "P2"
+    recommended_action: "LLM 层根据用户「今天/明天」+ 当日 weekday 推断周前缀(周一/周二/.../周日);或在 resolve_lottery_match 增加 code 模糊匹配(传 001 + date 自动补周前缀)。"
+  - gap_type: "discover_via_search_gap"
+    detail: "官方发布会/俱乐部官方/联赛官方信息无 internet_search 路径(Tavily 不在评估范围),turn2/9 用户明确要求,须诚实说明缺失,不编造。"
+    evidence_ref: "exploration_log final_finding"
+    priority: "P2"
+    recommended_action: "诚实说明 foretell 无官方信息源采集路径,用 football_intelligence 内置情报文本替代,标注「非官方发布会,基于数据端情报」。"
+  - gap_type: "data_gap"
+    detail: "北单 odds 为 JSON 字符串 {sf3,goal,sf0,sf1} 等,竞彩 odds 为逗号分隔字符串,格式不同须 LLM 分别解析。"
+    evidence_ref: "exploration_log step 2 vs step 1"
+    priority: "P3"
+    recommended_action: "LLM 层按 play_type 区分解析逻辑(101→split(','),301→json.loads);foretell 已正确序列化为字符串,无需改工具。"
+  - gap_type: "context_gap"
+    detail: "16 轮多场次上下文(竞彩001→北单044→北单055→期号260402 三场→周一001)无原生 checkpointer,依赖 LLM 层显式串接。"
+    evidence_ref: "exploration_log final_finding"
+    priority: "P3"
+    recommended_action: "LLM 层维护 session 内的「当前期号+当前场次列表+已分析场次」状态;或生产层引入 checkpointer。"
+recommended_answer_path: |
+  生产层推荐路径(foretell 原生为主,SQL 补充北单 match 对齐):
+  1. 竞彩期号定位:LLM 把「20260402」转「260402」→ get_lottery_schedule(101, period=260402) 取全期号 3 场跨日;
+  2. 竞彩单场定位:LLM 推断「周X001」前缀(由 date weekday 决定)→ resolve_lottery_match(101, 周X001, date) 取 home_name/away_name/odds + match_candidates(含 match_id);
+  3. 北单单场定位:resolve_lottery_match(301, code=NN, date) 取 home_name/away_name/odds(JSON 字符串);match_id 须 SQL 按 home_name+away_name+date 对齐(SELECT id FROM football_match m JOIN football_team h ON h.name_zh=home_name JOIN football_team a ON a.name_zh=away_name WHERE m.home_team_id=h.id AND m.away_team_id=a.id AND m.match_time_str LIKE date%);
+  4. 赛果:get_match_result(match_id) 取 full_time/half_time/corner;
+  5. 赔率:竞彩用 lottery_schedule odds.{spf,rq,bf,jq,bqc}(逗号分隔);北单用 odds JSON {sf3,goal,sf0,sf1};欧赔快照用 get_odds_snapshot 或 SQL football_odds_europe.first_odd;
+  6. 近况/交锋/情报:get_recent_form/get_h2h(可用)+ football_intelligence(SQL);
+  7. 十五维度分析:基于可查数据(赛果/赔率/近况/交锋/情报)做 15 维度分析;官方发布会/伤停/首发不可得须诚实说明,不编造;
+  8. 输出:归纳优先于罗列,分段发送(支持 turn12-15「分段/继续」);不暴露 lottery_code(周四001/周一001等)/lottery_id/match_id/team_id/工具名;无双向推荐;输出中断须诚实说明并支持分段重发。

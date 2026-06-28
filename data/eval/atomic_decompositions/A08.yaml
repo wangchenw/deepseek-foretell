@@ -1,0 +1,72 @@
+type_id: A08
+type_name: 时间窗_明早
+scenario: A
+case_id: TC-A08-REG-003
+turns:
+- turn_index: 0
+  text: 今晚的葡萄牙比赛什么时候开始
+  atomics:
+  - id: A08-T0-a1
+    category: resolve_entity
+    target: 葡萄牙（默认国家队，非俱乐部）
+    hard_constraints:
+    - 优先 national=1 候选
+    - 不得假定为俱乐部
+  - id: A08-T0-a2
+    category: fetch_schedule
+    target: 葡萄牙当日/近期赛程
+    hard_constraints:
+    - direction 先试 upcoming，失败 fallback all
+    - 含北京时间
+  - id: A08-T0-a3
+    category: synthesize_answer
+    target: 今晚场次开赛时间
+    hard_constraints:
+    - 含主客场
+    - 不暴露 match_id
+- turn_index: 1
+  text: 明天早上的
+  atomics:
+  - id: A08-T1-a1
+    category: maintain_context
+    target: 延续葡萄牙+时间窗实体
+    hard_constraints:
+    - 不得重置为其他球队
+    - 将「明早」映射为次日 00:00-12:00 北京时间
+  - id: A08-T1-a2
+    category: refine_time_window
+    target: 时间窗从「今晚」修正为「明早」
+    hard_constraints:
+    - 不得沿用 turn0 的今晚结论
+- turn_index: 2
+  text: 葡萄牙明天早上世界杯比赛啊
+  atomics:
+  - id: A08-T2-a1
+    category: resolve_entity
+    target: 葡萄牙男足国家队 + 2026 世界杯
+    hard_constraints:
+    - 锁定世界杯赛事，非友谊赛
+  - id: A08-T2-a2
+    category: fetch_schedule
+    target: 葡萄牙明早世界杯场次
+    hard_constraints:
+    - direction=all 穷尽检索
+    - 不得假阴性断言无赛
+  - id: A08-T2-a3
+    category: cross_validation
+    target: 按日期 top 赛程交叉验证
+    hard_constraints:
+    - get_schedule_by_date 与 team_schedule 结果一致
+    - 期望 6/28 07:30 哥伦比亚 vs 葡萄牙（feedback #003）
+  - id: A08-T2-a4
+    category: discover_via_search
+    target: 外部赛程补证
+    hard_constraints:
+    - Eval Phase1 跳过 Tavily
+    - status skipped
+  - id: A08-T2-a5
+    category: apply_guardrails
+    target: 输出纪律
+    hard_constraints:
+    - 不得假阴性
+    - 不暴露内部编号

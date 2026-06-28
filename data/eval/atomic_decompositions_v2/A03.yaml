@@ -1,0 +1,90 @@
+type_id: "A03"
+case_id: "TC-A03-001"
+user_intent_analysis: |
+  用户在多轮对话中粘贴了一套自定义足球分析框架（V3.6），核心意图是
+  让系统基于该框架对指定球队的未来赛程（接下来的比赛）进行赛前分析。
+  实际查询的是英超具体场次（富勒姆vs伯恩利、埃弗顿vs切尔西、利兹联vs
+  布伦特、纽卡斯尔vs桑德兰），用户期望系统"记住框架"并逐场验证，
+  最终目的是完善预测框架的准确性。核心信息需求是：指定球队的接下来
+  赛程（时间/对手/主客场）以及可用于框架填充的赛前统计数据。
+turns:
+  - turn: 1
+    user_text: "【足球分析框架 V3.6 终极完整版 + 训练指令】..."
+    atomics:
+      - id: aq_1
+        category: maintain_context
+        target: {action: "store_framework", framework: "V3.6", scope: "session"}
+        success_criteria: "框架被正确接收，后续分析均基于此框架执行（非独立调用自有模板）"
+      - id: aq_2
+        category: apply_guardrails
+        target: {check: "框架合规性", constraints: ["不得承诺盈利", "不得双向推荐"]}
+        success_criteria: "框架与系统内置 guardrails 不冲突，明确告知用户限制"
+  - turn: 5
+    user_text: "3月21日英超联赛富勒姆和伯利伯恩利的比赛...分析胜平负让球胜平负半全场比分总进球"
+    atomics:
+      - id: aq_3
+        category: resolve_entity
+        target: {teams: ["富勒姆", "伯恩利"], league: "英超", date: "2025-03-21"}
+        success_criteria: "解析出两队的 team_id，确认3月21日确有此场次"
+      - id: aq_4
+        category: fetch_schedule
+        target: {team_ids: "resolved", date: "2025-03-21", direction: "specific_match"}
+        success_criteria: "定位到具体 match_id，含主客场信息（富勒姆主场）"
+        depends_on: [aq_3]
+      - id: aq_5
+        category: fetch_intel
+        target: {match_id: "resolved", fields: ["近期状态", "h2h", "让球盘口", "伤停"]}
+        success_criteria: "返回赛前数据用于框架填充，标注数据截止时间"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: synthesize_answer
+        target: {framework: "V3.6", intent: "胜平负+让球+半全场+比分+总进球"}
+        success_criteria: "基于框架维度输出结构化分析，不遗漏任何框架要求的维度"
+        depends_on: [aq_5]
+  - turn: 6
+    user_text: "比赛实际结果是半场零比零全场三比一...有没有你错的地方"
+    atomics:
+      - id: aq_7
+        category: maintain_context
+        target: {action: "compare_prediction_vs_result", actual: "0-0 HT / 3-1 FT"}
+        success_criteria: "准确识别预测与实际的差异，诚实指出错误维度"
+      - id: aq_8
+        category: refine_time_window
+        target: {action: "framework_calibration", lesson: "从结果反推框架缺陷"}
+        success_criteria: "给出框架改进建议，而非防御性回应"
+  - turn: 7
+    user_text: "3月22号英超联赛埃弗顿对阵切尔西..."
+    atomics:
+      - id: aq_9
+        category: resolve_entity
+        target: {teams: ["埃弗顿", "切尔西"], league: "英超", date: "2025-03-22"}
+        success_criteria: "解析出两队 team_id，确认此场次存在且主客场正确（埃弗顿主场）"
+      - id: aq_10
+        category: fetch_schedule
+        target: {date: "2025-03-22", match: "埃弗顿vs切尔西"}
+        success_criteria: "定位 match_id"
+        depends_on: [aq_9]
+      - id: aq_11
+        category: fetch_intel
+        target: {match_id: "resolved", fields: ["近期状态", "盘口", "伤停"]}
+        success_criteria: "赛前数据完整"
+        depends_on: [aq_10]
+
+hard_constraints:
+  - "未穷尽 DB 检索前不得断言无比赛"
+  - "主客场信息必须正确，不得颠倒（X12主客颠倒）"
+  - "分析必须基于赛前数据，不得使用赛后结果（用户明确要求）"
+  - "不得承诺盈利或框架必然正确"
+  - "多轮框架使用需要 session 级上下文维护"
+
+risk_notes: |
+  最高风险点：A03 的核心是"球队未来赛程"，但本题用户给了一套复杂框架，
+  真实信息查询需求是特定日期的历史已完赛数据（用于测试框架）。需要
+  注意：用户要求"不要搜赛后结果"但系统DB中这些比赛已有结果，
+  工具调用需确保只返回赛前数据字段（状态、伤停、盘口等）而非赛后比分。
+
+  第二风险点：英超历史场次（2025-03）的数据完整性——DB中可能没有
+  该时段的盘口快照数据，导致框架关键维度无法填充。
+
+  第三风险点：跨轮框架维护（session checkpointer）——如不存在，
+  每轮分析可能遗忘V3.6框架要求，导致输出格式不一致。

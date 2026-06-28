@@ -1,0 +1,20 @@
+type_id: G09
+type_name: 换场追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 这里面给我选出两个最稳的二串一，我要的是最最最最稳的二串一，最最最稳的三串一还有你觉得可以串多少就给多少，我要的是赢面最最大最稳定的，就是不会爆冷演戏那些，然后再给我一个或者两个最容易爆冷的就知道吧，有一个就推荐一个，有两个就推荐两个。但是…
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

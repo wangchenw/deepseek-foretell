@@ -1,0 +1,471 @@
+scenario: A
+explored: 18
+entries:
+- type_id: A01
+  type_name: 按日期热门赛程
+  scenario: A
+  probe_case_id: TC-A01-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: get_schedule_by_date
+      params: {}
+    - name: get_lottery_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A02
+  type_name: 指定联赛日期赛程
+  scenario: A
+  probe_case_id: TC-A02-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A03
+  type_name: 球队未来赛程
+  scenario: A
+  probe_case_id: TC-A03-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A03.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A04
+  type_name: 球队近期赛程
+  scenario: A
+  probe_case_id: TC-A04-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A04.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A05
+  type_name: 实时比分查询
+  scenario: A
+  probe_case_id: TC-A05-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A06
+  type_name: 完场赛果
+  scenario: A
+  probe_case_id: TC-A06-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A07
+  type_name: 时间窗_今晚
+  scenario: A
+  probe_case_id: TC-A07-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A07.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A08
+  type_name: 时间窗_明早
+  scenario: A
+  probe_case_id: TC-A08-REG-003
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    - name: get_schedule_by_date
+      params:
+        date: $today
+        tier: top
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A08.json
+    route_status: verified
+    db_status: ok
+    step_count: 3
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+- type_id: A09
+  type_name: 时间窗_几点开赛
+  scenario: A
+  probe_case_id: TC-A09-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A09.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A10
+  type_name: 积分榜
+  scenario: A
+  probe_case_id: TC-A10-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A10.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A11
+  type_name: 射手榜
+  scenario: A
+  probe_case_id: TC-A11-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A11.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A12
+  type_name: 球队赛季统计
+  scenario: A
+  probe_case_id: TC-A12-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A12.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A13
+  type_name: 历史交锋
+  scenario: A
+  probe_case_id: TC-A13-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_h2h
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A13.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A14
+  type_name: 球队阵容
+  scenario: A
+  probe_case_id: TC-A14-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A14.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A15
+  type_name: 比赛首发
+  scenario: A
+  probe_case_id: TC-A15-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A15.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A16
+  type_name: NBA赛程
+  scenario: A
+  probe_case_id: TC-A16-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A16.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A17
+  type_name: 实体消歧_国家队
+  scenario: A
+  probe_case_id: TC-A17-REG-001
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 法国
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 10
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A17.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+- type_id: A18
+  type_name: 语义精度_锁定排名
+  scenario: A
+  probe_case_id: TC-A18-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A18.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false

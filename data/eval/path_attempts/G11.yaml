@@ -1,0 +1,11 @@
+type_id: G11
+case_id: null
+explored_at: '2026-06-28'
+source: route_matrix
+attempts: []
+satisfied: []
+blocking_gap:
+  type: data_missing_gap
+  description: 无探针步骤或未注册 probe
+  failed_atomic: null
+route_complete: false

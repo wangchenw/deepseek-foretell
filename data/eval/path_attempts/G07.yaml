@@ -1,0 +1,34 @@
+type_id: G07
+case_id: TC-G07-001
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: G07-T0-a2
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+  code: OK
+  stub: false
+  count: 19
+- round: 2
+  atomic_id: G07-T0-a3
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-28'
+    tier: top
+  code: OK
+  stub: false
+  count: 8
+- round: 1
+  atomic_id: G07-T0-a5
+  category: discover_via_search
+  status: skipped
+  note: 标准3/4需媒体热度与伤停，Eval 禁止 internet_search
+satisfied:
+- G07-T0-a2
+- G07-T0-a3
+blocking_gap:
+  type: implementation_gap
+  description: 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
+  failed_atomic: G07-T0-a4
+route_complete: false

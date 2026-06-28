@@ -1,0 +1,48 @@
+type_id: G01
+case_id: TC-G01-REG-004
+diagnosed_at: '2026-06-28'
+rounds:
+- round: 1
+  name: resolve_lottery_match (turn 1 full analysis)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_lottery_match
+    params:
+      play_type: '101'
+      code: '004'
+      date: '2026-06-23'
+    code: ENTITY_NOT_FOUND
+  result: ENTITY_NOT_FOUND
+- round: 2
+  name: get_lottery_schedule fallback
+  tools_attempted: 1
+  attempts:
+  - tool: get_lottery_schedule
+    params:
+      play_type: '101'
+    code: OK
+    count: 16
+  result: OK
+- round: 3
+  name: 'turn 2: maintain_context (checkpointer needed)'
+  tools_attempted: 0
+  attempts: []
+  recommendation: need_checkpointer
+  result: no_tool_available
+- round: 4
+  name: 'turn 2: synthetic score prediction (no new tool)'
+  tools_attempted: 0
+  attempts: []
+  recommendation: synthesize_from_turn1_context
+  result: no_tool_available
+summary:
+  ok_rounds: 1
+  blocked_rounds: 3
+  implementation_gap_rounds: 0
+  no_tool_rounds: 2
+  total_rounds: 4
+root_cause: context_gap
+recommended_fix: wire_checkpointer_for_multi_turn; see phase2a_checkpointer_demo.yaml
+sample_ids:
+  match_id: 4459720
+  home_team_id: 10477

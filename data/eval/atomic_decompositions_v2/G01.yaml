@@ -1,0 +1,59 @@
+type_id: "G01"
+case_id: "TC-G01-REG-004"
+user_intent_analysis: |
+  用户在 turn 1 给出竞彩足球编号"周二004"和对手"巴黎 VS 拜仁"，要求同时分析胜平负与比分两个维度——这是一次完整六段分析请求。
+  turn 2 仅一句"比分预测"，是对 turn 1 的 follow-up：用户对 turn 1 的比分部分意犹未尽，希望聚焦比分维度给出更明确的预测区间。
+  关键隐含需求：①turn 2 必须保持 turn 1 已定位的同一场比赛，不能重新解析实体；②turn 2 不应重复完整六段分析，否则违反 expected_behaviors"不重复完整六段"；
+  ③比分预测应基于 bf 赔率分布（lottery_jczq_odds.bf 字段已按固定顺序列出 31 个比分赔率）给出"区间+主推比分"，而不是凭空猜测。
+turns:
+  - turn: 1
+    user_text: "分析竞彩足球周二004 巴黎 VS 拜仁胜平负、比分"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {play_type: "101", code: "周二004", home_hint: "巴黎", away_hint: "拜仁"}
+        success_criteria: "返回唯一确定的 lottery_jczq_odds 记录（issue/issue_num/short_home/short_away/bf/spf），与用户给的对手一致；若工具因 code 格式失败，SQL 基准应能交叉定位"
+      - id: aq_2
+        category: fetch_odds_snapshot
+        target: {field: [spf, rq, bf], source: lottery_jczq_odds}
+        success_criteria: "拿到该场 spf（胜平负赔率）与 bf（31 个比分赔率）原始字符串；如能映射到 football_match 取欧赔/亚盘快照更佳"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: synthesize_answer
+        target: {output: "胜平负结论 + 比分倾向 + 完整六段"}
+        success_criteria: "给出胜平负三选倾向、让球口径、初判比分；符合深度分析场景的六段规范（不暴露 match_id/竞彩编号给用户）"
+        depends_on: [aq_2]
+  - turn: 2
+    user_text: "比分预测"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherit: turn1_match, scope: "比分维度"}
+        success_criteria: "复用 turn 1 已定位的同一场比赛，不重新调用 resolve_lottery_match；如代码库无 checkpointer，明确标注 context_gap 但路径结论仍基于 turn 1 的 match 定位"
+      - id: aq_5
+        category: fetch_odds_snapshot
+        target: {field: [bf], source: lottery_jczq_odds, focus: "比分赔率分布"}
+        success_criteria: "已拿到 bf 字符串即可（turn 1 已查过）；本轮聚焦解析 bf 字段成 (比分→赔率) 列表，识别低赔率（高概率）的 3-5 个比分"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target: {rule: "不重复完整六段"}
+        success_criteria: "turn 2 输出只包含比分区间（如 1-1/1-2/0-1/2-1）+ 主推 2-3 个比分 + 一句话理由，禁止重述赛事背景/赔率全表/让球分析等六段内容"
+        depends_on: [aq_5]
+      - id: aq_7
+        category: synthesize_answer
+        target: {output: "比分区间 + 主推比分 + 简短依据"}
+        success_criteria: "输出形式如「主推 1-1 / 次推 1-2 0-1，理由：bf 赔率最低的三项集中在 1-1/0-1/1-2，与两队近期进球分布吻合」"
+        depends_on: [aq_6]
+hard_constraints:
+  - "保持同场定位：turn 2 不得重新解析实体，必须复用 turn 1 的 lottery_jczq_odds 记录（expected_behaviors：保持同场定位）"
+  - "给出比分区间：不能只给单个比分，应给出主推 + 次推的区间形式（expected_behaviors：给出比分区间）"
+  - "不重复完整六段：turn 2 禁止重述赛事背景/让球/欧赔全表等六段内容（expected_behaviors：不重复完整六段）"
+  - "不暴露 match_id / 竞彩编号给用户（feedback 通用纪律）"
+  - "未穷尽 DB 检索前不得断言无比赛——本 case 用户已显式给出编号，但仍需 SQL 基准确认该编号场次是否真实存在"
+  - "比分预测必须基于 bf 赔率或历史进球分布等可验证数据，不得凭空猜测"
+risk_notes: |
+  最可能在三个环节出问题：
+  ①resolve_lottery_match 的 code 参数格式——docstring 给的示例是「周二004」，但工具内部 parse 可能要求纯数字 004 或 issue_num=4；如果工具因格式严格失败而 SQL 能直接查到，是 parameter_gap。
+  ②maintain_context：代码库无 checkpointer（仅 LangGraph 单轮 state），turn 2 无法在工具层"继承"turn 1 的 match 定位；这是 context_gap，但路径探索应诚实标注并说明"若会话状态保持，下一步基于同一 issue_num 取 bf 即可"。
+  ③bf 字段是按固定顺序的逗号分隔赔率串（见 column_comment），如果 Agent 误把它当 JSON/对象解析会失败；解析需按文档固定的 31 项比分顺序切片。

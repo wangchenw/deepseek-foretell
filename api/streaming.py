@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.messages import AIMessageChunk
+
+from foretell.conversation_log import log_conversation_turn
 
 
 def format_sse(event: str, data: dict[str, Any] | str) -> str:
@@ -62,14 +65,42 @@ def stream_agent_messages(
     input_state: dict[str, Any],
     config: dict[str, Any],
     thread_id: str,
+    user_id: str,
+    user_message: str,
 ) -> Iterator[str]:
     """Stream the final assistant reply as SSE events."""
-    yield format_sse("thread", {"thread_id": thread_id})
+    started = time.monotonic()
+    final_text = ""
+    try:
+        yield format_sse("thread", {"thread_id": thread_id})
 
-    raw_stream = agent.stream(input_state, config=config, stream_mode="messages")
-    final_text = _collect_final_assistant_text(raw_stream)
+        raw_stream = agent.stream(input_state, config=config, stream_mode="messages")
+        final_text = _collect_final_assistant_text(raw_stream)
 
-    if final_text:
-        yield format_sse("token", {"content": final_text})
+        if final_text:
+            yield format_sse("token", {"content": final_text})
 
-    yield format_sse("done", {"thread_id": thread_id})
+        yield format_sse("done", {"thread_id": thread_id})
+    except Exception as exc:
+        log_conversation_turn(
+            user_id=user_id,
+            thread_id=thread_id,
+            user_message=user_message,
+            assistant_message=final_text or None,
+            stream=True,
+            status="error",
+            error_message=str(exc),
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        raise
+
+    status_value = "ok" if final_text.strip() else "empty_reply"
+    log_conversation_turn(
+        user_id=user_id,
+        thread_id=thread_id,
+        user_message=user_message,
+        assistant_message=final_text,
+        stream=True,
+        status=status_value,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )

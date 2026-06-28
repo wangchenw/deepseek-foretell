@@ -1,0 +1,52 @@
+type_id: "A10"
+case_id: "TC-A10-001"
+classification: "⚠️"
+classification_reason: |
+  A10 找到了能部分回答用户问题的数据路径,但有显著隐患。可用工具覆盖:竞彩定位(get_lottery_schedule)、盘口快照(get_odds_snapshot 欧赔/亚盘/大小球)、近期状态(get_recent_form)、历史交锋(get_h2h)、完场赛果复盘(get_match_result)、积分榜(SQL 直查 season_id=MAX 兜底,本轮验证世界杯 13776 阿根廷 9 分等)。基于这些可用工具可对 5 场/4 场给出归纳预测(大小球倾向+比分区间+盘口合理性)+风险提示。
+  但用户高频强调的『调用工具核查』清单中,8 大项核心数据普遍 DATA_MISSING:盘口走势(get_odds_trend)、伤停(get_injury_report,世界杯+英超双重验证)、战意(get_intel_tags)、主客胜率(get_team_season_stats stub)、阵容(get_match_lineup stub)、凯利(get_kelly stub)、必发(get_betfair stub)、同赔历史(get_same_odds_history stub)。这是用户 turn1-3/turn8-10/turn15-17 反复追问『工具核查没』『战意伤停核实』『主力出现』的直接根因,也是 turn11『你究竟在干嘛』frustration 的来源。
+  叠加 get_standings tool_logic_gap(SQL 缺 season_id=MAX 过滤,多赛季合并全 position=1,生产作积分排名严重错误),须 SQL 兜底。多渠道核实能力缺失(单源 crazy_sports_db + internet_search 禁用)。
+  故判 ⚠️:路径存在但深度分析核心数据缺口大,需 LLM 层强制诚实说明 DATA_MISSING 项+基于可用数据归纳,而非空泛应付或编造。生产 Foretell 若不 SQL 兜底积分榜+不诚实说明 DATA_MISSING 项,会违反 expected_behaviors『数据不足时诚实说明』与『意图对齐(工具核查)』。
+path_assessment: |
+  可用路径稳健:get_odds_snapshot(4460934 等世界杯场返回完整欧赔/亚盘/大小球)、get_recent_form(哥伦比亚近 5 场含 outcome/goals_for/venue)、get_h2h(哥伦比亚 vs 葡萄牙历史交锋含比分)、get_lottery_schedule(竞彩 5 场定位含 spf/rq/bf/jq/bqc)、get_match_result(完场赛果)均验证可用。
+  积分榜路径需 SQL 兜底:get_standings(league_id) 因缺 season_id=MAX 过滤返回多赛季合并(意甲 108 国米 3 次重复 points 84/94/97 全 position=1),生产用此会严重错误。本轮 SQL 验证世界杯 season_id=13776(3 行父表均 13776),SQL 直查可得分组赛积分榜(阿根廷 9 分、英格兰 7 分、哥伦比亚 7 分、美国 6 分、比利时 5 分等,position=1 是组内第 1)。这是清晰可用的兜底路径。
+  DATA_MISSING 路径无法绕过:get_odds_trend(4460934→points=[])使 turn1『初盘数据变化水位』『大小球盘口数据变化』、turn4『让 0.25 走势』、turn8『临场盘口变化』、turn9『平手→0.25 升盘走势』均无法满足;get_injury_report 与 get_intel_tags 双重验证均 DATA_MISSING 使 turn1-3『伤停核实』『战意』、turn10『主队主力出现』、turn12『利好消息』均无法满足;get_team_season_stats stub 使 turn2『主客场状态表现胜率』无法满足。这些不可核查项须诚实说明,不得编造剧本/内幕/伤停名单。
+  路径隐患:用户对『工具核查』的执念与工具普遍 DATA_MISSING 形成结构性矛盾,LLM 易编造或空泛应付应付,违反 expected_behaviors。
+exploration_sufficiency: |
+  探索充分。覆盖:(1) 世界杯积分榜 season_id=13776 SQL 基准(本轮复跑);(2) get_standings tool_logic_gap 复现(意甲 108 多赛季合并,已记录);(3) 可用工具 5 项验证(get_odds_snapshot/get_recent_form/get_h2h/get_lottery_schedule/get_match_result);(4) DATA_MISSING 工具 8 项双重验证(世界杯 4460934+英超 4558449);(5) 多渠道核实能力缺失确认;(6) 001 复盘路径(get_match_result 可用+get_odds_trend DATA_MISSING)。关键 SQL 与工具调用均真实发生。根因清晰定位到 tool_logic_gap(get_standings)+implementation_gap(get_team_season_stats stub)+data_gap(深度分析工具普遍 DATA_MISSING)+routing_gap(单源)。
+gaps:
+  - gap_type: "tool_logic_gap"
+    detail: "get_standings SQL 缺 season_id=MAX 过滤,合并全部赛季按 position 排序→所有 position=1 在前(意甲 108 国米 3 次重复 points 84/94/97)。生产作积分排名严重错误"
+    evidence_ref: "path_attempts_v2/A10.yaml step 4(已记录 get_standings(108)→30 行全 position=1);step 2-3(SQL 基准世界杯 13776 阿根廷 9 分)"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.get_standings 增加 `AND p.season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=%s)` 过滤。Skill 层强制积分排名类问题 SQL 直查 season_id=MAX 交叉验证"
+  - gap_type: "implementation_gap"
+    detail: "get_team_season_stats 是 stub(return None→DATA_MISSING),主客场胜率数据源缺失"
+    evidence_ref: "path_attempts_v2/A10.yaml step 7(get_team_season_stats(10476)→DATA_MISSING;源码 mysql_client.py:724-725 stub)"
+    priority: "P1"
+    recommended_action: "实现 get_team_season_stats(直查 football_competition_teams_stats 或 football_points_table_team 的 home_/away_ 字段);Skill 层诚实说明『主客胜率数据不可用』"
+  - gap_type: "data_gap"
+    detail: "深度分析工具普遍 DATA_MISSING:get_odds_trend/get_injury_report/get_intel_tags/get_match_lineup/get_kelly/get_betfair/get_same_odds_history(世界杯+英超双重验证)。用户核心需求(盘口走势/伤停/战意/主客胜率/阵容)无法满足"
+    evidence_ref: "path_attempts_v2/A10.yaml step 7(8 项工具双重验证均 DATA_MISSING/stub)"
+    priority: "P1"
+    recommended_action: "P1 接入伤停/情报/盘口走势数据源或修复 stub;Skill 层强制 DATA_MISSING 项诚实说明『XX 数据不可用』,禁止编造伤停名单/战意标签/走势"
+  - gap_type: "routing_gap"
+    detail: "工具单源(crazy_sports_db),internet_search 评估约束禁用,多渠道核实能力缺失"
+    evidence_ref: "path_attempts_v2/A10.yaml step 9(foretell 工具 meta.source 均为 crazy_sports_db)"
+    priority: "P2"
+    recommended_action: "P2 接入多数据源(必发/贝通/雷速等);Skill 层诚实说明单源限制,不假装多渠道"
+  - gap_type: "context_gap"
+    detail: "17 轮多轮上下文继承是历史失败点(turn11 frustration),无原生 checkpointer,依赖 LLM 显式串接"
+    evidence_ref: "atomic aq_8/aq_10/aq_25/aq_28 maintain_context 类别"
+    priority: "P2"
+    recommended_action: "引入 LangGraph MemorySaver/StoreBackend 持久化会话级 {5 场 match_id, 已调工具, 钻取 001, 切 002-005}"
+recommended_answer_path: |
+  1. 竞彩定位:get_lottery_schedule(101, 2026-06-28) 拿 5 场(周六067-071),resolve_lottery_match 或 SQL 映射补 match_id(SQL 基准:4460934 哥伦比亚vs葡萄牙、4460937 巴拿马vs英格兰、4460978 克罗地亚vs加纳、4460985 刚果金vs乌兹别克)
+  2. 逐场 get_odds_snapshot(match_id) 拿欧赔/亚盘/大小球盘口(输出剥离 company_id)
+  3. 积分排名:SQL 直查 football_points_table JOIN _team WHERE competition_id=? AND season_id=(SELECT MAX(season_id)...) 兜底,禁用 get_standings 直接结果(多赛季合并 bug)
+  4. 近期状态:get_recent_form(team_id, n=5) 拿近 5 场战绩
+  5. 历史交锋:get_h2h(team_a, team_b, n=5) 拿交锋记录
+  6. 诚实说明 DATA_MISSING 项:盘口走势/伤停/战意/主客胜率/阵容/凯利/必发/同赔历史均不可用,不编造
+  7. 多渠道核实:诚实说明工具单源(crazy_sports_db),不假装多渠道
+  8. 归纳优先于罗列:每场给核心结论(大小球倾向+比分区间+盘口合理性判断)+依据(基于可用数据)+『赛果不可预测,仅供参考』风险提示;不暴露 match_id/team_id/league_id/company_id/lottery_code
+  9. 复盘(turn8-10):基于 get_match_result 赛果事实复盘,不编造内幕;临场盘口变化/主力出现 DATA_MISSING 时诚实说明
+  10. frustration(turn11):诚实承认工具数据缺口导致分析受限,不辩解

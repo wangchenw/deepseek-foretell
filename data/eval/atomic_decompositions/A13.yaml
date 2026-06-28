@@ -1,0 +1,18 @@
+type_id: A13
+type_name: 历史交锋
+scenario: A
+entity_entry: team_pair
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 基于我的提问，模拟赛前分析客观公正的的回答，5/17号的足彩比赛福伦丹和特尔斯达这场比赛的特点是什么，再分析比赛的时候要注意什么问题，
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

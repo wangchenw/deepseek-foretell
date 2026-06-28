@@ -1,0 +1,20 @@
+type_id: B01
+case_id: TC-B01-001
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: B01-T0-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 009
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  stub: false
+satisfied: []
+blocking_gap:
+  type: data_gap
+  description: resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索 2026-06-15
+    不在 lottery 表
+  failed_atomic: B01-T0-a1
+route_complete: false

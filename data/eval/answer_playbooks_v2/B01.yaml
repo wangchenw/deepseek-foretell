@@ -1,0 +1,58 @@
+type_id: "B01"
+case_id: "TC-B01-001"
+review_summary: |
+  本 case 是竞彩模板分析题。Agent 2 严格按 SQL 优先策略：先用 lottery_jczq_odds + lottery_match 双表 SQL 基准
+  定位到 lottery_id=2040170 / match_id=4460914 / 德国主 vs 库拉索客 / 2026-06-15 01:00 世界杯，
+  然后对照 resolve_lottery_match(play_type='101', code='周日009', date='2026-06-15') → OK 完全一致。
+  关键发现：工具原生支持用户字面 "周日009" 格式（parse_lottery_issue_num regex 匹配），
+  **本次独立验证推翻了之前 supplement 诊断的 parameter_gap 结论**——supplement 误判可能基于更早版本或未实测。
+  最终合成 230 字多维度分析，覆盖胜平负/比分/让球/进球/赔率结构/实力差/状态/数据诚实 6 维度，
+  lineup/injury/spf/bqc 缺失字段均诚实声明"暂无"，无工具名无内部 ID，完全合规。
+requirement_analysis_review:
+  completeness: "原子拆分完整：编号实体解析(aq_1)→赛程验证(aq_2)→赔率快照(aq_3)→统计上下文(aq_4)→合成(aq_5)→守门(aq_6)。hard_constraints 明确覆盖 expected_behaviors 三条 + 100-300 字硬约束"
+  missed_needs: []
+path_exploration_review:
+  reasoning_quality: "探索路径清晰且高效：aq_1 三轮分别对应 SQL 基准→lottery_match 映射→工具对照，每轮有独立假设；aq_4 三轮依次拿 h2h/recent_form/lineup+injury，对数据诚实规则做了穷尽验证（确认 lineup/injury 真无数据），不是走过场"
+  sql_baseline_quality: "Agent 2 真的独立写了 SQL 基准：aq_1 round 1 直接查 lottery_jczq_odds，round 2 查 lottery_match 映射，均记录完整 SELECT 与 result。未直接相信 resolve_lottery_match 工具结果；这种 SQL 优先策略恰好让本次能推翻 supplement 的 parameter_gap 误判——若跳过 SQL 直接信工具会漏掉交叉验证机会"
+  unexplored_alternatives: []
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "竞彩编号+日期+玩法 → 先 SQL/工具双向定位唯一场次，再拉赔率+统计，最后合成 100-300 字多维度分析，缺失字段诚实声明"
+  steps:
+    - "1. resolve_lottery_match(play_type, code, date) 定位 lottery_id 与 match_id；同步用 SQL 查 lottery_jczq_odds + lottery_match 双表交叉验证 issue_num/issue/home/away 一致"
+    - "2. 在 football_match 用 match_id 确认时间/主客/赛事/状态；与用户描述核对（防止用户字面方向与 DB 相反）"
+    - "3. 拉赔率：lottery_jczq_odds 的 rq/bf/jq/bqc/spf（注意区分'空'与'有值'）+ get_odds_snapshot 的 European/Asian"
+    - "4. 拉统计：get_h2h / get_recent_form；get_match_lineup / get_injury_report 若 DATA_MISSING 必须诚实说'暂无'"
+    - "5. 合成 100-300 字多维度分析：胜平负结果 + 比分结果 + 让球胜平负 + 赔率结构解读 + 实力差/状态 + 数据诚实声明；不出现工具名与内部 ID"
+  forbidden:
+    - "禁止把用户字面 '周日009' 改写成 '009'（parse 成 int=9 错）或 '周日09'（regex 要求 3 位数字不匹配）"
+    - "禁止编造 spf/bqc/凯利/亚盘详细走势/阵容/伤停 等DB真实为空或 DATA_MISSING 的字段"
+    - "禁止暴露工具名（resolve_lottery_match/get_odds_snapshot/get_h2h 等）"
+    - "禁止暴露内部 ID（match_id/lottery_id/team_id）"
+    - "禁止套用通用模板无视本场实际赔率结构与实力差"
+  output_template: |
+    {主队} vs {客队}（{北京时间}，{赛事}，{中立场/主场}）：
+    胜平负{结果}，比分{X:Y}，让球{N}后{让球结果}（{赔率}），总进球{N}球（{赔率}档）。
+    分析：{实力差+FIFA排名+European主胜赔率}；{主队近期状态+进攻火力}；{让球盘口逻辑}；{比分赔率结构/冷门提示}。
+    数据诚实声明：本条{spf/半全场/阵容/伤停}暂未提供，分析依据为{实际拿到的字段}。
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "resolve_lottery_match 在 envelope 顶层返回 match_id=null，但 data.match_candidates[0].match_id=4460914 实际有值。顶层 match_id 与 candidates 内 match_id 不一致，LLM 若只读顶层 match_id 会误判'未关联到比赛'。这是输出契约不一致，不是数据缺口"
+    evidence_ref: "path_attempts_v2/B01.yaml :: aq_1 round 3 工具返回 'match_id: null' 但 match_candidates[0].match_id=4460914"
+    priority: P3
+    recommended_action: "在 resolve_lottery_match 实现里，当 count(match_candidates)==1 时把 candidates[0].match_id 提到 envelope 顶层 match_id 字段；与 resolve_match 的输出契约保持一致"
+  - gap_type: parameter_gap
+    detail: "（已推翻）supplement 诊断断言 B01 是 parameter_gap，本次独立 SQL 基准+工具对照证明：用户字面 '周日009' 是工具原生支持的规范格式，resolve_lottery_match 正常返回 OK，无 parameter_gap。supplement 误判可能基于未实测或更早版本。仅作为风险记录：若 LLM 把 '周日009' 改写成 '009' 或 '周日09' 会触发 parameter_gap，但这是 LLM 改写错误而非工具缺陷"
+    evidence_ref: "path_attempts_v2/B01.yaml :: aq_1 round 3（'周日009' OK）+ 补充验证（'009'/'周日09' ENTITY_NOT_FOUND）"
+    priority: P3
+    recommended_action: "在 LLM system prompt 里明确：用户给的 '周日NNN' 格式是规范输入，不要改写；parse_lottery_issue_num 仅接受 '周+中文星期+3位零填充数字' 或纯 issue_num int"
+scores:
+  correctness: {score: 5, reason: "SQL+工具双向印证 lottery_id=2040170 / match_id=4460914 / 德国 7:1 库拉索 / 让球-3主胜1.65；独立验证推翻 supplement parameter_gap 误判，事实链与 DB 完全一致，无编造"}
+  completeness: {score: 5, reason: "覆盖胜平负/比分/让球胜平负/总进球/比分赔率/European赔率/亚盘/实力差/近期状态/h2h 10 项；缺失字段(lineup/injury/spf/bqc)均有诚实声明"}
+  no_false_negative: {score: 5, reason: "aq_1 用 lottery_jczq_odds + lottery_match 双表 SQL 基准 + 工具对照三向印证；aq_4 对 lineup/injury 穷尽验证后诚实标注 DATA_MISSING，未过早断言"}
+  path_efficiency: {score: 5, reason: "6 个 atomic 均在 1-3 轮内完成，每轮有独立假设（SQL 基准→映射→工具对照→统计→守门），无机械重试；总轮数 11，路径高效"}
+  output_discipline: {score: 5, reason: "aq_6 守门 6 项全过：无工具名、无内部 ID、缺失数据'暂无'声明、100-300 字（实测 230 字）、多维度非模板、不暴露 match_id/lottery_id"}
+  context_handling: {score: 4, reason: "单轮 case 无多轮修正复杂度，但 aq 间依赖关系（aq_2 depends_on aq_1 等）处理正确；本 case 不考验多轮上下文维护"}
+  scenario_compliance: {score: 5, reason: "B01 expected_behaviors 三条（多维度深度/数据诚实/不暴露工具名）全部满足；100-300 字硬约束达标；竞彩模板分析场景规范完全遵循"}
+overall_score: 4.95
+pass: true

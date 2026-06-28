@@ -1,0 +1,31 @@
+type_id: "A11"
+case_id: "TC-A11-SYN"
+classification: "✅"
+classification_reason: |
+  A11 找到了能完整回答用户问题的数据路径,数据正确,路径清晰。SQL 直查 football_competition_players_stats JOIN football_player JOIN football_team WHERE season_id=13776 AND goals>0 ORDER BY goals DESC, assists DESC, penalty ASC LIMIT 10 返回完整前 10:梅西(阿根廷)6球居首,姆巴佩/登贝莱/维尼修斯/哈兰德 4 球紧随,翁达夫/曼赞比/萨尔/库尼亚/布罗比 3 球。本轮 SQL 真实复跑,结果与 atomic DB 基准完全一致。
+  路径稳健可重复:SELECT + JOIN 是稳定查询,season_id=13776 过滤明确(本轮验证世界杯积分榜父表 3 行均 13776),排序口径清晰(进球降序→助攻降序→点球升序,点球含金量低)。字段齐全(球员/所属队/进球/点球/助攻/出场),剥离 player_id/team_id/season_id 即可合规输出。
+  foretell 工具链无原生射手榜工具(get_top_scorers 缺失+get_team_season_stats stub+get_standings 是球队榜),属 implementation_gap,但数据在库完整可取,SQL 兜底路径清晰无脆弱性。故判 ✅ 而非 ⚠️:workaround 是稳健 SQL 而非脆弱拼凑,数据正确性已验证,路径可重复执行。
+path_assessment: |
+  路径核心是 SQL 直查 football_competition_players_stats,这是清晰且数据正确的可行路径。本轮验证:
+  (1) season_id 锚定:世界杯 competition_id=1 最新 season_id=13776(3 行积分榜父表均 13776),与 atomic 已记录一致;
+  (2) 射手榜前 10 完整:梅西 6 球、姆巴佩 4 球 2 助、登贝莱 4 球 1 助、维尼修斯 4 球 1 助、哈兰德 4 球、翁达夫 3 球 2 助、曼赞比 3 球 1 助、萨尔 3 球 1 助、库尼亚 3 球、布罗比 3 球——与 atomic DB 基准完全一致;
+  (3) 字段齐全:球员名/所属队/进球/点球/助攻/出场,满足『归纳优先于罗列』前 10 排名表输出;
+  (4) 排序口径:进球降序→同进球助攻降序→点球升序(点球含金量低),合规且符合直觉;
+  (5) 守门:剥离 player_id/team_id/season_id/competition_id 即可,无中间态外露。
+  唯一短板是 foretell 工具链无原生射手榜工具(implementation_gap),但 SQL 兜底路径稳健,不构成隐患。生产 Foretell 须 Skill 层固化『射手榜类问题 SQL 直查』路由,或新增 get_top_scorers 工具暴露此查询。
+exploration_sufficiency: |
+  探索充分且高效。覆盖:(1) season_id 锚定(本轮 SQL 复跑确认 13776);(2) 射手榜前 10 SQL 直查(本轮真实复跑,结果与 atomic 基准一致);(3) foretell 工具链无原生射手榜工具确认(已记录 list-tools 22 工具无 get_top_scorers);(4) 排序口径与字段裁剪规则。无机械重试,根因清晰定位到 implementation_gap(缺工具)但数据在库可 SQL 取得。
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "foretell 工具链无原生射手榜工具(get_top_scorers/get_scorer_table/get_player_stats 缺失);get_team_season_stats 是 stub(return None);get_standings 是球队积分榜非球员进球榜。数据在 football_competition_players_stats 表可 SQL 直查取得,但无工具暴露"
+    evidence_ref: "path_attempts_v2/A11.yaml step 4(已记录 list-tools 22 工具无射手榜类);step 3(SQL 直查前 10 完整可得)"
+    priority: "P1"
+    recommended_action: "新增 get_top_scorers(league_id, limit=10) 直查 football_competition_players_stats JOIN football_player JOIN football_team WHERE season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=league_id) AND goals>0 ORDER BY goals DESC, assists DESC, penalty ASC 返回球员/队/进球/点球/助攻/出场。在工具修复前,Skill 层强制射手榜类问题 SQL 直查提供,或诚实说明工具缺口后用 SQL 兜底,禁止编造榜单"
+recommended_answer_path: |
+  1. resolve_league('世界杯') 返回 league_id=1(FIFA World Cup 2026 进行中),排除 U20/女足/世欧预(id=2)/女世界杯(id=13)
+  2. SQL 查 season_id=MAX(competition_id=1)→13776(本轮验证 3 行积分榜父表均 13776)
+  3. SQL 直查射手榜:SELECT ps.goals, ps.penalty, ps.assists, ps.matches, p.name_zh AS player, t.name_zh AS team FROM football_competition_players_stats ps JOIN football_player p ON p.id=ps.player_id JOIN football_team t ON t.id=ps.team_id WHERE ps.season_id=13776 AND ps.goals>0 ORDER BY ps.goals DESC, ps.assists DESC, ps.penalty ASC LIMIT 10
+  4. 输出前 10 排名表:排名+球员+所属国家队+进球(含点球)+助攻+出场;剥离 player_id/team_id/season_id/competition_id
+  5. 同进球排序口径:助攻降序→点球升序(点球含金量低)
+  6. 守门:不外露 SQL/中间态/工具名;未穷尽前不断言无数据(已 SQL 穷尽 season_id=13776 AND goals>0)
+  7. 若生产 Foretell 无 SQL 直查能力,诚实说明『工具链暂无射手榜工具,以下数据由数据库直查提供』后给榜单,禁止编造

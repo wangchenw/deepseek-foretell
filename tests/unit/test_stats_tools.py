@@ -23,9 +23,9 @@ def test_get_standings_missing() -> None:
 
 def test_get_team_season_stats() -> None:
     result = _parse(get_team_season_stats.invoke({"team_id": 10249}))
-    assert result["code"] == "DATA_MISSING"
+    assert result["code"] == "OK"
     assert result["dimension"] == "team_season_stats"
-    assert result["data"]["team_id"] == 10249
+    assert result["data"]["team_name"]
 
 
 def test_get_team_season_stats_missing() -> None:

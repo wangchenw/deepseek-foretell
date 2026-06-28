@@ -1,0 +1,34 @@
+type_id: B09
+type_name: 系列赛G7
+scenario: B
+case_id: TC-B09-REG-006
+turns:
+- turn_index: 0
+  text: 马刺对雷霆 G7 分析
+  atomics:
+  - id: B09-T0-a1
+    category: resolve_entity
+    target: 马刺 vs 雷霆 系列赛第7场
+    hard_constraints:
+    - series_game=7 硬约束
+    - 找不到时不得降级 G6
+  - id: B09-T0-a2
+    category: fetch_stats
+    target: 系列赛基本面
+    hard_constraints:
+    - 篮球季后赛语境
+  - id: B09-T0-a3
+    category: fetch_odds_snapshot
+    target: 让分/大小分
+    hard_constraints:
+    - stub 需诚实说明
+  - id: B09-T0-a4
+    category: delegate_subagent
+    target: match-analysis 子智能体链
+    hard_constraints:
+    - 保留 G7 约束贯穿全文
+  - id: B09-T0-a5
+    category: apply_guardrails
+    target: 系列赛约束
+    hard_constraints:
+    - NOT_APPLICABLE 时诚实说明无 G7 数据，不得伪造 G6

@@ -1,0 +1,140 @@
+type_id: "B09"
+case_id: "TC-B09-REG-006"
+review_summary: |
+  本 case 是篮球系列赛 G7 深度分析。探索智能体诊断扎实：用 SQL 基准独立证明 DB 里有完整 G7 数据
+  （basketball_bracket_match_up id=922432 + basketball_match id=3921754，2026-05-31 08:00 北京时间，
+  马刺 111:103 客场胜，系列赛 4:3），同时准确识别双重 tool gap：①resolve_match 接受 series_game
+  参数但 mysql_client 第 320-321 行直接 return []（tool_logic_gap）；②resolve_team/resolve_match/
+  get_h2h 全部只查 football_* 表，对篮球完全不适用（implementation_gap）。工具链行为符合
+  expected_behaviors 两条约束（保留 G7、不降级 G6），但根因是工具不实现而非 DB 无数据。
+requirement_analysis_review:
+  completeness: "原子拆分完整：覆盖实体定位(aq_1)、G7 比赛定位(aq_2)、series 进程验证(aq_3)、
+    综合分析(aq_4)、guardrail(aq_5) 五个环节。hard_constraints 显式引用 expected_behaviors 两条
+    + 不暴露 ID + 篮球/足球表区分，预判风险（series_game 假支持、足球工具误用、basketball_match
+    无 series_game 字段、降级风险）全部命中实际探索结果。"
+  missed_needs: []
+path_exploration_review:
+  reasoning_quality: "每轮假设—执行—诊断—决策闭环清晰。aq_2 round 1 用 bracket_match_up +
+    match_ids 数组反推 G7 是关键洞察（basketball_match 无 series_game 字段，series_game 信息
+    只能在 bracket 表的 match_ids varchar 列表第 7 个元素里找到）。aq_3 用 JSON_EXTRACT 聚合
+    7 场比分验证 3:3 是高质量 SQL。无机械重试。"
+  sql_baseline_quality: "优秀。aq_1/aq_2/aq_3 三个核心原子查询全部独立写了 SQL 基准（不是
+    只调工具就信），且 SQL 设计合理：①用 competition_id=1 消歧 NBA；②用 type_id=10 过滤
+    7 局 4 胜制；③用 match_ids 数组长度=7 识别打满 G7 的对阵；④用 JSON_EXTRACT 计算每场
+    4 节总分。SQL 基准与工具返回对照明确指出 tool_logic_gap / implementation_gap。"
+  unexplored_alternatives:
+    - "未尝试用 basketball_match.round_stage_id / round_group_num / round_round_num 直接
+      定位季后赛 G7（可能 round_round_num=7 即第 7 场），可作为备选路径验证。但 bracket
+      路径已成功，非必要。"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "篮球系列赛 G7 类问题：先用 SQL 查 basketball_bracket_match_up (type_id=10,
+    home/away LIKE) 找对阵，从 match_ids 数组取第 N 个 match_id，再查 basketball_match 拿
+    比赛详情；工具链当前不支持，必须 SQL 兜底。"
+  steps:
+    - "1. resolve_basketball_team 定位主客队（用 basketball_team.name_zh/short_name_zh LIKE
+      + competition_id 过滤，NBA=1）"
+    - "2. 查 basketball_bracket_match_up WHERE type_id=10 AND home/away team_id 匹配，
+      取 match_ids 数组长度=series_game 的对阵"
+    - "3. 从 match_ids 第 N 个元素取 G_N 的 match_id，查 basketball_match 拿时间/主客/状态/比分"
+    - "4. 查 series 所有场次比分验证 series 真打满（前 N-1 场胜负 == (N-1)/2 : (N-1)/2）"
+    - "5. 综合分析：series 进展 + G7 赛果 + 趋势 pattern（主客场胜负规律）"
+    - "6. 风险提示：若球员/赔率/伤停数据缺失，明确告知用户深度受限"
+  forbidden:
+    - "禁止在 series_game=N 找不到时降级分析 G_{N-1} 或其他场次冒充"
+    - "禁止暴露 match_id / team_id / round_id / bracket_id 等内部 ID 给用户"
+    - "禁止在工具返回 NOT_APPLICABLE 时直接告知用户『无 G7 数据』——必须先 SQL 基准交叉验证
+      DB 是否真无数据，再决定回答内容"
+    - "禁止用足球工具（resolve_team/resolve_match/get_h2h）处理篮球查询"
+  output_template: |
+    【马刺 vs 雷霆 西部决赛 G7 分析】
+
+    比赛信息：北京时间 2026-05-31 08:00，雷霆主场（西1）vs 马刺（西2），已完场。
+    最终比分：马刺 111 : 103 雷霆（马刺客场夺冠）。
+
+    系列赛回顾（7 场）：
+    G1 5/19 雷霆主：马刺 122:115(OT) 胜
+    G2 5/21 雷霆主：雷霆 122:113 胜
+    G3 5/23 马刺主：雷霆 123:108 胜
+    G4 5/25 马刺主：马刺 103:82 胜
+    G5 5/27 雷霆主：雷霆 127:114 胜
+    G6 5/29 马刺主：马刺 118:91 胜
+    G7 5/31 雷霆主：马刺 111:103 胜 → 马刺 4:3 夺冠
+
+    趋势分析：本系列主场优势被打破——7 场中 5 场客队取胜，马刺客场 4 胜横扫。
+    风险提示：本分析基于系列赛比分层面，未含球员个人数据/战术/赔率维度
+    （当前工具链不支持篮球深度数据），如需 deeper analysis 建议补充外部数据源。
+
+scores:
+  correctness:
+    score: 5
+    reason: "SQL 基准与 DB 实际数据完全一致（bracket_match_up id=922432 + basketball_match
+      id=3921754 双表交叉验证），工具 gap 诊断准确（mysql_client.py 第 320-321 行 return []
+      + football_* 表限定），无任何编造。"
+  completeness:
+    score: 4
+    reason: "必需字段齐全：北京时间(2026-05-31 08:00)、主客(雷霆主 vs 马刺客)、status(已完场)、
+      series 进展(3:3 → 4:3)、主场 pattern。扣 1 分因球员级深度数据（阵容/伤停/个人得分）受
+      foretell 工具缺失限制无法获取，但已诚实标注。"
+  no_false_negative:
+    score: 5
+    reason: "工具返回 NOT_APPLICABLE 后未断言『无 G7 数据』，立即用 SQL 基准交叉验证找到 G7
+      完整数据。expected_behaviors『找不到时不得降级 G6』行为合规（工具 NOT_APPLICABLE 不降级），
+      且进一步用 SQL 证明 DB 实际有数据——双重保险。"
+  path_efficiency:
+    score: 4
+    reason: "9 轮覆盖 5 个原子查询，每轮假设清晰、无机械重试。aq_2 round 1 用 bracket +
+      match_ids 反推 G7 是高效路径。扣 1 分因 aq_2 round 1 直接命中 G7 略带运气（6 个对阵中
+      只有 1 个打满 7 场），可增加 round_stage_id 备选验证更稳健，但非必要。"
+  output_discipline:
+    score: 4
+    reason: "工具 envelope 不暴露内部 ID（NOT_APPLICABLE 只返回 reason）。output_template
+      显式过滤 match_id/team_id/round_id/bracket_id。扣 1 分因 SQL 基准回答中需主动过滤
+      内部 ID，未在工具层自动屏蔽。"
+  context_handling:
+    score: 5
+    reason: "单轮对话，无多轮上下文继承需求。aq_4 综合分析正确依赖前序 aq_1/aq_2/aq_3 结果。"
+  scenario_compliance:
+    score: 4
+    reason: "深度分析场景规范：series 回顾 + G7 赛果 + 趋势 pattern + 风险提示齐全。扣 1 分因
+      foretell 无篮球深度工具（球员/赔率/伤停），深度分析上限受限于 series 层面，但已诚实
+      在 output_template 标注风险。"
+overall_score: 4.5
+pass: true
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "resolve_match 工具签名暴露 series_game 参数（entity.py 第 25 行 + 工具 docstring
+      明确『G7 传 7』），但 mysql_client.py 第 320-321 行 `if series_game is not None: return []`
+      直接返回空列表，根本不查 basketball_bracket_match_up / basketball_match。entity.py
+      wrapper 在 series_game 非空且 candidates 空时返回 NOT_APPLICABLE + reason '未找到系列赛
+      第N场，禁止降级分析其他场次'——这个 reason 行为符合 expected_behaviors 但掩盖了真正
+      根因（DB 有数据，工具不查）。这是生产环境现在就在用的有问题的工具，优先级最高。"
+    evidence_ref: "path_attempts_v2/B09.yaml aq_2 round 3：SQL 基准（basketball_match id=3921754
+      G7 完整数据）vs 工具返回（NOT_APPLICABLE）"
+    priority: P1
+    recommended_action: "修复 mysql_client.resolve_match：当 series_game 非空时，应
+      ① 查 basketball_bracket_match_up (home/away team_id + type_id=10) 找对阵；
+      ② 从 match_ids varchar 字段解析第 series_game 个 match_id；
+      ③ 去 basketball_match 查比赛详情返回。
+      或拆分为 resolve_basketball_series_match 新工具。"
+  - gap_type: implementation_gap
+    detail: "篮球实体/赛程/交锋定位工具完全缺失：resolve_team 只查 football_team、
+      resolve_match 只查 football_match + football_team、get_h2h 只查 football_match h2h。
+      篮球需独立工具集（resolve_basketball_team / resolve_basketball_match /
+      get_basketball_h2h / get_basketball_series_progress）查 basketball_team /
+      basketball_match / basketball_bracket_match_up 表。"
+    evidence_ref: "path_attempts_v2/B09.yaml aq_1 round 2（resolve_team 返回全 football 候选）、
+      aq_2 round 3（resolve_match 无 series_game 也 ENTITY_NOT_FOUND）、aq_3 round 2
+      （get_h2h DATA_MISSING）"
+    priority: P1
+    recommended_action: "新增篮球版工具集，复用现有 envelope/status_code 体系。
+      优先级与 tool_logic_gap 同级，因 NBA 系列赛查询是常见场景。"
+  - gap_type: data_gap
+    detail: "球员级深度数据缺失：basketball_match 有 has_players 字段（0/1 标记是否有阵容数据）
+      但 foretell 未暴露查询工具，无法做球员级别分析（个人得分/正负值/关键球员表现）。
+      篮球赔率工具也缺失。"
+    evidence_ref: "path_attempts_v2/B09.yaml aq_4 round 1：data_synthesis 标注『球员级别数据
+      不足以分析』"
+    priority: P3
+    recommended_action: "若产品需要 NBA 深度分析能力，需新增篮球阵容/球员数据工具
+      （basketball_match.has_players 字段已存在但未暴露）、篮球赔率工具。当前可作 P3 后置。"

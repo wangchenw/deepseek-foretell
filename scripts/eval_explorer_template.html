@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foretell Eval Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1E40AF;
+      --secondary: #3B82F6;
+      --accent: #F59E0B;
+      --bg: #F8FAFC;
+      --text: #1E3A8A;
+      --muted: #475569;
+      --border: #E2E8F0;
+      --card: #FFFFFF;
+      --hover: #EFF6FF;
+      --success: #059669;
+      --danger: #DC2626;
+      --font-sans: "Fira Sans", system-ui, sans-serif;
+      --font-mono: "Fira Code", ui-monospace, monospace;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(30, 64, 175, 0.08);
+      --transition: 150ms ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    .mono { font-family: var(--font-mono); font-size: 0.9em; }
+
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .header-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header-row h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      flex: 1 1 200px;
+    }
+
+    .search-wrap { flex: 2 1 240px; min-width: 180px; }
+
+    .search-wrap input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.875rem;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .search-wrap input:focus {
+      outline: 2px solid var(--secondary);
+      outline-offset: 1px;
+    }
+
+    .quick-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chip {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+      color: var(--muted);
+    }
+
+    .chip:hover { background: var(--hover); border-color: var(--secondary); }
+    .chip:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
+    .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem 1.25rem 2rem;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-card .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .kpi-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 0.15rem; }
+
+    .banner {
+      background: #FEF3C7;
+      border: 1px solid #FCD34D;
+      border-radius: var(--radius);
+      padding: 0.65rem 1rem;
+      font-size: 0.8125rem;
+      color: #92400E;
+      margin-bottom: 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .tab {
+      padding: 0.6rem 1rem;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color var(--transition), border-color var(--transition);
+    }
+
+    .tab:hover { color: var(--primary); }
+    .tab:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .bar-chart { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 60px;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0.2rem 0.35rem;
+      border-radius: 4px;
+      transition: background var(--transition);
+    }
+
+    .bar-row:hover { background: var(--hover); }
+    .bar-row:focus-visible { outline: 2px solid var(--secondary); outline-offset: 1px; }
+
+    .bar-label { font-family: var(--font-mono); font-weight: 600; color: var(--primary); }
+    .bar-track { background: var(--border); border-radius: 4px; height: 18px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--secondary); border-radius: 4px; transition: width 300ms ease; min-width: 2px; }
+    .bar-fill.template { background: var(--accent); }
+    .bar-count { text-align: right; color: var(--muted); font-family: var(--font-mono); font-size: 0.7rem; }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .scenario-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .scenario-header {
+      padding: 0.75rem 1rem;
+      background: var(--hover);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background var(--transition);
+    }
+
+    .scenario-header:hover { background: #DBEAFE; }
+    .scenario-header:focus-visible { outline: 2px solid var(--secondary); outline-offset: -2px; }
+
+    .scenario-header .sid {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.1rem;
+    }
+
+    .scenario-header .sname { font-weight: 600; font-size: 0.875rem; }
+    .scenario-header .sdesc { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+
+    .scenario-types {
+      display: none;
+      padding: 0.5rem;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .scenario-card.open .scenario-types { display: block; }
+
+    .type-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      transition: background var(--transition);
+    }
+
+    .type-item:hover { background: var(--hover); }
+    .type-item:focus-visible { outline: 2px solid var(--secondary); outline-offset: 1px; }
+    .type-item.selected { background: #DBEAFE; }
+
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    th, td {
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover { color: var(--primary); }
+    th:focus-visible { outline: 2px solid var(--secondary); outline-offset: -2px; }
+
+    tr.data-row { cursor: pointer; transition: background var(--transition); }
+    tr.data-row:hover { background: var(--hover); }
+    tr.data-row.selected { background: #DBEAFE; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+
+    .badge-p0 { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+    .badge-fb { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+    .badge-syn { background: #E0E7FF; color: #3730A3; border: 1px solid #C7D2FE; }
+    .badge-prod { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+    .badge-tag { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+      gap: 3px;
+      margin-top: 0.5rem;
+    }
+
+    .heat-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      font-size: 0.55rem;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      transition: transform var(--transition), box-shadow var(--transition);
+      color: var(--text);
+    }
+
+    .heat-cell:hover { transform: scale(1.08); box-shadow: var(--shadow); }
+    .heat-cell:focus-visible { outline: 2px solid var(--secondary); outline-offset: 1px; }
+    .heat-prod { background: #BBF7D0; }
+    .heat-syn { background: #C7D2FE; }
+    .heat-missing { background: #FEE2E2; }
+
+    .detail-panel {
+      position: sticky;
+      top: 5.5rem;
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
+    }
+
+    @media (max-width: 1024px) {
+      .detail-panel {
+        position: fixed;
+        inset: 0;
+        top: auto;
+        max-height: 85vh;
+        border-radius: var(--radius) var(--radius) 0 0;
+        z-index: 200;
+        transform: translateY(100%);
+        transition: transform 250ms ease;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      }
+      .detail-panel.open { transform: translateY(0); }
+      .detail-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.4);
+        z-index: 199;
+      }
+      .detail-backdrop.open { display: block; }
+    }
+
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .detail-header h2 { margin: 0; font-size: 1rem; }
+
+    .close-btn {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: var(--muted);
+      transition: background var(--transition);
+    }
+
+    .close-btn:hover { background: var(--hover); }
+    .close-btn:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
+
+    .meta-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+
+    .section { margin-bottom: 1rem; }
+    .section-title { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+
+    .turn-list { list-style: none; padding: 0; margin: 0; }
+
+    .turn-item {
+      border-left: 3px solid var(--secondary);
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+      background: var(--bg);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 0.8125rem;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .turn-item .turn-num {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .behavior-list { list-style: disc; padding-left: 1.25rem; margin: 0; font-size: 0.8125rem; }
+    .behavior-list li { margin-bottom: 0.25rem; }
+
+    .patterns details { font-size: 0.75rem; }
+    .patterns summary { cursor: pointer; color: var(--secondary); font-weight: 500; }
+    .patterns pre {
+      background: var(--bg);
+      padding: 0.5rem;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      margin: 0.35rem 0 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    .hidden { display: none !important; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.7rem; color: var(--muted); margin-top: 0.5rem; }
+    .legend span { display: flex; align-items: center; gap: 0.3rem; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+
+    .filter-bar select {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.75rem;
+      color: var(--text);
+      background: var(--card);
+    }
+
+    .filter-bar select:focus-visible { outline: 2px solid var(--secondary); outline-offset: 1px; }
+
+    .result-count { font-size: 0.75rem; color: var(--muted); margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <h1>Foretell Eval Explorer</h1>
+      <div class="search-wrap">
+        <input type="search" id="global-search" placeholder="搜索题型、对话内容、标签…" aria-label="全局搜索">
+      </div>
+      <div class="quick-filters">
+        <button type="button" class="chip" data-filter="p0">P0</button>
+        <button type="button" class="chip" data-filter="feedback">Feedback</button>
+        <button type="button" class="chip" data-filter="multi_turn">多轮</button>
+        <button type="button" class="chip" data-filter="synthetic">Synthetic</button>
+        <button type="button" class="chip" id="clear-filters">清除</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <div class="banner">
+      <strong>注意：</strong>题型标签以首轮分类为主，代表 case 常取该题型下最复杂的多轮 session，因此标签不等于整段对话主题。
+      B01 竞彩模板经 normalize 后 77k+ 会话为同一模板变体。
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="overview" role="tab" aria-selected="true">总览</button>
+      <button type="button" class="tab" data-tab="scenarios" role="tab" aria-selected="false">场景</button>
+      <button type="button" class="tab" data-tab="browse" role="tab" aria-selected="false">题型列表</button>
+    </div>
+
+    <div class="layout">
+      <div class="main-content">
+        <div id="tab-overview" class="tab-panel">
+          <div class="panel" style="margin-bottom: 1rem;">
+            <h2>场景分布（评测集 120 case）</h2>
+            <div class="bar-chart" id="scenario-bars"></div>
+          </div>
+          <div class="panel" style="margin-bottom: 1rem;">
+            <h2>生产 Top 15 题型（145k 会话）</h2>
+            <div class="bar-chart" id="top-type-bars"></div>
+          </div>
+          <div class="panel">
+            <h2>Coverage 矩阵（120 题型）</h2>
+            <div class="heatmap" id="coverage-heatmap"></div>
+            <div class="legend">
+              <span><span class="legend-dot heat-prod"></span> 生产 case</span>
+              <span><span class="legend-dot heat-syn"></span> Synthetic</span>
+              <span><span class="legend-dot heat-missing"></span> 无 case</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-scenarios" class="tab-panel hidden">
+          <div class="scenario-grid" id="scenario-grid"></div>
+        </div>
+
+        <div id="tab-browse" class="tab-panel hidden">
+          <div class="filter-bar">
+            <select id="filter-scenario" aria-label="筛选场景">
+              <option value="">全部场景</option>
+            </select>
+            <select id="filter-complexity" aria-label="筛选复杂度">
+              <option value="">全部复杂度</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </select>
+            <select id="filter-sport" aria-label="筛选运动">
+              <option value="">全部运动</option>
+              <option value="any">any</option>
+              <option value="football">football</option>
+              <option value="basketball">basketball</option>
+            </select>
+            <span class="result-count" id="result-count"></span>
+          </div>
+          <div class="panel table-wrap">
+            <table id="types-table">
+              <thead>
+                <tr>
+                  <th data-sort="id" tabindex="0">ID</th>
+                  <th data-sort="name" tabindex="0">名称</th>
+                  <th data-sort="scenario" tabindex="0">场景</th>
+                  <th data-sort="session_count" tabindex="0">生产会话</th>
+                  <th data-sort="complexity" tabindex="0">复杂度</th>
+                  <th data-sort="entity_entry" tabindex="0">实体入口</th>
+                  <th>标签</th>
+                </tr>
+              </thead>
+              <tbody id="types-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-backdrop" id="detail-backdrop"></div>
+      <aside class="panel detail-panel" id="detail-panel" aria-live="polite">
+        <div class="empty-state" id="detail-empty">选择题型或 case 查看详情</div>
+        <div id="detail-content" class="hidden"></div>
+      </aside>
+    </div>
+  </main>
+
+  <script type="application/json" id="explorer-data">__EXPLORER_DATA__</script>
+  <script>
+    const DATA = JSON.parse(document.getElementById("explorer-data").textContent);
+
+    const state = {
+      tab: "overview",
+      search: "",
+      chips: new Set(),
+      scenario: "",
+      complexity: "",
+      sport: "",
+      sortKey: "id",
+      sortAsc: true,
+      selectedTypeId: null,
+      selectedCaseId: null,
+    };
+
+    const typeMap = new Map(DATA.types.map(t => [t.id, t]));
+    const caseMap = new Map(DATA.cases.map(c => [c.id, c]));
+    const caseByType = new Map(DATA.cases.map(c => [c.type_id, c]));
+    const p0Set = new Set(DATA.p0_ids);
+
+    function fmt(n) {
+      if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+      return String(n);
+    }
+
+    function renderKPI() {
+      const s = DATA.stats;
+      const c = DATA.coverage;
+      const unclassifiedPct = ((s.unclassified_count / s.total_sessions) * 100).toFixed(1);
+      const items = [
+        { label: "题型定义", value: c.total_types_defined },
+        { label: "评测 Case", value: c.total_cases },
+        { label: "生产会话", value: fmt(s.total_sessions) },
+        { label: "未分类", value: unclassifiedPct + "%" },
+        { label: "多轮 Case", value: c.multi_turn_cases },
+        { label: "Feedback 回归", value: c.feedback_regression_ids.length },
+      ];
+      document.getElementById("kpi-grid").innerHTML = items.map(i =>
+        `<div class="kpi-card"><div class="label">${i.label}</div><div class="value">${i.value}</div></div>`
+      ).join("");
+    }
+
+    function maxCount(items) {
+      return Math.max(...items.map(i => i.count || i.type_count || 0), 1);
+    }
+
+    function renderScenarioBars() {
+      const max = maxCount(DATA.scenarios.map(s => ({ count: s.type_count })));
+      const el = document.getElementById("scenario-bars");
+      el.innerHTML = DATA.scenarios.map(s => {
+        const pct = (s.type_count / max) * 100;
+        return `<div class="bar-row" tabindex="0" data-scenario="${s.id}" title="${s.description}">
+          <span class="bar-label">${s.id}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          <span class="bar-count">${s.type_count}</span>
+        </div>`;
+      }).join("");
+    }
+
+    function renderTopTypeBars() {
+      const max = maxCount(DATA.top_types);
+      const el = document.getElementById("top-type-bars");
+      el.innerHTML = DATA.top_types.map(t => {
+        const pct = (t.count / max) * 100;
+        const cls = t.is_template ? " template" : "";
+        const tip = t.is_template ? "模板化（B01 normalize）" : "";
+        return `<div class="bar-row" tabindex="0" data-type="${t.id}" title="${tip}">
+          <span class="bar-label">${t.id}</span>
+          <div class="bar-track"><div class="bar-fill${cls}" style="width:${pct}%"></div></div>
+          <span class="bar-count">${fmt(t.count)}</span>
+        </div>`;
+      }).join("");
+    }
+
+    function renderHeatmap() {
+      const el = document.getElementById("coverage-heatmap");
+      el.innerHTML = DATA.types.map(t => {
+        let cls = "heat-missing";
+        if (t.case_origin === "production") cls = "heat-prod";
+        else if (t.case_origin === "synthetic") cls = "heat-syn";
+        return `<div class="heat-cell ${cls}" tabindex="0" data-type="${t.id}" title="${t.id} ${t.name}">${t.id}</div>`;
+      }).join("");
+    }
+
+    function renderScenarioGrid() {
+      const grouped = {};
+      for (const t of DATA.types) {
+        if (!grouped[t.scenario]) grouped[t.scenario] = [];
+        grouped[t.scenario].push(t);
+      }
+      const el = document.getElementById("scenario-grid");
+      el.innerHTML = DATA.scenarios.map(s => {
+        const types = grouped[s.id] || [];
+        const typeItems = types.map(t => {
+          const badges = badgesForType(t);
+          return `<div class="type-item" tabindex="0" data-type="${t.id}">
+            <span><span class="mono">${t.id}</span> ${t.name}</span>
+            <span>${badges}</span>
+          </div>`;
+        }).join("");
+        return `<div class="scenario-card" data-scenario="${s.id}">
+          <div class="scenario-header" tabindex="0">
+            <div>
+              <div><span class="sid">${s.id}</span> <span class="sname">${s.name}</span></div>
+              <div class="sdesc">${s.description} · ${s.type_count} 题型</div>
+            </div>
+            <span class="mono">${types.length}</span>
+          </div>
+          <div class="scenario-types">${typeItems}</div>
+        </div>`;
+      }).join("");
+    }
+
+    function badgesForType(t) {
+      let html = "";
+      if (t.case_is_p0) html += '<span class="badge badge-p0">P0</span>';
+      if (t.case_has_feedback) html += '<span class="badge badge-fb">FB</span>';
+      if (t.case_origin === "synthetic") html += '<span class="badge badge-syn">SYN</span>';
+      else if (t.case_origin === "production") html += '<span class="badge badge-prod">PROD</span>';
+      return html;
+    }
+
+    function getFilteredTypes() {
+      const q = state.search.toLowerCase().trim();
+      return DATA.types.filter(t => {
+        if (state.scenario && t.scenario !== state.scenario) return false;
+        if (state.complexity && t.complexity !== state.complexity) return false;
+        if (state.sport && t.sport !== state.sport) return false;
+        if (state.chips.has("p0") && !t.case_is_p0) return false;
+        if (state.chips.has("feedback") && !t.case_has_feedback) return false;
+        if (state.chips.has("multi_turn") && !t.case_multi_turn) return false;
+        if (state.chips.has("synthetic") && t.case_origin !== "synthetic") return false;
+        if (q) {
+          const c = caseByType.get(t.id);
+          const hay = [
+            t.id, t.name, t.description, t.entity_entry,
+            ...(t.tags || []),
+            ...(c ? c.turns.join(" ") : []),
+          ].join(" ").toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function sortTypes(types) {
+      const key = state.sortKey;
+      const dir = state.sortAsc ? 1 : -1;
+      return [...types].sort((a, b) => {
+        let va = a[key], vb = b[key];
+        if (key === "session_count") { va = va || 0; vb = vb || 0; }
+        if (typeof va === "string") return va.localeCompare(vb) * dir;
+        return (va - vb) * dir;
+      });
+    }
+
+    function renderTypesTable() {
+      const filtered = sortTypes(getFilteredTypes());
+      document.getElementById("result-count").textContent = `${filtered.length} / ${DATA.types.length} 题型`;
+      const tbody = document.getElementById("types-tbody");
+      tbody.innerHTML = filtered.map(t => {
+        const sel = t.id === state.selectedTypeId ? " selected" : "";
+        const tags = (t.tags || []).map(tag => `<span class="badge badge-tag">${tag}</span>`).join("");
+        return `<tr class="data-row${sel}" data-type="${t.id}">
+          <td class="mono">${t.id}${badgesForType(t)}</td>
+          <td>${t.name}</td>
+          <td class="mono">${t.scenario}</td>
+          <td>${t.session_count ? fmt(t.session_count) : "—"}</td>
+          <td>${t.complexity}</td>
+          <td>${t.entity_entry}</td>
+          <td>${tags}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    function renderDetail(typeId) {
+      const t = typeMap.get(typeId);
+      if (!t) return;
+      const c = caseByType.get(typeId);
+      state.selectedTypeId = typeId;
+      state.selectedCaseId = c ? c.id : null;
+
+      document.getElementById("detail-empty").classList.add("hidden");
+      const content = document.getElementById("detail-content");
+      content.classList.remove("hidden");
+
+      const turnsHtml = c ? c.turns.map((turn, i) =>
+        `<li class="turn-item"><div class="turn-num">Turn ${i + 1}</div>${escapeHtml(turn)}</li>`
+      ).join("") : "<li class='turn-item'>无代表 case</li>";
+
+      const behaviors = c && c.expected_behaviors && c.expected_behaviors.length
+        ? `<ul class="behavior-list">${c.expected_behaviors.map(b => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`
+        : "<p style='font-size:0.8125rem;color:var(--muted)'>—</p>";
+
+      const patterns = t.patterns && t.patterns.length
+        ? `<details class="patterns"><summary>分类 patterns (${t.patterns.length})</summary><pre>${t.patterns.map(escapeHtml).join("\n")}</pre></details>`
+        : "";
+
+      const feedback = c && c.related_feedback && c.related_feedback.length
+        ? c.related_feedback.map(f => `<span class="badge badge-fb">${escapeHtml(f)}</span>`).join("")
+        : "—";
+
+      content.innerHTML = `
+        <div class="detail-header">
+          <h2><span class="mono">${t.id}</span> ${escapeHtml(t.name)}</h2>
+          <button type="button" class="close-btn" id="detail-close">关闭</button>
+        </div>
+        <div class="meta-row">
+          ${badgesForType(t)}
+          <span class="badge badge-tag">场景 ${t.scenario}</span>
+          <span class="badge badge-tag">${t.complexity}</span>
+          <span class="badge badge-tag">${t.sport}</span>
+        </div>
+        <div class="section">
+          <div class="section-title">题型说明</div>
+          <p style="font-size:0.8125rem;margin:0">${escapeHtml(t.description)}</p>
+          <p style="font-size:0.75rem;color:var(--muted);margin:0.35rem 0 0">
+            实体入口: ${escapeHtml(t.entity_entry)} · 优先级: ${t.priority} · 生产会话: ${t.session_count ? t.session_count.toLocaleString() : "0"}
+          </p>
+          ${patterns}
+        </div>
+        ${c ? `<div class="section">
+          <div class="section-title">Case ${escapeHtml(c.id)}</div>
+          <p style="font-size:0.75rem;color:var(--muted);margin:0 0 0.5rem">
+            来源: ${c.source.origin} · session: <span class="mono">${escapeHtml(c.source.session_id || "—")}</span>
+            · ${c.multi_turn ? c.turns.length + " 轮" : "单轮"}
+          </p>
+        </div>` : ""}
+        <div class="section">
+          <div class="section-title">对话轮次</div>
+          <ul class="turn-list">${turnsHtml}</ul>
+        </div>
+        <div class="section">
+          <div class="section-title">Expected Behaviors</div>
+          ${behaviors}
+        </div>
+        <div class="section">
+          <div class="section-title">Related Feedback</div>
+          <p style="margin:0;font-size:0.8125rem">${feedback}</p>
+        </div>
+      `;
+
+      document.getElementById("detail-close")?.addEventListener("click", closeDetailMobile);
+      openDetailMobile();
+      highlightSelection();
+      updateHash();
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function openDetailMobile() {
+      if (window.innerWidth <= 1024) {
+        document.getElementById("detail-panel").classList.add("open");
+        document.getElementById("detail-backdrop").classList.add("open");
+      }
+    }
+
+    function closeDetailMobile() {
+      document.getElementById("detail-panel").classList.remove("open");
+      document.getElementById("detail-backdrop").classList.remove("open");
+    }
+
+    function highlightSelection() {
+      document.querySelectorAll(".type-item.selected, tr.data-row.selected").forEach(el => el.classList.remove("selected"));
+      if (state.selectedTypeId) {
+        document.querySelectorAll(`[data-type="${state.selectedTypeId}"]`).forEach(el => {
+          if (el.classList.contains("type-item") || el.classList.contains("data-row")) el.classList.add("selected");
+        });
+      }
+    }
+
+    function updateHash() {
+      if (state.selectedCaseId) {
+        history.replaceState(null, "", `#case=${state.selectedCaseId}`);
+      } else if (state.selectedTypeId) {
+        history.replaceState(null, "", `#type=${state.selectedTypeId}`);
+      }
+    }
+
+    function parseHash() {
+      const hash = location.hash.slice(1);
+      if (!hash) return;
+      const [key, val] = hash.split("=");
+      if (key === "case" && caseMap.has(val)) {
+        const c = caseMap.get(val);
+        selectType(c.type_id);
+        return;
+      }
+      if (key === "type" && typeMap.has(val)) {
+        selectType(val);
+      }
+    }
+
+    function selectType(typeId) {
+      renderDetail(typeId);
+      renderTypesTable();
+    }
+
+    function setTab(tab) {
+      state.tab = tab;
+      document.querySelectorAll(".tab").forEach(btn => {
+        const active = btn.dataset.tab === tab;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-selected", active);
+      });
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+      document.getElementById("tab-" + tab).classList.remove("hidden");
+    }
+
+    function populateScenarioFilter() {
+      const sel = document.getElementById("filter-scenario");
+      DATA.scenarios.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = `${s.id} ${s.name}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function syncChips() {
+      document.querySelectorAll(".chip[data-filter]").forEach(chip => {
+        chip.classList.toggle("active", state.chips.has(chip.dataset.filter));
+      });
+    }
+
+    function refresh() {
+      renderTypesTable();
+      syncChips();
+    }
+
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => setTab(btn.dataset.tab));
+    });
+
+    document.getElementById("global-search").addEventListener("input", e => {
+      state.search = e.target.value;
+      refresh();
+    });
+
+    document.querySelectorAll(".chip[data-filter]").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const f = chip.dataset.filter;
+        if (state.chips.has(f)) state.chips.delete(f);
+        else state.chips.add(f);
+        refresh();
+      });
+    });
+
+    document.getElementById("clear-filters").addEventListener("click", () => {
+      state.chips.clear();
+      state.search = "";
+      state.scenario = "";
+      state.complexity = "";
+      state.sport = "";
+      document.getElementById("global-search").value = "";
+      document.getElementById("filter-scenario").value = "";
+      document.getElementById("filter-complexity").value = "";
+      document.getElementById("filter-sport").value = "";
+      refresh();
+    });
+
+    ["filter-scenario", "filter-complexity", "filter-sport"].forEach(id => {
+      document.getElementById(id).addEventListener("change", e => {
+        const key = id.replace("filter-", "");
+        state[key] = e.target.value;
+        refresh();
+      });
+    });
+
+    document.querySelectorAll("#types-table th[data-sort]").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (state.sortKey === key) state.sortAsc = !state.sortAsc;
+        else { state.sortKey = key; state.sortAsc = true; }
+        renderTypesTable();
+      });
+      th.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); th.click(); }
+      });
+    });
+
+    document.getElementById("scenario-bars").addEventListener("click", e => {
+      const row = e.target.closest("[data-scenario]");
+      if (!row) return;
+      state.scenario = row.dataset.scenario;
+      document.getElementById("filter-scenario").value = state.scenario;
+      setTab("browse");
+      refresh();
+    });
+
+    document.getElementById("scenario-bars").addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest("[data-scenario]");
+      if (!row) return;
+      e.preventDefault();
+      row.click();
+    });
+
+    document.getElementById("top-type-bars").addEventListener("click", e => {
+      const row = e.target.closest("[data-type]");
+      if (!row) return;
+      selectType(row.dataset.type);
+    });
+
+    document.getElementById("top-type-bars").addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest("[data-type]");
+      if (!row) return;
+      e.preventDefault();
+      selectType(row.dataset.type);
+    });
+
+    document.getElementById("coverage-heatmap").addEventListener("click", e => {
+      const cell = e.target.closest("[data-type]");
+      if (!cell) return;
+      selectType(cell.dataset.type);
+    });
+
+    document.getElementById("coverage-heatmap").addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const cell = e.target.closest("[data-type]");
+      if (!cell) return;
+      e.preventDefault();
+      selectType(cell.dataset.type);
+    });
+
+    document.getElementById("scenario-grid").addEventListener("click", e => {
+      const header = e.target.closest(".scenario-header");
+      if (header) {
+        header.closest(".scenario-card").classList.toggle("open");
+        return;
+      }
+      const item = e.target.closest(".type-item");
+      if (item) selectType(item.dataset.type);
+    });
+
+    document.getElementById("types-tbody").addEventListener("click", e => {
+      const row = e.target.closest("[data-type]");
+      if (row) selectType(row.dataset.type);
+    });
+
+    document.getElementById("detail-backdrop").addEventListener("click", closeDetailMobile);
+
+    window.addEventListener("hashchange", parseHash);
+
+    renderKPI();
+    renderScenarioBars();
+    renderTopTypeBars();
+    renderHeatmap();
+    renderScenarioGrid();
+    populateScenarioFilter();
+    renderTypesTable();
+    parseHash();
+  </script>
+</body>
+</html>

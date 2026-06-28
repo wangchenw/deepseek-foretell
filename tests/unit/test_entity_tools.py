@@ -39,7 +39,6 @@ def test_resolve_match_found() -> None:
     result = _parse(resolve_match.invoke({"home": "巴黎", "away": "拜仁", "date": "2026-04-29"}))
     assert result["code"] == "OK"
     assert result["dimension"] == "match_entity"
-    assert "match_id" not in result
     assert result["data"]["count"] == len(_candidates(result))
     assert isinstance(_first_match_id(result), int)
     assert isinstance(_candidates(result)[0]["home_team_id"], int)
@@ -52,10 +51,11 @@ def test_resolve_match_not_found() -> None:
     assert result["dimension"] == "match_entity"
 
 
-def test_resolve_match_series_game_not_found() -> None:
+def test_resolve_match_series_game_accepted() -> None:
+    # series_game 参数不再导致空返回（原 return [] bug 已修复）；
+    # 现在正常按主客队查询，code 不再是 NOT_APPLICABLE。
     result = _parse(resolve_match.invoke({"home": "巴黎", "away": "拜仁", "series_game": 99}))
-    assert result["code"] == "NOT_APPLICABLE"
-    assert "series_game" in result["data"]
+    assert result["code"] in {"OK", "ENTITY_NOT_FOUND"}
 
 
 def test_resolve_lottery_match() -> None:

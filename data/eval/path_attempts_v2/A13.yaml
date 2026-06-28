@@ -1,0 +1,92 @@
+type_id: "A13"
+case_id: "TC-A13-001"
+exploration_log:
+  - step: 1
+    action: "读取 atomic_decompositions_v2/A13.yaml 确认任务范围"
+    query: "Read atomic_v2/A13.yaml"
+    result: "用户在 turn 0/7/9/10/11/13 要求 5 对球队 5/17 之前最近 3-5 次 h2h(赛前视角,不得反推)。5 对:福伦丹(10647)vs特尔斯达(10455)/科莫(13402)vs帕尔马(10907)/全北(10238)vs金泉(10652)/川崎(10908)vs町田泽维亚(25413)/富川FC(20060)vs浦项铁人(10417)。"
+    reasoning: "atomic 完整可复用,直接采用其 team_id 期望值。"
+    next: "SQL 验证 10 个 team_id 是否命中一线队"
+  - step: 2
+    action: "SQL 验证 10 个 team_id 归属"
+    query: "SELECT id, name_zh, short_name_zh, national, competition_id FROM football_team WHERE id IN (10647,10455,13402,10907,10238,10652,10908,25413,20060,10417) LIMIT 20"
+    result: "10 个 team_id 全部命中正确一线队:福伦丹/特尔斯达(荷乙 competition_id=168)/科莫/帕尔马(意甲 108)/全北/金泉(韩K 581)/川崎/町田泽维亚(J1 567)/富川FC(581)/浦项铁人(581)。无同名青年队/后备队干扰。"
+    reasoning: "atomic 期望 team_id 完全准确,无需别名降级(SQL 直查层面)。"
+    next: "SQL 双向查 5 对球队 h2h(5/17 之前)"
+  - step: 3
+    action: "SQL 查福伦丹vs特尔斯达 h2h(初次用错时间戳 1747465600=2025-05-17)"
+    query: "WHERE ((home=10647 AND away=10455) OR (home=10455 AND away=10647)) AND match_time<1747465600 ORDER BY match_time DESC LIMIT 10"
+    result: "返回 10 场历史(2025-03-12 最近)。但发现时间戳错误:对话时点是 2026-05-17(≈1778976000),非 2025-05-17。"
+    reasoning: "5/17 在用户语境=2026-05-17(session 28066650),须用 1778976000 过滤。"
+    next: "用正确时间戳 1778976000 重查 5 对"
+  - step: 4
+    action: "SQL 用正确时间戳 1778976000 查科莫vs帕尔马 h2h"
+    query: "WHERE ((home=13402 AND away=10907) OR (home=10907 AND away=13402)) AND match_time<1778976000 ORDER BY match_time DESC LIMIT 8"
+    result: "返回 8 场:2025-10-25 帕尔马0-0科莫(意甲)/2025-05-03 帕尔马0-1科莫(意甲)/2024-10-19 科莫1-1帕尔马(意甲)/2024-02-24 科莫1-1帕尔马(意乙)/2023-10-21 帕尔马2-1科莫(意乙)/2023-03-18/2022-10-29/2022-04-06。与 atomic aq_4 期望日期完全一致。"
+    reasoning: "时间戳修正后,atomic 期望全部命中。"
+    next: "查剩余 4 对"
+  - step: 5
+    action: "SQL 查全北vs金泉 h2h(正确时间戳)"
+    query: "WHERE ((home=10238 AND away=10652) OR (home=10652 AND away=10238)) AND match_time<1778976000 ORDER BY match_time DESC LIMIT 8"
+    result: "返回 8 场:2026-03-08 金泉1-1全北/2025-10-25 全北2-3金泉/2025-09-20 全北1-2金泉/2025-06-27 金泉1-2全北/2025-02-16 全北2-1金泉/2024-07-14/2024-05-25/2024-03-17。与 atomic aq_6 期望日期完全一致。"
+    reasoning: "韩K联 h2h 数据完整。"
+    next: "查川崎vs町田、富川vs浦项"
+  - step: 6
+    action: "SQL 查川崎vs町田 h2h(正确时间戳)"
+    query: "WHERE ((home=10908 AND away=25413) OR (home=25413 AND away=10908)) AND match_time<1778976000 ORDER BY match_time DESC LIMIT 8"
+    result: "返回 8 场:2026-03-28 町田1-1川崎(J1,含点球 3-1)/2025-08-31 川崎5-3町田(J1)/2025-04-06 町田2-2川崎(J1)/2024-10-05 町田1-4川崎(J1)/2024-04-07 川崎0-1町田(J1)+3 场 2010 友谊赛。与 atomic aq_8 期望日期完全一致。"
+    reasoning: "J1 h2h 数据完整,5 场 J1 + 3 场友谊赛。"
+    next: "查富川FCvs浦项(atomic 风险点)"
+  - step: 7
+    action: "SQL 查富川FCvs浦项铁人 h2h(正确时间戳)"
+    query: "WHERE ((home=20060 AND away=10417) OR (home=10417 AND away=20060)) AND match_time<1778976000 ORDER BY match_time DESC LIMIT 8"
+    result: "返回 2 场:2026-03-22 浦项0-0富川(韩K联)/2016-05-11 浦项0-2富川(韩国杯)。与 atomic aq_10 期望完全一致。富川FC 2026 升级到 K1,故有 2026-03-22 这场。"
+    reasoning: "atomic 期望的 2 场全部命中,SQL 路径无假阴性。"
+    next: "验证 foretell get_h2h 工具隐患"
+  - step: 8
+    action: "调 foretell get_h2h(富川FC=20060, 浦项铁人=10417, n=5)对照"
+    query: "tool get_h2h {team_a:20060, team_b:10417, n:5}"
+    result: "返回 3 场,但**包含 2026-05-17 当日场**(match_id 4480379,富川2-0浦项)。即 get_h2h 不区分赛前/赛后,会返回 5/17 当日比赛,违反用户「赛前视角,不要反推」硬约束。LLM 须手工剔除 date>=2026-05-17 的比赛。"
+    reasoning: "发现 tool_logic_gap:get_h2h 无 before 过滤,赛前视角须 LLM 层剔除当日及之后比赛。"
+    next: "验证 resolve_team('浦项制铁') 别名风险"
+  - step: 9
+    action: "调 resolve_team('浦项制铁')验证 atomic aq_9 别名风险"
+    query: "tool resolve_team {name:'浦项制铁'}"
+    result: "返回 3 个候选:30019 浦项制铁后备队/31800 浦项制铁U18/82260 浦项制铁U15。**一线队 10417(浦项铁人)不在候选中**。与 atomic risk_notes 完全一致。若 LLM 误选 30019,get_h2h(20060,30019) 会返回空(假阴性)。"
+    reasoning: "确认别名误路由风险:resolve_team('浦项制铁') 须降级「浦项铁人」或 SQL 兜底,否则假阴性。"
+    next: "A13 路径确认完成,落盘"
+final_finding: |
+  A13「历史交锋」存在完全可行的 SQL 路径,5 对球队 h2h 数据全部命中且与 atomic 期望完全一致。
+  核心 SQL:football_match 双向查 (home_team_id=A AND away_team_id=B) OR (home_team_id=B AND away_team_id=A),
+  AND match_time < 1778976000(2026-05-17),JOIN football_team(主客各一)+ football_competition 取名称。
+  scores 数组取索引 0 作为常规比分([比分,半场,红牌,黄牌,角球,加时,点球])。
+  五对命中明细:
+    福伦丹vs特尔斯达:10+ 场(荷乙,2025-03-12 最近)
+    科莫vs帕尔马:8 场(意甲+意乙,2025-10-25 最近)
+    全北vs金泉:8 场(韩K联,2026-03-08 最近)
+    川崎vs町田:5 场 J1 + 3 场友谊赛(2026-03-28 最近)
+    富川FCvs浦项铁人:2 场(2026-03-22 韩K联 + 2016-05-11 韩国杯)
+  foretell get_h2h 工具有三个隐患:
+    (1) 不区分赛前/赛后——返回 5/17 当日场(match_id 4480379),违反「赛前视角不反推」硬约束,LLM 须手工剔除;
+    (2) 暴露 match_id/home_team_id/away_team_id 内部 ID,不返回球队名/赛事名,需 LLM 层 JOIN 剥离;
+    (3) resolve_team('浦项制铁') 仅返回后备队/U18/U15,一线队 10417 缺失,须降级「浦项铁人」或 SQL 兜底。
+  SQL 直查完全规避上述隐患,是首选路径。
+gaps_encountered:
+  - gap_type: "tool_logic_gap"
+    detail: "get_h2h 无 before/after 过滤参数,返回 5/17 当日场(match_id 4480379 富川2-0浦项),违反用户「赛前视角,不要反推」硬约束"
+    location: "foretell get_h2h 工具(无 before 参数)"
+  - gap_type: "alias_misroute"
+    detail: "resolve_team('浦项制铁') 仅返回 30019 后备队/31800 U18/82260 U15,一线队 10417(浦项铁人)不在候选,误选会导致 get_h2h 假阴性"
+    location: "foretell resolve_team 别名表"
+  - gap_type: "tool_implementation_gap"
+    detail: "get_h2h 仅返回 match_id/home_team_id/away_team_id/scores,不返回球队名/赛事名,需 LLM 层额外 JOIN 或调 resolve_team 反查"
+    location: "foretell get_h2h 返回结构"
+  - gap_type: "internal_id_exposure"
+    detail: "get_h2h 暴露 match_id/team_id 内部 ID,需 LLM 层剥离用球队名+日期+比分呈现"
+    location: "foretell get_h2h 返回结构"
+  - gap_type: "scores_array_parsing"
+    detail: "scores 是 7 元数组 [常规比分,半场比分,红牌,黄牌,角球,加时,点球],LLM 须取索引 0,误读会出错"
+    location: "football_match.home_scores/away_scores 字段格式"
+  - gap_type: "timestamp_pitfall"
+    detail: "5/17 在用户语境=2026-05-17(时间戳 1778976000),非 2025-05-17(1747465600);误用会导致漏掉 2025-05-17~2026-05-17 之间的 h2h 比赛"
+    location: "对话时点推断"

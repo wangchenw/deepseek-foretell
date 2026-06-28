@@ -1,0 +1,18 @@
+type_id: A15
+type_name: 比赛首发
+scenario: A
+entity_entry: match
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 对今天竞彩周六014/015/016/017这4场德甲比赛，做完整赛前预测分析，要包含赔率、凯利、阵容、交锋、近期状态。
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

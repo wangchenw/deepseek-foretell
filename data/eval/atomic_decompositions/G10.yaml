@@ -1,0 +1,20 @@
+type_id: G10
+type_name: 重新分析
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 从基本面，伤停战意，数据指数，战术对位，数据变量，历史盘口，市场资金七大核心维度分析两场比赛，做一个主推方案和比分二串一方案。
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

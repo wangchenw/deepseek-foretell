@@ -1,0 +1,66 @@
+type_id: B09
+case_id: TC-B09-REG-006
+diagnosed_at: '2026-06-28'
+rounds:
+- round: 1
+  name: resolve_match (G7)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_match
+    params:
+      home: 马刺
+      away: 雷霆
+      series_game: 7
+    code: NOT_APPLICABLE
+    reason: 未找到系列赛第7场，禁止降级分析其他场次
+  result: IMPLEMENTATION_GAP
+- round: 2
+  name: resolve_match (without series_game)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_match
+    params:
+      home: 马刺
+      away: 雷霆
+    code: ENTITY_NOT_FOUND
+  result: ENTITY_NOT_FOUND
+- round: 3
+  name: get_schedule_by_date (NBA finals)
+  tools_attempted: 1
+  attempts:
+  - tool: get_schedule_by_date
+    params:
+      date: '2026-06-15'
+      sport: basketball
+      league_preset: NBA
+    code: OK
+    count: 2
+  result: OK
+- round: 4
+  name: resolve_match (city names fallback)
+  tools_attempted: 1
+  attempts:
+  - tool: resolve_match
+    params:
+      home: 圣安东尼奥
+      away: 俄克拉荷马
+    code: OK
+    count: 9
+  result: OK
+- round: 5
+  name: honest decline (G7 not in DB)
+  tools_attempted: 0
+  attempts: []
+  recommendation: honest_decline
+  result: no_tool_available
+summary:
+  ok_rounds: 2
+  blocked_rounds: 3
+  implementation_gap_rounds: 1
+  no_tool_rounds: 1
+  total_rounds: 5
+root_cause: routing_or_parameter_gap
+recommended_fix: adjust_params_or_fallback_path
+sample_ids:
+  match_id: 3398245
+  home_team_id: 34336

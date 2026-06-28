@@ -1,0 +1,16 @@
+{
+  "type_id": "B15",
+  "case_id": "TC-B15-001",
+  "steps": [
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "皇马",
+        "away": "巴萨"
+      },
+      "code": "OK",
+      "count": 10,
+      "stub": false
+    }
+  ]
+}

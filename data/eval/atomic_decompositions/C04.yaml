@@ -1,0 +1,21 @@
+type_id: C04
+type_name: 竞彩编号复盘
+scenario: C
+entity_entry: lottery_code
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 请将下面各场比赛从基本面、战意、交战历史规律、核心球员伤停(着重分析本场及近3场新增加的核心伤停球员的影响)、两队教练的排兵布阵及对阵历史、本场裁判的执法风格等多方面并充分全面利用你的数据库或联网获取最新临场权威信息进行高质量分析，最终推荐最稳妥的胜平负5串1与4串1各一组，并重新审核理由。
+    周五赛事 {WEEKDAY}{CODE}芬超TPS图尔vs赫尔火花{DATE} 23:00 {WEEKDAY}{CODE}沙职拉斯决心vs利雅得{DATE}
+    00:10 {WEEKDAY}{CODE}德乙凯泽vs不伦瑞克{DATE} 00:30 {WEEKDAY}{CODE}德乙杜塞多夫vs德累斯顿{DATE}
+    00:30 {WEEKDAY}{CODE}法乙亚眠vs蒙彼利埃{DATE} 02:00 {WEEKDAY}{CODE}法乙拉瓦勒vs罗德兹{DATE} 02:00
+    {WEEKDAY}{CODE}荷乙芬洛vs阿尔梅勒{DATE} 02:00 {WEEKDAY}{CODE}德甲莱红牛vs柏林联合{DATE} 02:30 {WEEKDAY}{CODE}意甲那不勒斯vs克雷莫纳{DATE}
+    02:45 {WEEKDAY}{CODE}法甲布雷斯特vs朗斯{DATE} 02:45 {WEEKDAY}{CODE}英超桑德兰vs诺丁汉{DATE} 03:00
+    {WEEKDAY}{CODE}西甲贝蒂斯vs皇马{DATE} 03:00 {WEEKDAY}{CODE}葡超阿尔维卡vs阿罗卡{DATE} 03:15
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: lottery
+hard_constraints: []

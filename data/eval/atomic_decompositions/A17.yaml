@@ -1,0 +1,27 @@
+type_id: A17
+type_name: 实体消歧_国家队
+scenario: A
+case_id: TC-A17-REG-001
+turns:
+- turn_index: 0
+  text: 最近世界杯赛程法国队的比赛安排？
+  atomics:
+  - id: A17-T0-a1
+    category: resolve_entity
+    target: 法国男足国家队（2026 世界杯语境）
+    hard_constraints:
+    - 默认国家队非俱乐部/女足
+    - prefer_national=1
+  - id: A17-T0-a2
+    category: fetch_schedule
+    target: 法国世界杯赛程列表
+    hard_constraints:
+    - direction=all limit>=10
+    - 含日期、对手、状态、北京时间
+    - 含主客场标识
+  - id: A17-T0-a3
+    category: synthesize_answer
+    target: 结构化赛程答复
+    hard_constraints:
+    - 不得混入非世界杯赛事
+    - 不暴露 match_id

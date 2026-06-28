@@ -1,0 +1,52 @@
+{
+  "type_id": "X12",
+  "case_id": "TC-X12-REG-002",
+  "probe_status": "ready",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "法国",
+        "away": "挪威",
+        "date": "2024-06-27"
+      },
+      "code": "ENTITY_NOT_FOUND",
+      "count": null,
+      "stub": false
+    },
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "法国",
+        "away": "挪威"
+      },
+      "code": "OK",
+      "count": 10,
+      "stub": false
+    },
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "法国",
+        "away": "挪威",
+        "date": "2026-06-27"
+      },
+      "code": "ENTITY_NOT_FOUND",
+      "count": null,
+      "stub": false
+    },
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "挪威",
+        "away": "法国",
+        "date": "2026-06-27"
+      },
+      "code": "OK",
+      "count": 1,
+      "stub": false
+    }
+  ],
+  "error": null
+}

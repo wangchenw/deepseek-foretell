@@ -1,0 +1,156 @@
+atomic_id: aq_1
+rounds:
+  - round: 1
+    hypothesis: "用户说'法国'，需 resolve_team 拿到国家队 team_id（不是女足/青年队）"
+    schema_query: |
+      SELECT column_name, column_type, column_comment FROM information_schema.columns
+      WHERE table_schema='data_center' AND table_name='football_team'
+    schema_result: "football_team 主键为 id；含 name_zh/name_en/short_name_zh/national 等字段"
+    sql_baseline:
+      query: |
+        SELECT id, name_zh, name_en, short_name_zh, national FROM football_team
+        WHERE name_zh='法国' OR short_name_zh='法国' LIMIT 20
+      result: "id=10234 name_zh=法国 national=1（国家队）；另有女足/U16~U23 多个候选"
+    tool_call:
+      name: resolve_team
+      params: {name: "法国"}
+      result: "OK，count=10，候选含 10234(法国)、10311(U21)、10471(U20)、11807(女足) 等；首个候选 team_id=10234 即为国家队"
+    comparison: "SQL 基准与工具一致：法国国家队 team_id=10234。LLM 需在 10 个候选里挑 national=1 且无后缀的'法国'"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "SQL 与 resolve_team 一致，法国国家队 team_id=10234"
+recommended_next_step: "无需动作"
+
+---
+atomic_id: aq_2
+rounds:
+  - round: 1
+    hypothesis: "用户说'挪威'，需 resolve_team 拿到国家队 team_id"
+    sql_baseline:
+      query: |
+        SELECT id, name_zh, name_en, short_name_zh, national FROM football_team
+        WHERE name_zh='挪威' OR short_name_zh='挪威' LIMIT 20
+      result: "id=13820 name_zh=挪威 national=1（国家队）；另有女足/U16~U23 多个候选"
+    tool_call:
+      name: resolve_team
+      params: {name: "挪威"}
+      result: "OK，count=10，候选含 13820(挪威)、12190(挪威女足)、12598(U16) 等；挪威国家队 team_id=13820"
+    comparison: "SQL 基准与工具一致：挪威国家队 team_id=13820"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "挪威国家队 team_id=13820"
+recommended_next_step: "无需动作"
+
+---
+atomic_id: aq_3
+rounds:
+  - round: 1
+    hypothesis: "用户 turn 1 给 2024-06-27，需独立 SQL 基准验证 DB 当天是否有法国 vs 挪威（任一方向）"
+    sql_baseline:
+      query: |
+        SELECT id, home_team_id, away_team_id, competition_id, match_time_str, status_id, neutral
+        FROM football_match
+        WHERE match_time_str LIKE '2024-06-27%'
+          AND (home_team_id IN (10234, 13820) OR away_team_id IN (10234, 13820))
+        LIMIT 50
+      result: "0 条记录——2024-06-27 DB 中既无'法国 vs 挪威'，也无'挪威 vs 法国'"
+    tool_call:
+      name: resolve_match
+      params: {home: "法国", away: "挪威", date: "2024-06-27"}
+      result: "ENTITY_NOT_FOUND（dimension=match_entity）"
+    comparison: "SQL 基准 0 条 + 工具 ENTITY_NOT_FOUND，一致。诚实结论：2024-06-27 DB 无此对阵，不可编造"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "SQL 0 条 + resolve_match ENTITY_NOT_FOUND 双向印证 2024-06-27 无此对阵"
+recommended_next_step: "无需动作；进入 turn 2 处理用户纠正"
+
+---
+atomic_id: aq_4
+rounds:
+  - round: 1
+    hypothesis: "turn 2 是对 turn 1 的修正（年份 2024→2026、赛事=世界杯），不是新独立查询。检查代码库是否有 checkpointer 机制支持多轮上下文继承"
+    evidence: "搜索 foretell/ 代码库未发现 langgraph checkpointer 配置或 thread_id 持久化；agent 每次调用为无状态单轮"
+    decision: "此环节依赖会话级上下文维护，当前工具链无法在工具层验证，标记为 context_gap；但 LLM 在同一对话内可通过 system prompt + message history 自己维护修正关系，属 LLM 层职责而非工具层 gap"
+final_status: partial
+gap_type: context_gap
+gap_evidence: "foretell 代码库无 checkpointer/thread_id 持久化机制；turn 2 修正关系需由 LLM 在对话内自维护。这是平台架构层缺口，不是数据/工具逻辑缺口"
+recommended_next_step: "工程团队评估引入 langgraph MemorySaver/SqliteSaver 作为 checkpointer，让多轮修正类 case 在工具层也可验证"
+
+---
+atomic_id: aq_5
+rounds:
+  - round: 1
+    hypothesis: "用 SQL 独立基准：查 2026-06-27 当天 competition_id=1（世界杯）含法国/挪威的场次，确认真实主客方向"
+    schema_query: |
+      SELECT column_name, column_type, column_comment FROM information_schema.columns
+      WHERE table_schema='data_center' AND table_name='football_match'
+    schema_result: "football_match 主键为 id（非 match_id）；match_time 为 int 时间戳；match_time_str 为北京时间字符串；含 home_team_id/away_team_id/competition_id/neutral/status_id"
+    sql_baseline:
+      query: |
+        SELECT id, home_team_id, away_team_id, competition_id, match_time, match_time_str, status_id, neutral
+        FROM football_match
+        WHERE competition_id=1 AND match_time_str LIKE '2026-06-27%'
+        LIMIT 50
+      result: "6 条世界杯场次；其中 id=4460928 home_team_id=13820(挪威) away_team_id=10234(法国) match_time_str='2026-06-27 03:00:00' status_id=8(完场) neutral=1（中立场）；其余 5 场为新西兰vs比利时、乌拉圭vs西班牙、沙特vs佛得角、埃及vs伊朗、塞内加尔vs伊拉克"
+    decision: continue
+  - round: 2
+    hypothesis: "现在按用户字面顺序调用 resolve_match(home=法国, away=挪威, date=2026-06-27)——预判会因主客方向不匹配而失败"
+    tool_call:
+      name: resolve_match
+      params: {home: "法国", away: "挪威", date: "2026-06-27"}
+      result: "ENTITY_NOT_FOUND（dimension=match_entity，data={home:法国, away:挪威, date:2026-06-27}）"
+    comparison: "SQL 基准证明 DB 里 2026-06-27 世界杯存在该对阵（id=4460928），但工具按用户字面顺序 home=法国/away=挪威 查询返回 ENTITY_NOT_FOUND——工具漏了真实存在的数据。这是核心 tool_logic_gap：resolve_match 严格按 home/away 顺序匹配，不做反向 fallback，遇到用户主客颠倒的输入会直接漏判"
+    decision: continue
+  - round: 3
+    hypothesis: "用 DB 真实方向（home=挪威, away=法国）重新调用 resolve_match 验证工具是否能正确返回"
+    tool_call:
+      name: resolve_match
+      params: {home: "挪威", away: "法国", date: "2026-06-27"}
+      result: "OK，count=1，candidate match_id=4460928 home_team_id=13820 away_team_id=10234 home_name=挪威 away_name=法国 league_id=1 league_name=世界杯 match_time_beijing='2026-06-27 03:00:00' status=finished neutral=true round_group=9 round_num=3"
+    comparison: "工具结果与 SQL 基准完全一致（同一场 id=4460928，主客方向=挪威主场）。证明工具本身能查到，只是要求调用方传入正确的主客方向；LLM 必须自我纠正方向"
+    decision: continue
+  - round: 4
+    hypothesis: "再验证一条不依赖主客方向的备用路径 get_team_schedule，看能否在 LLM 不确定方向时也能定位该场"
+    tool_call:
+      name: get_team_schedule
+      params: {team_id: 13820, direction: "all", limit: 20}
+      result: "OK，count=20，含 match_id=4460928 home_name=挪威 away_name=法国 date=2026-06-27 status=finished league_name=世界杯 match_time_beijing='2026-06-27 03:00:00'（既出现在挪威的 schedule 里，也出现在法国的 schedule 里——另查法国 schedule 同样含此条）"
+    comparison: "get_team_schedule 不受用户主客颠倒影响，能稳定返回该场且自带真实 home_name/away_name。是一条比 resolve_match 更稳健的兜底路径。SQL 基准与工具一致"
+    decision: satisfied
+final_status: satisfied
+gap_type: tool_logic_gap
+gap_evidence: |
+  SQL 基准（round 1）：2026-06-27 世界杯含 id=4460928 挪威(主) vs 法国(客)，DB 真实存在。
+  工具对照（round 2）：resolve_match(home=法国, away=挪威, date=2026-06-27) → ENTITY_NOT_FOUND，
+    漏掉了 DB 真实存在的场次，原因是工具严格按 home/away 顺序匹配，不做反向 fallback。
+  工具对照（round 3）：resolve_match(home=挪威, away=法国, date=2026-06-27) → OK 返回 id=4460928，
+    证明数据存在且工具能查到，只是要求调用方传入正确方向。
+  兜底路径（round 4）：get_team_schedule(13820, direction=all) 也能稳定返回该场，
+    且自带真实 home_name/away_name，不受主客颠倒影响。
+  结论：tool_logic_gap——resolve_match 在用户主客颠倒场景下会漏判 DB 真实存在的场次；
+  缓解路径是 LLM 在 resolve_match 失败后立即用 get_team_schedule 兜底，或工具内部增加 swap(home,away) fallback。
+recommended_next_step: |
+  P1：resolve_match 内部增加反向 fallback——当 (home,away,date) 0 命中时，自动尝试 swap(home,away)
+  再查一次，若命中则在 envelope meta 里加 orientation_swapped=true 提示 LLM；
+  或在 ENTITY_NOT_FOUND 的 data 里附 hint：'试过反向匹配吗？DB 可能方向相反'。
+  P2：路由层提示词增强——当用户使用 'A vs B + 日期' 入口且 resolve_match 失败时，
+  LLM 应自动切换到 get_team_schedule 兜底，而非直接断言无赛。
+
+---
+atomic_id: aq_6
+rounds:
+  - round: 1
+    hypothesis: "守门规则：最终用户态回答不能暴露 match_id、不能输出中间态、主客方向以 DB 为准"
+    evidence: |
+      已在 aq_5 拿到完整事实：2026-06-27 03:00 北京时间，世界杯小组赛第 3 轮（round_num=3），
+      挪威(主) vs 法国(客)，status=finished，neutral=true（中立场）。
+      合规用户态输出示例（仅自然语言，无 ID 无中间态）：
+        "您说的是 2026 世界杯 6 月 27 日那场——挪威主场对阵法国，北京时间 03:00 开球，比赛已完场。"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "事实链完整：2026-06-27 03:00 北京时间 / 挪威主场 / 法国客场 / 世界杯 / 完场；用户态输出可完全规避 match_id 与中间态"
+recommended_next_step: "无需动作；产品侧在 prompt 中固化输出模板"

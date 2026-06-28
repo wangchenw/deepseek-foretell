@@ -1,0 +1,40 @@
+type_id: X12
+type_name: 主客颠倒
+scenario: X
+case_id: TC-X12-REG-002
+turns:
+- turn_index: 0
+  text: 法国 vs 挪威 2024-06-27
+  atomics:
+  - id: X12-T0-a1
+    category: resolve_entity
+    target: 法国 vs 挪威 @ 2024-06-27
+    hard_constraints:
+    - 按用户给定日期检索
+    - 预期 ENTITY_NOT_FOUND（年份错误）
+  - id: X12-T0-a2
+    category: fetch_schedule
+    target: 法国 vs 挪威 全部候选
+    hard_constraints:
+    - 日期失败时 fallback 去 date 过滤
+    - 不得输出中间态
+- turn_index: 1
+  text: 应该是2026世界杯那场
+  atomics:
+  - id: X12-T1-a1
+    category: refine_time_window
+    target: 修正为 2026-06-27 世界杯场次
+    hard_constraints:
+    - 最终定位 2026-06-27
+    - 挪威主场（feedback #002）
+  - id: X12-T1-a2
+    category: maintain_context
+    target: 保留法国-挪威对阵实体
+    hard_constraints:
+    - 不得切换其他对手
+  - id: X12-T1-a3
+    category: apply_guardrails
+    target: 主客场与输出纪律
+    hard_constraints:
+    - 正确主客表述
+    - 不暴露 match_id

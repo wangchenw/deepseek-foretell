@@ -1,0 +1,61 @@
+type_id: "B01"
+case_id: "TC-B01-001"
+user_intent_analysis: |
+  用户提供了一条完整的竞彩足球赛事信息：2026-06-15 01:00、竞彩足球、周日009、世界杯、德国 VS 库拉索。
+  真实意图是要 Foretell 给出该场的胜平负结果、比分结果，并写 100-300 字的多维度分析内容。
+  隐含需求：(1) 必须先用编号+日期+玩法定位到唯一场次，再读赔率与赛果；
+  (2) 分析需多维度（战意/状态/实力差/赔率结构/让球逻辑等），不能套通用模板；
+  (3) 数据诚实——DB 里没有的字段（阵容/伤停/半全场赔率等）必须诚实说"暂无"，禁止编造；
+  (4) 不暴露工具名（不出现 resolve_lottery_match/get_odds_snapshot 等内部名）。
+turns:
+  - turn: 1
+    user_text: "分析【2026-06-15 01:00:00 竞彩足球周日009 世界杯 德国 VS 库拉索】的赛事的胜平负、比分结果，并描写100-300字的分析内容"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {play_type: "101", code: "周日009", date: "2026-06-15"}
+        success_criteria: "parse_lottery_issue_num('周日009')→7009；用 issue_num=7009 + issue=260614 在 lottery_jczq_odds / lottery_match 定位到唯一 lottery_id=2040170、match_id=4460914；home=德国 away=库拉索 与用户陈述一致"
+      - id: aq_2
+        category: fetch_schedule
+        target: {match_id: 4460914, competition_id: 1}
+        success_criteria: "在 football_match 确认 id=4460914 home=德国(11746) away=库拉索(33203) match_time_str='2026-06-15 01:00:00' status=8(finished) neutral=1；与用户描述的日期/对阵/赛事一致"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_odds_snapshot
+        target: {match_id: 4460914, lottery_id: 2040170}
+        success_criteria: "拿到 lottery_jczq_odds 的 rq/bf/jq 赔率（spf/bqc 为空需诚实标注）+ get_odds_snapshot 的 European/Asian 赔率；不得编造 spf/bqc/凯利/亚盘详细走势等 DB 没有的字段"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: fetch_stats
+        target: {match_id: 4460914, team_a: 11746, team_b: 33203}
+        success_criteria: "拿到 h2h（德国 7:1 库拉索，仅 1 次交锋即本场）+ 德国 recent_form（最近 5 场 4 胜 1 负，含本场 7:1）；lineup/injury DATA_MISSING 必须诚实说暂无"
+        depends_on: [aq_2]
+      - id: aq_5
+        category: synthesize_answer
+        target: {length: "100-300字", dimensions: [胜平负结果, 比分结果, 让球胜平负, 赔率结构, 实力差/状态, 数据诚实声明]}
+        success_criteria: "100-300 字多维度分析；明确给出胜平负=主胜、比分=7:1、让球-3 后主胜；包含 DB 缺失字段（阵容/伤停/半全场/spf赔率）的诚实声明'暂无'；不出现 resolve_lottery_match/get_odds_snapshot 等工具名；不暴露 match_id/lottery_id"
+        depends_on: [aq_3, aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target: {rules: [数据诚实, 不暴露工具名, 不暴露内部ID, 多维度深度非模板]}
+        success_criteria: "最终用户态回答合规：无工具名、无内部 ID、缺失数据有'暂无'声明、100-300 字"
+        depends_on: [aq_5]
+hard_constraints:
+  - "多维度深度分析（expected_behaviors：不能只给胜平负+比分，需含分析维度）"
+  - "数据诚实规则（expected_behaviors + 反馈 #002 教训：DB 没有的字段如阵容/伤停/半全场/spf/凯利必须说'暂无'，禁止编造）"
+  - "不暴露工具名（expected_behaviors：禁出现 resolve_lottery_match/get_odds_snapshot/get_h2h 等内部名）"
+  - "不暴露内部 ID（match_id=4460914、lottery_id=2040170 等不进用户态）"
+  - "100-300 字（用户明示长度约束）"
+  - "先定位再分析——必须先 resolve_lottery_match/SQL 确认场次存在再展开分析，不能凭用户字面直接编"
+risk_notes: |
+  本 case 主要风险有 3 处：
+  (1) 编号格式陷阱：parse_lottery_issue_num 接受 "周日009"（周+中文星期+3位零填充），
+      但纯数字 "009" 会解析成 9（错）、"周日09" 2 位数字不匹配 regex（错）。
+      LLM 若改写用户原文的 "周日009" 成其他格式会触发 parameter_gap。
+      本次需独立验证用户字面 "周日009" 是否被工具原生支持。
+  (2) 数据诚实风险：lottery_jczq_odds 里本条 spf="" 和 bqc="" 是空的，
+      get_match_lineup / get_injury_report 返回 DATA_MISSING；
+      LLM 若为了"多维度"而编造 spf 赔率/半全场/阵容/伤停，就违反数据诚实规则。
+  (3) 长度风险：100-300 字约束很紧，多维度展开容易超长或过短，需要精炼。
+  另外：之前的 supplement 诊断断言 B01 是 parameter_gap，本次需独立验证该结论是否仍然成立——
+  若工具实际能处理 "周日009"，则 supplement 的 parameter_gap 诊断就是误判，应推翻。

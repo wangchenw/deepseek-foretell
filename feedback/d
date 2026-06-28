@@ -1,0 +1,15 @@
+
+
+curl 'https://www.nami.com/api/v2/doc/faq?url=%2Fapi%2Fv5%2Ffootball%2Fcategory%2Flist' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7' \
+  -H 'Connection: keep-alive' \
+  -b '_ga=GA1.1.1535056060.1782643497; token=tgPWv6PnRNZtXIopGI799ck13Pz133ucYEhsn8OemoxPVGYXJcC4whabtyhatV8Argj2I2WVJfdL6rZPBmcpZhVkzluqMgXnw8hnydAL4ZI%3D; Hm_lvt_3de780814bdfe435f6d139cfcebacd4a=1782643497,1782663868; HMACCOUNT=6DBA129C2CD593AE; locale=en; Hm_lpvt_3de780814bdfe435f6d139cfcebacd4a=1782663873; _uetsid=67d00a3072de11f192f071e87e402941; _uetvid=67cff0f072de11f1a33d355416e6c32a; _ga_1JJQ82ST2K=GS2.1.s1782663868$o3$g1$t1782663916$j12$l0$h1213230122' \
+  -H 'Referer: https://www.nami.com/en/docs?id=2002' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-origin' \
+  -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36' \
+  -H 'sec-ch-ua: "Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"'

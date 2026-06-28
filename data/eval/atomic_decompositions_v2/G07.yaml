@@ -1,0 +1,156 @@
+type_id: "G07"
+case_id: "TC-G07-001"
+user_intent_analysis: |
+  G07 是 15 轮超长对话，核心场景：用户带着一套自创的"5 条筛选标准"（联赛级别/正价值/避开热门/阵容战意/比分专项）来要求 Foretell 帮他从"今天还没开赛的北单 301"场次里按标准筛选比赛并推荐比分。
+  对话经历了多次意图漂移与回拉：①定义筛选框架→②质疑框架本身要优化→③跨窗口引用其他会话的推荐（002/010 比分）要求"反推条件"→④要求把整合逻辑沉淀为"可复用的筛选模板指令"→⑤放宽条件（不排除五大联赛）→⑥反复追问比分推荐→⑦聚焦"今天北单 2026.04.05 未开赛"→⑧要求分析比分规律（1-0/2-1/1-1/1-2）+ 上网搜特殊规律→⑨引入新玩法"双平"（总赛果平+让球平，非半全场）→⑩要求双平玩法的提问模板→⑪问"新窗口怎么用"。
+  关键隐含需求：
+  (a) 用户在多窗口并行使用 Foretell，跨窗口推荐无法在当前会话 DB 验证——必须诚实标注 context_gap；
+  (b) 用户要的是"决策框架+可复用指令"而不是单场分析， Agent 应输出可参数化模板；
+  (c) "今天还没开赛"=北单 sell_status 中 spf/jq/bqc/sxp/bf 任一可售 + match_time > NOW()；
+  (d) "双平玩法"=北单 spf 选平 + 让球（rq）选平，不是 bqc 半全场——这是用户自定义组合，DB 无现成字段需组合查询；
+  (e) "比分规律 1-0 2-1 1-1 1-2"=低进球比分，与 bf 赔率分布+jq 总进球 0-2 球交叉筛选。
+turns:
+  - turn: 1
+    user_text: "请根据以下5条标准...根据这些条件帮我找今天还没开始比赛的北单 选择合适的比赛推荐几场比分"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {play_type: "301", date: "今天(2026-04-05)", filter: "未开赛"}
+        success_criteria: "返回 2026-04-05 北单 301 当天 sell_status 含可售且 match_time>NOW() 的场次列表（含 home/away/comp/match_time/spf/jq/bqc/sxp/bf）"
+      - id: aq_2
+        category: fetch_stats
+        target: {per_match: "联赛级别判定 + 两队近期进球数 + 让球盘口 + 阵容战意"}
+        success_criteria: "对每场候选能判定：①赛事是否五大联赛/欧冠/英冠/荷乙 ②两队近5场总进球是否稳定2-3球 ③盘口≤1球 ④无核心伤停"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: synthesize_answer
+        target: {output: "按5条标准逐条 是/否 + 综合结论 + 推荐几场比分"}
+        success_criteria: "输出每场5条标准逐条判定+综合'可考虑投注/放弃'+推荐3-5场比分"
+        depends_on: [aq_2]
+  - turn: 2
+    user_text: "那有没有能优化筛选标准的？怎么样选择合适的比赛？还有这些有没有参考的？（高置信度 + 正价值 + 低市场效率）"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherit: turn1_候选场次与判定}
+        success_criteria: "复用 turn 1 已筛场次，不重新跑 resolve_entity"
+      - id: aq_5
+        category: synthesize_answer
+        target: {output: "优化后的筛选标准 + 高置信度/正价值/低市场效率的判定方法"}
+        success_criteria: "给出可操作的优化标准（如：用凯利指数判正价值、用欧赔离散度判低市场效率）+ 参考依据来源"
+        depends_on: [aq_4]
+  - turn: 3
+    user_text: "我没有概率估算  还有我在其他窗口 你帮我推荐的今天002和010的比分就是正确的  他们条件是什么？"
+    atomics:
+      - id: aq_6
+        category: maintain_context
+        target: {cross_window_reference: "其他会话的 002/010 比分推荐"}
+        success_criteria: "诚实标注 context_gap：跨窗口会话状态在当前 thread 不可见，无法验证其他窗口推荐的 002/010 比分；可建议用户提供具体主客队名或在本会话重新查询"
+  - turn: 4
+    user_text: "之前推荐的比分002 1-1 0-1 0-2  010推荐的比分1-0 2-0 2-1  你是不是搞错了？"
+    atomics:
+      - id: aq_7
+        category: maintain_context
+        target: {cross_window_reference: "002=1-1/0-1/0-2, 010=1-0/2-0/2-1"}
+        success_criteria: "承认无法核对跨窗口推荐；不假装记得；建议用户用本会话查具体场次或粘贴其他窗口回复"
+  - turn: 5
+    user_text: "现在整合的逻辑是什么？给我说明  后续我可以在任何聊天窗口去使用的筛选模板指令"
+    atomics:
+      - id: aq_8
+        category: synthesize_answer
+        target: {output: "可复用筛选模板指令（参数化）"}
+        success_criteria: "输出一段可直接复制到任意新窗口的指令文本，含5条标准+调用 Foretell 查北单未开赛场次+按bf/jq筛选比分的明确步骤"
+        depends_on: [aq_5]
+  - turn: 6
+    user_text: "不一定排除五大联赛吧。"
+    atomics:
+      - id: aq_9
+        category: apply_guardrails
+        target: {rule修正: "标准1放宽——五大联赛纳入候选"}
+        success_criteria: "更新筛选模板：标准1改为'联赛∈{五大联赛,欧冠,英冠,荷乙}或同等水平'，不排除五大联赛"
+        depends_on: [aq_8]
+  - turn: 7
+    user_text: "继续"
+    atomics:
+      - id: aq_10
+        category: maintain_context
+        target: {action: "继续上一轮整合输出"}
+        success_criteria: "继续完成 turn 5/6 的模板输出，不重启实体解析"
+  - turn: 8
+    user_text: "比分呢？帮我去推荐几场啊"
+    atomics:
+      - id: aq_11
+        category: fetch_odds_snapshot
+        target: {focus: "bf 字段 + jq 字段"}
+        success_criteria: "重新基于 aq_1 候选场次取 bf/jq，给出3-5场比分推荐"
+        depends_on: [aq_1, aq_10]
+  - turn: 9
+    user_text: "今天的北单  2026.04.05"
+    atomics:
+      - id: aq_12
+        category: refine_time_window
+        target: {date: "2026-04-05", play_type: "301"}
+        success_criteria: "明确锁定 date=2026-04-05 北单 301，与 aq_1 一致；若 aq_1 已用该日期则 maintain_context"
+  - turn: 10
+    user_text: "北单场次 今天还没开赛的"
+    atomics:
+      - id: aq_13
+        category: fetch_schedule
+        target: {filter: "match_time>NOW() AND sell_status可售"}
+        success_criteria: "从 aq_1 列表过滤出未开赛子集，返回场次数+列表"
+        depends_on: [aq_12]
+  - turn: 11
+    user_text: "一般1-0  2-1 1-1  1-2 有什么规律？比如赔率或者盘口还有什么的？你网上搜搜有没有特殊的规律"
+    atomics:
+      - id: aq_14
+        category: discover_via_search
+        target: {query: "低进球比分 1-0 2-1 1-1 1-2 赔率盘口规律"}
+        success_criteria: "skipped（约束禁用 internet_search）；说明预期辅助：可搜到'低赔率1-1/1-0常对应让球平+总进球≤2球+亚盘平手/平半'等经验规律"
+  - turn: 12
+    user_text: "还有双平玩法你会不会筛选预测 就是平±平"
+    atomics:
+      - id: aq_15
+        category: fetch_odds_snapshot
+        target: {combo: "spf=平 AND rq=平（让球后平）"}
+        success_criteria: "对北单候选场次计算 spf平赔率 × rq让球平赔率 的组合值，筛出双平高赔场次"
+        depends_on: [aq_13]
+  - turn: 13
+    user_text: "就是总赛果平和让球平  不是半全场平全场平"
+    atomics:
+      - id: aq_16
+        category: apply_guardrails
+        target: {rule澄清: "双平=spf全场平+rq让球平，非bqc半全场"}
+        success_criteria: "明确双平定义：全场赛果平（spf=1）+让球后平（rq结果=1），不是 bqc 半全场平/全场平"
+        depends_on: [aq_15]
+  - turn: 14
+    user_text: "如果我要玩这种  这个模板怎么提问合适？"
+    atomics:
+      - id: aq_17
+        category: synthesize_answer
+        target: {output: "双平玩法提问模板指令"}
+        success_criteria: "输出可直接复用的双平筛选模板：北单301未开赛+spf平赔率区间+rq让球平赔率区间+组合赔率阈值+推荐2-3场"
+        depends_on: [aq_16]
+  - turn: 15
+    user_text: "我在新的聊天窗口呢？"
+    atomics:
+      - id: aq_18
+        category: synthesize_answer
+        target: {output: "新窗口使用说明"}
+        success_criteria: "说明新窗口需重新提供：play_type=301+date+筛选标准（因无跨窗口上下文）；给出完整可粘贴模板"
+        depends_on: [aq_17]
+hard_constraints:
+  - "保持比赛定位稳定：turn 9-13 反复细化'今天北单未开赛'，必须复用 turn 1/12 的 date=2026-04-05 + play_type=301 + 候选场次，不重新解析（expected_behaviors：保持比赛定位稳定）"
+  - "不重复完整六段：长对话里每次 follow-up 都不应重述完整六段分析，只输出本轮新增维度（expected_behaviors：不重复完整六段）"
+  - "跨窗口引用必须诚实标注 context_gap：turn 3/4 引用其他窗口的 002/010 比分推荐，当前会话无法验证，禁止假装记得或编造"
+  - "禁用 internet_search：turn 11 要求'网上搜搜'，约束下必须 skipped，但仍说明预期辅助"
+  - "双平玩法定义必须按用户澄清：spf全场平+rq让球平，不是 bqc 半全场"
+  - "不暴露 match_id/lottery_id/issue/issue_num 给用户"
+  - "未穷尽 DB 检索前不得断言无未开赛场次——必须用 SQL 基准验证 sell_status + match_time>NOW()"
+risk_notes: |
+  最可能在以下环节出问题：
+  ①aq_1/aq_12/aq_13 时间窗与 sell_status 语义——lottery_bd_odds.sell_status 是 5 段逗号串（胜平负,总进球,半全场,上下单双盘,比分），每段 0-未开售/1-销售中/2-未知/3-已停售/4-已开奖；"未开赛"指 match_time>NOW() 而非 sell_status；若 Agent 把 sell_status=1 等同于未开赛会出错；
+  ②get_lottery_schedule(play_type=301, date=2026-04-05) 工具可能只返回销售中场次而不区分未开赛，需 SQL 基准对照；
+  ③aq_6/7 跨窗口引用——必须诚实 context_gap，禁止编造；
+  ④aq_11 比分规律 + aq_14 网搜——禁用 internet_search，必须 skipped；
+  ⑤aq_15 双平玩法——DB 无现成"双平"字段，需组合 spf + rq 解析；lottery_bd_odds 的 spf 是"胜平负"赔率串，rq 字段是否存在需 schema 确认（北单胜负过关 lottery_bd_odds 看起来只有 spf/jq/bqc/sxp/bf，可能无 rq——若是则 implementation_gap）；
+  ⑥maintain_context 在 15 轮里反复出现，checkpointer 存在但 eval helper 单轮无法模拟。

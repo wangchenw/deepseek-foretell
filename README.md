@@ -8,13 +8,12 @@
 learnlangchain/
 ├── api/                 # FastAPI HTTP 入口
 ├── config/              # 模型与环境配置
-├── foretell/            # Foretell 智能体
-│   ├── agent.py         # create_foretell_agent()
-│   ├── prompts.py       # 系统提示词
-│   ├── tools/           # 业务工具（赛程、实体、盘口等）
-│   ├── skills/          # 按需加载的领域技能
-│   └── AGENTS.md        # 跨会话偏好记忆
-└── main.py              # 命令行入口
+└── foretell/            # Foretell 智能体
+    ├── agent.py         # create_foretell_agent()
+    ├── prompts.py       # 系统提示词
+    ├── tools/           # 业务工具（赛程、实体、盘口等）
+    ├── skills/          # 按需加载的领域技能
+    └── AGENTS.md        # 跨会话偏好记忆
 ```
 
 ## 快速开始
@@ -31,18 +30,13 @@ uv sync
 cp .env.example .env
 ```
 
-3. 运行 Foretell：
+3. 启动 API 服务：
 
 ```bash
-# 单次提问
-uv run python main.py "今晚足球有什么比赛？"
-
-# 交互模式
-uv run python main.py
-
-# 保持同一会话上下文
-uv run python main.py --thread-id my-session
+uv run uvicorn api.main:app --reload
 ```
+
+端点：`GET /health`、`POST /v1/chat`（支持 `stream: true` 的 SSE 流式）。
 
 ## Foretell 能力
 
@@ -58,8 +52,8 @@ uv run python main.py --thread-id my-session
 代码质量由 **ruff（lint + format）+ mypy（类型）+ pre-commit** 守护。
 
 ```bash
-# 安装 dev 工具（ruff / mypy）
-uv sync --extra dev
+# 安装依赖（含 ruff / mypy / prod Checkpointer 等）
+uv sync
 
 # 检查 / 格式化 / 类型
 uv run ruff check          # lint

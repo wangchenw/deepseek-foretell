@@ -1,0 +1,118 @@
+type_id: "A04"
+case_id: "TC-A04-001"
+classification: "⚠️"
+classification_reason: |
+  找到可行路径但有隐患。用户问题 7 个维度(赔率变化/XG/防守漏洞/主客差异/战意/近5轮攻防/伤病)中,
+  6 个维度有完整数据路径:近5轮赛程(SQL JOIN football_match+team+competition)、
+  近5轮攻防(JOIN football_match_team_stats)、多联赛覆盖(英超/西甲/意甲/韩K联/芬超/瑞超/德丙/法国杯/日职联实测均有数据)、
+  伤病(SQL football_team_injury 绕过 stub)、赔率变化(SQL football_odds_europe 绕过 stub)、
+  主客差异(home_team_id=team_id 判定)。
+  唯一隐患:XG(预期进球)维度在数据库 schema 层完全缺失(information_schema 全库扫描确证无 xg/expected 字段),
+  属 DB 真无解而非工具 bug,无法 SQL workaround。按 atomic hard_constraint 必须"诚实说明 XG 数据库未存储",
+  不得用实际进球/射门数编造替代。因此整体路径可行但带一个必须诚实标注的硬缺口,判 ⚠️ 而非 ✅。
+path_assessment: |
+  主路径(近期赛程+攻防)清晰且数据正确,推荐 SQL JOIN 而非 foretell 工具:
+    - 近5轮赛程:football_match JOIN football_team x2 + football_competition,
+      WHERE (home_team_id=:tid OR away_team_id=:tid) AND status_id=8 ORDER BY match_time DESC LIMIT 5
+    - 近5轮攻防:同上 JOIN football_match_team_stats ON match_id+team_id,
+      取 goals/goals_against/shots/shots_on_target/ball_possession/corner_kicks/tackles/interceptions/clearances
+  实测样本:利物浦(10249)近5场返回 2026-05-24 至 2026-04-25 完整赛程+攻防,含 05-09 利物浦1-1切尔西(用户 turn1 对阵);
+  全北现代(10238)近5场韩K联数据完整;VPS瓦萨(10972)近5场芬超+芬兰杯数据完整——证明冷门联赛无 data_gap。
+  伤停 SQL 直查 football_team_injury 返回利物浦 4 条伤停(膝关节/跟腱/腿筋),get_injury_report stub 可绕过。
+  赔率 SQL 直查 football_odds_europe(first_odd/odd/real_odd)可观察变化,get_odds_trend stub 可绕过。
+  数据正确性:home_scores/away_scores 是 [常规,半场,红牌,黄牌,角球,加时,点球] 数组,取 [0] 即常规比分;
+  主客场由 home_team_id=team_id 判定,无颠倒风险。
+  唯一硬缺口:XG 全库无此字段(information_schema 确证),必须诚实说明。
+exploration_sufficiency: |
+  探索充分。覆盖链路:
+  (1) XG 字段全库扫描(information_schema)——金标准判定 DB 层无解;
+  (2) 主流联赛球队实体解析(利物浦/切尔西等 22 队)+ 冷门联赛球队模糊匹配(浦项/町田/瓦萨/佐加顿斯/布鲁马波/埃费尔斯贝格/热刺/富川)——全部解析成功;
+  (3) 近5场赛程 SQL JOIN 实测——英超(利物浦)、韩K联(全北)、芬超(VPS瓦萨)三大代表联赛数据完整;
+  (4) 近5场攻防统计 JOIN football_match_team_stats 实测——射门/射正/控球/角球/抢断/拦截全维度有值;
+  (5) 伤停 SQL 直查实测——返回真实伤停记录;
+  (6) foretell get_recent_form 工具实测——可用但稀疏,对比确认 SQL 路径更优;
+  (7) 多联赛 competition_id 解析(英超82/意甲108/西甲120/法国杯148)。
+  未穷尽的次要项:足球 basketball 跨运动场景(本 case 全足球,无需)、resolve_lottery_match(turn16 周五001-006 彩票编号路径未实测,但 atomic aq_11 非本评估核心,且 lottery_jczq_odds 表结构已知)。
+gaps:
+  - gap_type: "data_missing_in_db"
+    detail: "XG/xGA(预期进球)字段在 Foretell DB 完全不存在。information_schema 全库扫描 column_name LIKE '%xg%/%expected%/%xgoals%' 返回空;football_match_team_stats/football_match_player_stats/football_competition_teams_stats/football_competition_players_stats 四张统计表均无 xG 列。schema 层缺失,非工具 stub,SQL 无法 workaround。"
+    evidence_ref: "path_attempts_v2/A04.yaml step 2;information_schema.columns 全库查询返回 []"
+    priority: "P1(用户显式要求 XG 数据分析,且 atomic hard_constraint 强制诚实说明)"
+    recommended_action: "回答层诚实声明'数据库未存储 xG 字段,无法提供预期进球数据',可用 shots_on_target/ball_possession 等已有统计近似描述进攻质量,但不得标注为 xG 或编造数值。中长期如需 xG 需接入第三方 xG 数据源(如 Understat/Opta)。"
+  - gap_type: "tool_stub"
+    detail: "get_injury_report 是 stub 返回 None。SQL 直查 football_team_injury 可绕过,数据存在。"
+    evidence_ref: "db_schema_map.md 第240行;path_attempts_v2/A04.yaml step 9 返回 4 条伤停"
+    priority: "P2"
+    recommended_action: "回答层用 SQL 直查 football_team_injury JOIN football_player 取球员名+原因+缺阵场次;或修复 stub。"
+  - gap_type: "tool_stub"
+    detail: "get_odds_trend 是 stub 返回 []。SQL 直查 football_odds_europe(first_odd=初盘/odd=即时/real_odd=最新)可观察赔率变化。"
+    evidence_ref: "db_schema_map.md 第240行"
+    priority: "P2"
+    recommended_action: "回答层用 SQL 直查 football_odds_europe 三档赔率对比描述变化;或修复 stub 接 football_odds_europe_change_* 历史分区表。"
+  - gap_type: "tool_data_sparse"
+    detail: "get_recent_form 工具可用但仅返回 date/outcome/goals_for/goals_against/venue,缺对手名/联赛/比分明细/攻防统计,无法独立满足'近5轮攻防数据'。"
+    evidence_ref: "path_attempts_v2/A04.yaml step 5"
+    priority: "P3"
+    recommended_action: "回答层优先用 SQL JOIN 路径(见 recommended_answer_path);若必须用工具,需补调 SQL 取对手名+攻防统计。"
+  - gap_type: "derived_metric_no_native_field"
+    detail: "'防守漏洞指数''球队真实战意'无原生字段,需由 football_match_team_stats 多字段综合合成(goals_against + 对手 shots_on_target + interceptions + clearances)。"
+    evidence_ref: "football_match_team_stats 字段表"
+    priority: "P3"
+    recommended_action: "回答层明确说明该指数为基于原始统计的合成指标,给出计算口径,避免呈现为'官方数据'。"
+  - gap_type: "tooling_env"
+    detail: "Windows PowerShell 把 JSON 参数中的双引号 strip,foretell_eval_helper.py tool 子命令无法传 JSON(args 解析报 'Expecting property name enclosed in double quotes')。改用 python 直调 foretell.tools 模块绕过。非 foretell 工具本身 bug,是评估 helper 在 Windows shell 下的入口缺陷。"
+    evidence_ref: "path_attempts_v2/A04.yaml step 5"
+    priority: "P4(仅影响评估探索阶段,不影响生产回答路径)"
+    recommended_action: "helper tool 子命令改用 stdin 传 JSON 或用 argparse nargs='?' 读文件;或在文档注明 Windows 需用 python 直调。"
+recommended_answer_path: |
+  对每对对阵(主队 tid_h, 客队 tid_a,联赛 cid),按以下顺序组装回答:
+
+  步骤 1 — 近5轮赛程+比分(两队各查一次):
+    SELECT m.id, c.short_name_zh AS league, m.match_time_str,
+           ht.name_zh AS home, at.name_zh AS away,
+           m.home_scores, m.away_scores
+    FROM football_match m
+    JOIN football_team ht ON ht.id=m.home_team_id
+    JOIN football_team at ON at.id=m.away_team_id
+    JOIN football_competition c ON c.id=m.competition_id
+    WHERE (m.home_team_id=:tid OR m.away_team_id=:tid) AND m.status_id=8
+    ORDER BY m.match_time DESC LIMIT 5
+    -- 比分取 home_scores[0]/away_scores[0](常规),主客场由 home_team_id=:tid 判定
+
+  步骤 2 — 近5轮攻防统计(两队各查一次):
+    SELECT m.match_time_str, ts.goals, ts.goals_against, ts.shots,
+           ts.shots_on_target, ts.ball_possession, ts.corner_kicks,
+           ts.tackles, ts.interceptions, ts.clearances, ts.blocked_shots
+    FROM football_match m
+    JOIN football_match_team_stats ts ON ts.match_id=m.id AND ts.team_id=:tid
+    WHERE (m.home_team_id=:tid OR m.away_team_id=:tid) AND m.status_id=8
+    ORDER BY m.match_time DESC LIMIT 5
+
+  步骤 3 — 伤停(两队各查一次):
+    SELECT i.type, i.reason, i.missed_matches, p.name_zh AS player
+    FROM football_team_injury i
+    JOIN football_player p ON p.id=i.player_id
+    WHERE i.team_id=:tid AND i.del_flag=1
+    -- type:1受伤/2停赛/3出战成疑
+
+  步骤 4 — 赔率变化(对本场 match_id):
+    SELECT company_id, first_odd1, first_odd2, first_odd3,
+           odd1, odd2, odd3, real_odd1, real_odd2, real_odd3
+    FROM football_odds_europe WHERE match_id=:mid
+    -- first_odd=初盘, odd=即时, real_odd=最新;对比描述升降
+
+  步骤 5 — 主客差异:由步骤1的 home_team_id=:tid 标识区分主客场,
+           步骤2攻防统计可加 GROUP BY (home_team_id=:tid) 拆主客均值。
+
+  步骤 6 — XG 维度:诚实声明"Foretell 数据库未存储 xG/xGA 字段,
+           无法提供预期进球数据;以下用 shots_on_target(射正)与
+           ball_possession(控球率)近似描述进攻质量,非 xG。"
+           不得用实际进球或射门数冒充 xG 数值。
+
+  步骤 7 — 多联赛场次批量(如 turn16 周五001-006):
+           可用 resolve_lottery_match(play_type=101, code=场次编号, date=周五日期)
+           或 SQL 直查 lottery_jczq_odds WHERE issue_num+issue 定位 match,
+           再回 football_match 取数据;每场重复步骤1-6。
+           冷门联赛(芬超/瑞超/德丙)实测有数据,无需特殊处理。
+
+  战意/防守漏洞指数:在回答合成层由步骤2多字段综合推算,明确标注为合成指标。

@@ -1,0 +1,20 @@
+type_id: G16
+type_name: 盘口变化追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 你是一位专业足球数据分析师，瑞典主场对突尼斯，请基于以下信息，两球队近10场状态、伤停名单、历史交锋、主客场、战术风格等维度，用最高概率分析比赛结果，并说明理由，最后给出比分参考。
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

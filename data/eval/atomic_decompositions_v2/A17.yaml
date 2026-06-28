@@ -1,0 +1,56 @@
+type_id: "A17"
+case_id: "TC-A17-REG-001"
+user_intent_analysis: |
+  用户单轮问「最近世界杯赛程法国队的比赛安排？」。字面是赛程列表，隐含需求：
+  (1) 「法国队」默认指法国男足国家队（非俱乐部/女足/U21），与反馈 #001 一致；
+  (2) 「世界杯」默认指 2026 美加墨世界杯（进行中），非 2022 已结束或女足；
+  (3) 「最近」在球迷语境可指「下一场」也可指「当前小组赛全部场次」，反馈 #001 的实际回答给了三场小组赛且被接受，故应给当前世界杯全部法国队场次（含已赛+未赛）；
+  (4) 答案必须含日期、对手、状态、北京时间、主客场（expected_behaviors 四条）；
+  (5) 不暴露内部编号（match_id/team_id/竞彩编号）。
+  本案是单轮对话，无多轮上下文继承问题，但实体消歧（法国男足+2026世界杯）是核心。
+turns:
+  - turn: 1
+    user_text: "最近世界杯赛程法国队的比赛安排？"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {team: 法国, national: true, prefer: men_national_team}
+        success_criteria: "返回唯一确定的法国男足国家队 team_id（national=1，排除俱乐部/女足/梯队）"
+      - id: aq_2
+        category: resolve_entity
+        target: {league: 世界杯, year: 2026, expected_competition_id: 1}
+        success_criteria: "返回唯一确定的 2026 世界杯 competition_id=1（排除预选赛/U20/女足/2022 往届）"
+        depends_on: []
+      - id: aq_3
+        category: fetch_schedule
+        target: {team_id_from: aq_1, competition_id_from: aq_2, direction: all, window: "2026 世界杯期间"}
+        success_criteria: "返回法国队 2026 世界杯全部赛事（含已赛+未赛），每条含日期/对手/状态/北京时间/主客方位；预期含 6/17 塞内加尔、6/23 伊拉克、6/27 挪威（反馈 #001 基准）。注：今日 6/28 20:29，6/27 场已完赛；须含全部三场以上若有淘汰赛"
+        depends_on: [aq_1, aq_2]
+      - id: aq_4
+        category: synthesize_answer
+        target: {present: 表格/列表含日期+对手+状态+北京时间+主客, hide: match_id/team_id/竞彩编号/工具名/中间态}
+        success_criteria: "输出含全部 expected_behaviors 字段：日期、对手、状态、北京时间、主客场；默认法国男足+2026 世界杯的消歧说明可压缩为一句；不暴露内部编号；无中间态"
+        depends_on: [aq_3]
+      - id: aq_5
+        category: apply_guardrails
+        target: {check: no_internal_id, no_intermediate_state, no_false_negative, scenario_A_light_path}
+        success_criteria: "终态通过守门：无内部编号、无中间态、未穷尽前未断言无赛、未走六段式深度分析"
+        depends_on: [aq_4]
+hard_constraints:
+  - "含日期对手状态（expected_behaviors）"
+  - "含北京时间：每场须给出 match_time_beijing（如 6/27 03:00）—反馈 #001 P1 缺开球时间"
+  - "含主客场：须明确每场主客方位（如 6/27 挪威主场 vs 法国客场）—反馈 #001 P1 缺主客"
+  - "默认法国男足 + 2026 世界杯（expected_behaviors）—排除俱乐部/女足/U21/2022 往届/预选赛"
+  - "不暴露内部编号：match_id/team_id(ft_ 前缀)/competition_id(fc_ 前缀)/竞彩编号均不得出现在用户可见回答（#001 输出纪律 + #002）"
+  - "不得假阴性：未穷尽 DB 检索前不得断言无比赛（#001 通用约束 + #003 关联）"
+  - "get_team_schedule 调用须用 direction=all（禁用 direction=upcoming，当前实现有 tool_logic_gap 返回历史升序）；league_id 过滤器失效须 LLM 层手动按 league_name 二次过滤（A08 已验证的 bug）"
+  - "轻量查询路径：不走六段式深度分析，符合 foretell-light-query Skill 分轨（#001 做得好）"
+  - "不调用 internet_search/Tavily；discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_3（fetch_schedule）环节出问题，且与 A08 同源：get_team_schedule 的
+  direction=upcoming 语义反转 + league_id 过滤器失效。Agent 2 必须复用 A08 的发现，
+  直接用 direction=all + LLM 手动按 league_name='世界杯' 过滤，避免重走 upcoming 死路。
+  次要风险：aq_1/aq_2 实体消歧——「法国」候选可能含法国俱乐部（如巴黎圣日耳曼别称误命中）、
+  法国女足、法国 U21 等；「世界杯」候选含预选赛/U20/女足/2022 往届。须按 national=1 + 
+  精确名称 + year=2026 消歧。反馈 #001 显示原回答漏了开球时间和主客——本案 aq_4 须强制
+  这两字段进入输出模板。

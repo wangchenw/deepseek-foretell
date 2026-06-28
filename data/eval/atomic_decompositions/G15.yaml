@@ -1,0 +1,20 @@
+type_id: G15
+type_name: 综合分析追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 帮我进行2026年5月29日哈卡VS吉普的赛事分析，根据双方的积分和排名、主队主场战绩和客队客场战绩、以及近期比赛成绩等信息，进行分析，然后撰写并输出赛事分析报告，主队一段、客队一段、综合分析一段
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

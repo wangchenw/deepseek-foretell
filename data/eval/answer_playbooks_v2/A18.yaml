@@ -1,0 +1,106 @@
+type_id: "A18"
+case_id: "TC-A18-001"
+classification: "✅"
+classification_reason: |
+  数据库有完整数据能回答用户全部 turn1/turn3/turn4 问题:football_points_table_team
+  WHERE season_id=MAX 返回当前赛季积分榜(埃因霍温 84 分第 1 领先 19 分已锁定冠军),
+  football_match 显示 008=round 31 剩余 3 轮(领先 19>第二名最多 9 分,提前锁定成立),
+  008 实际结果 6-1 净胜 5 球(用户「还能净胜三个球吗」答案为「能」),9 场批量
+  resolve_lottery_match 全部 OK。SQL 直查路径完整可行,工具层 stub 不阻塞数据获取。
+
+path_assessment: |
+  路径清晰且数据正确:
+  1) 锁定排名验证(核心):
+     - football_points_table + football_points_table_team WHERE competition_id=168 AND
+       season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=168)
+       → 埃因霍温 84 分第 1,领先第二名费耶诺德 19 分,34 轮全完赛
+     - football_match WHERE competition_id=168 AND season_id=13272 → 总 309 场全完赛
+     - 008=round_num=31,剩余 3 轮,埃因霍温领先 19 > 第二名最多 9 分 → 提前锁定成立
+  2) 008 比赛预测与结果:
+     - 赛前可得:埃因霍温主场进攻力(101进球/34场场均~3球)+ 兹沃勒防守差(71失球/34场)
+       + 已锁定冠军战意风险 → 综合判断「能净胜3球,但战意下降是风险」
+     - 实际结果:home_scores=[6,1,0,1,4,0,0] → 6-1 净胜 5 球,验证预测正确
+  3) 批量 001-009:resolve_lottery_match(play_type=101, code=周四001-009, date=2026-04-24)
+     9 场全部 OK;resolve_match 可补 match_id(008=4344722 已验证)
+  4) 三维度交叉验证(turn4 用户要求「基本面/战意/指数变化」):
+     - 基本面:get_recent_form + get_h2h + get_odds_snapshot 可用 + SQL 直查
+       football_competition_teams_stats 可补赛季统计
+     - 战意:SQL 直查 football_intelligence / football_match_intelligence + 积分榜排名
+       + 赛程剩余轮数 + 欧战资格竞争综合判断
+     - 指数变化:SQL 直查 football_odds_europe 时序数据(初盘 first_odd1/2/3 vs 即时 odd1/2/3)
+       可得盘口变动;凯利由赔率反推;必发查 football_bf 表
+  5) 语义精度规则:锁定冠军≠一定留力,须结合对阵重要性/欧战资格/杯赛剩余/轮换习惯,
+     底库数据可支撑多维度判断,不得机械断言
+
+exploration_sufficiency: |
+  探索充分:
+  (1) SQL 直查 football_points_table + football_season 确认荷甲当前赛季 table_id=32264
+      season_id=13272;
+  (2) SQL 直查 football_points_table_team WHERE season_id=MAX 返回完整 18 队积分榜,
+      验证埃因霍温 84 分第 1 领先 19 分已锁定冠军;
+  (3) SQL 直查 football_match 赛季总场次(309 全完赛)+ 008 round_num=31 + 赛果 6-1 净胜 5 球;
+  (4) 计算 008 时点锁定状态:剩余 3 轮,领先 19 > 第二名最多 9 分,提前锁定成立;
+  (5) 参考旧 path_attempts_v2 验证其余维度底库可得性(resolve_lottery_match 9 场 OK /
+      get_recent_form/get_h2h/get_odds_snapshot 可用 / 其余 stub 工具 SQL 替代路径);
+  (6) 验证 008 spf=None 与用户「008 只开了 -2 球胜负平」陈述一致。
+  未穷尽验证:未对 9 场每场逐一抽测赛果(008 已抽测,其余 8 场底库路径同质,
+  resolve_match 对足球已验证可用);未抽取 football_intelligence 具体情报内容
+  (表存在性已验证,具体内容可信度高)。
+
+gaps:
+  - gap_type: "tool_logic_gap"
+    detail: "get_standings(league_id) SQL 缺 season_id 过滤,返回多赛季各头名堆叠(30 行 position=1),无法判定当前赛季锁定冠军状态"
+    evidence_ref: "foretell/tools/crazy_sports/mysql_client.py:705-722;SQL 基准证明 WHERE season_id=MAX 返回正确当前赛季积分榜"
+    priority: "P1"
+    recommended_action: "修复 get_standings:SQL 加 WHERE p.season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=?) 子查询,返回当前赛季完整积分榜"
+  - gap_type: "implementation_gap"
+    detail: "get_team_season_stats/get_intel_tags/get_injury_report/get_odds_trend/get_same_odds_history/get_kelly/get_betfair 7 个工具为 stub,赛季统计/战意/伤停/指数变化维度工具层不可得"
+    evidence_ref: "foretell/tools/crazy_sports/mysql_client.py:724-725,854-873;底库表数据齐全"
+    priority: "P1"
+    recommended_action: "修复 7 个 stub 工具查对应底库表;或在 Skill 层规则化 SQL fallback 路径"
+  - gap_type: "context_gap"
+    detail: "16 轮多轮串关方案调整无原生 checkpointer,依赖 LLM 层继承已确认实体与方案"
+    evidence_ref: "atomic 多轮串关调整"
+    priority: "P2"
+    recommended_action: "引入会话级 checkpointer 持久化 {9 场 match_id, 已选方案, 已验证维度}"
+  - gap_type: "语义精度风险"
+    detail: "「锁定冠军≠一定留力」是 A18 type_name 核心语义,LLM 层须结合对阵/欧战/杯赛剩余/轮换习惯多维度判断,不得机械断言"
+    evidence_ref: "atomic aq_6 apply_guardrails"
+    priority: "P2"
+    recommended_action: "Skill 层固化语义精度规则:锁定冠军/降级是战意风险因素,但具体留力/拼劲须结合对阵重要性/欧战资格/杯赛剩余/主教练轮换习惯,不得机械断言"
+  - gap_type: "data_gap"
+    detail: "008 lottery 路径 match_id=null 需 resolve_match 补(已验证 match_id=4344722);008 spf=None 与用户陈述一致"
+    evidence_ref: "lottery_jczq_odds 008 spf 字段"
+    priority: "P3"
+    recommended_action: "Skill 层规则化:lottery 路径 match_id=null 时须用 resolve_match(home,away,date) 补全"
+
+recommended_answer_path: |
+  生产 Foretell 答题路径(数据层已验证可行):
+  1. 批量定位:resolve_lottery_match(play_type=101, code=周四001-009, date=今日) 取 9 场
+     主客队+联赛+竞彩编号;match_id=null 用 resolve_match(home,away,date) 补;
+  2. 锁定排名验证(turn3 埃因霍温):
+     - SQL 直查 football_points_table_team WHERE table_id=(SELECT id FROM football_points_table
+       WHERE competition_id=168 AND season_id=(SELECT MAX(season_id) FROM football_points_table
+       WHERE competition_id=168)) ORDER BY position → 埃因霍温 84 分第 1 领先 19 分
+     - SQL 直查 football_match WHERE season_id=13272 取 008 round_num=31 + 赛季总 34 轮
+       → 剩余 3 轮,领先 19 > 第二名最多 9 分,提前锁定成立
+     - 禁用 get_standings(缺 season_id 过滤),须用 SQL 路径
+  3. 008 战意分析:
+     - 语义判断:锁定冠军是战意风险因素,但主场收官 + 球迷 + 个人数据(射手榜)+
+       兹沃勒保级压力等因素综合;
+     - SQL 直查 football_intelligence / football_match_intelligence 取情报;
+     - SQL 直查 football_team_injury 取伤停;
+     - 不得机械断言「锁定冠军=一定留力」;
+  4. 008 净胜 3 球判断:
+     - 埃因霍温主场进攻力(101进球/34场场均~3球)+ 兹沃勒防守差(71失球/34场)
+       → 进攻端支持净胜 3 球
+     - 战意风险 → 可能轮换主力,但替补实力仍强
+     - 综合:能净胜 3 球,但战意下降是风险(实际结果 6-1 验证预测正确)
+  5. 三维度交叉验证(turn4 001/002/009/006/007):
+     - 基本面:get_recent_form + get_h2h + get_odds_snapshot + SQL 直查
+       football_competition_teams_stats
+     - 战意:积分榜排名 + 赛程剩余 + 欧战资格 + 情报(SQL 直查 football_intelligence)
+     - 指数变化:SQL 直查 football_odds_europe 时序(first_odd1/2/3 vs odd1/2/3);
+       凯利由赔率反推;必发查 football_bf
+  6. 串关方案:基于可得数据合成,列明依据;赛季统计/战意/指数变化维度缺失时降级标注;
+     不得编造;不暴露 match_id/team_id/竞彩编号/工具名;归纳优先于罗列。

@@ -1,0 +1,52 @@
+type_id: E05
+case_id: TC-E05-REG-007
+diagnosed_at: '2026-06-28'
+rounds:
+- round: 1
+  name: get_lottery_schedule (14 games)
+  tools_attempted: 1
+  attempts:
+  - tool: get_lottery_schedule
+    params:
+      play_type: '401'
+    code: OK
+    count: 14
+  result: OK
+- round: 2
+  name: get_recent_form (screening)
+  tools_attempted: 1
+  attempts:
+  - tool: get_recent_form
+    params:
+      team_id: 10477
+    code: OK
+    count: 5
+  result: OK
+- round: 3
+  name: get_odds_snapshot (risk disclosure)
+  tools_attempted: 1
+  attempts:
+  - tool: get_odds_snapshot
+    params:
+      match_id: 260891
+    code: SKIP_MATCH
+    match_id: 260891
+    reason: 欧赔与亚盘均缺失
+  result: IMPLEMENTATION_GAP
+- round: 4
+  name: screening fallback (textual criteria only)
+  tools_attempted: 0
+  attempts: []
+  recommendation: textual_screening_only
+  result: no_tool_available
+summary:
+  ok_rounds: 2
+  blocked_rounds: 2
+  implementation_gap_rounds: 1
+  no_tool_rounds: 1
+  total_rounds: 4
+root_cause: implementation_gap
+recommended_fix: implement_or_backfill_odds_form_injury_for_screening
+sample_ids:
+  match_id: 260891
+  home_team_id: 10477

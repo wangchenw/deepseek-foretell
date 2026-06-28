@@ -1,0 +1,20 @@
+type_id: G18
+type_name: 球员情况追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 美国VS澳大利亚 比分预测
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

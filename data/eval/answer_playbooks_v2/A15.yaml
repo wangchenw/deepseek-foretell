@@ -1,0 +1,83 @@
+type_id: "A15"
+case_id: "TC-A15-001"
+classification: "✅"
+classification_reason: |
+  数据库有完整数据能回答用户全部 4 轮问题:lottery_match(issue=260516)精确返回 4 场德甲
+  match_id(圣保利vs沃尔夫斯堡/柏林联合vs奥格斯堡/法兰克福vs斯图加特/云达不莱梅vs多特蒙德),
+  football_match_lineup + football_match_lineup_detail 4 场全部 confirmed=1 完整 22 首发(含阵型/
+  位置/号码/队长),赔率/交锋/近期状态/伤停/情报均有底库路径。SQL 直查路径完整可行,
+  工具层 stub(get_match_lineup/get_kelly/get_injury_report/get_intel_tags/get_betfair)不阻塞
+  数据获取,只影响生产 Foretell 是否能直查 SQL。
+
+path_assessment: |
+  路径清晰且数据正确:
+  1) 实体定位链路:lottery_match(play_type=101, issue=今日周六)→ match_id →
+     football_match → home_team_id/away_team_id/competition_id(确认德甲)
+  2) 阵容维度(核心):football_match_lineup.lineup_id JOIN football_match_lineup_detail,
+     WHERE match_id=? AND confirmed=1 AND first=1,返回 22 首发球员 + home_formation/away_formation
+  3) 5 维度全覆盖:
+     - 赔率快照:football_odds_europe / football_odds_asian
+     - 凯利:由 odds 反推(无独立表,LLM 层估算)
+     - 阵容:football_match_lineup + _detail(confirmed=1)
+     - 交锋:get_h2h(team_a, team_b) 或 SQL 直查历史 football_match
+     - 近期状态:get_recent_form(team_id) 或 SQL 直查近 N 场 football_match
+  4) 多轮场景:
+     - turn1 5 维度批量预测 → SQL 路径全部可得
+     - turn2 方法论补强 → LLM 层合成,无需新数据
+     - turn3 正式阵容已公布 → lineup.confirmed=1 即真值,与 turn1 confirmed=0 区分清晰
+     - turn4 名单有误重取 → lineup_id 字段可判断阵容版本;若底库未更新则同 lineup_id
+       返回同一份(诚实说明「未检测到阵容更新」即合规)
+  路径在数据库层完全成立,生产 Foretell 须用 SQL 路径或修复 stub 工具后方可答题。
+
+exploration_sufficiency: |
+  探索充分:
+  (1) SQL 直查 lottery_match 确认 4 场德甲 match_id(issue=260516 而非 260523,纠正旧 path 错配);
+  (2) SQL 直查 football_match_lineup + _detail 验证 4 场 confirmed=1 完整 22 首发 + 阵型;
+  (3) 抽测 lineup_id=73083 验证 detail 字段结构(name/position/shirt_number/captain 完整);
+  (4) 参考旧 path_attempts_v2 验证其余 4 维度工具/底库可得性(get_odds_snapshot/get_h2h/
+      get_recent_form 已验证,凯利/伤停/情报 SQL 路径已确认);
+  (5) 关键纠正:旧 path 误用 issue=260523 导致赛事错配,本次以 260516 纠正后 4 场全部德甲
+      且数据齐全。
+  未穷尽验证:未对 4 场德甲每场首发 22 球员逐人抽取(已抽测样本 + 4 场 first_players=22
+  统计验证,可信度高)。
+
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "get_match_lineup/get_kelly/get_injury_report/get_intel_tags/get_betfair 5 个工具为 stub,生产 Foretell 无法通过工具层取阵容/凯利/伤停/情报"
+    evidence_ref: "foretell/tools/crazy_sports/mysql_client.py:860-873;SQL 基准证明底库数据齐全"
+    priority: "P1"
+    recommended_action: "修复 5 个 stub 工具查对应底库表;或在 Skill 层规则化 SQL fallback 路径,生产 Foretell 直查 football_match_lineup_detail 等"
+  - gap_type: "context_gap"
+    detail: "多轮上下文继承无原生 checkpointer,turn2/3/4 依赖 LLM 层显式串接 4 场 match_id 与已完成维度"
+    evidence_ref: "atomic aq_8/aq_10/aq_13"
+    priority: "P2"
+    recommended_action: "引入会话级 checkpointer 持久化 {4 场 match_id, 已完成维度, lineup_id 版本}"
+  - gap_type: "data_gap"
+    detail: "无独立 kelly 表,凯利指数须由 football_odds_europe 反推"
+    evidence_ref: "information_schema 无 %kelly% 表"
+    priority: "P2"
+    recommended_action: "LLM 层由赔率反推估算凯利,或工具层实现反推逻辑"
+  - gap_type: "工具层 vs 底库不对齐"
+    detail: "resolve_lottery_match 不带 issue 过滤会跨周六混用,旧 path 误用 260523 导致赛事错配"
+    evidence_ref: "lottery_match 跨多个 issue 返回 20 行"
+    priority: "P2"
+    recommended_action: "Skill 层强制:resolve_lottery_match 须带今日 issue 过滤,或 LLM 层先用 SQL 确认 issue 再调用"
+
+recommended_answer_path: |
+  生产 Foretell 答题路径(数据层已验证可行):
+  1. 用 SQL 直查或 resolve_lottery_match(play_type=101, code=周六014-017, issue=今日周六)定位
+     4 场德甲 match_id(本案例=4347600/4347613/4347663/4347640);
+  2. 对每场执行:
+     (a) football_match_lineup + _detail(WHERE match_id=? AND confirmed=1 AND first=1)
+         取 22 首发球员 + 阵型 + 队长;
+     (b) football_odds_europe/asian 取赔率快照;由赔率反推凯利指数;
+     (c) get_h2h 或 SQL 历史对战;
+     (d) get_recent_form 或 SQL 近 N 场战绩;
+     (e) football_team_injury SQL 取伤停;football_intelligence SQL 取情报;
+  3. turn1:5 维度 × 4 场归纳输出(按场次组织,不扁平罗列);
+  4. turn2:方法论补强清单(阵型变化/关键球员复出缺阵/位置调整/与赔率变动印证背离);
+  5. turn3:重取 confirmed=1 正式阵容,与 turn1 对比补强;
+  6. turn4「名单有误」:重取 lineup_id 对比;若 lineup_id 未变则诚实说明「未检测到阵容更新,
+     当前数据为最近一次正式名单(lineup_id=xxx, confirmed=1)」,不编造不冒充;
+  7. 全程不暴露 match_id/lineup_id/player_id/竞彩编号/工具名;归纳优先于罗列;
+     缺失维度显式标注「当前不可得」。

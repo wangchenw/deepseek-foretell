@@ -1,0 +1,106 @@
+type_id: "A01"
+case_id: "TC-A01-001"
+user_intent_analysis: |
+  用户核心意图是基于今日竞彩足球赛程，从专业角度（盘口、历史交锋、机构角度、赔率等）
+  筛选并推荐若干场次，涵盖平局概率、比分预测、半全场方案等多维度输出。
+  多轮对话中用户不断细化需求，从"最可能出平局"扩展到"深度分析单场（001/002/003）"，
+  再到"结合最新盘口冷门场次预测"，隐含需求包括：今日赛程完整列表、
+  每场赔率/盘口数据、以及按竞彩编号定位具体场次。
+turns:
+  - turn: 1
+    user_text: "今晚竞彩足球，从专业角度，深度思考，给我推荐最有可能出平局的场次"
+    atomics:
+      - id: aq_1
+        category: fetch_schedule
+        target: {date: today, lottery_type: "竞彩足球", direction: today_and_tonight}
+        success_criteria: "返回今日竞彩足球所有可售场次列表，含竞彩编号、开赛时间、主客队"
+      - id: aq_2
+        category: fetch_odds_snapshot
+        target: {lottery_type: "竞彩足球", date: today}
+        success_criteria: "每场均有平局赔率（欧赔）、亚盘数据，用于筛选平局概率高场次"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: synthesize_answer
+        target: {intent: "推荐平局概率高场次", criteria: "欧赔平局赔率低、盘口撑平"}
+        success_criteria: "给出≥2个推荐场次，含推荐理由（不虚构赔率数据）"
+        depends_on: [aq_2]
+  - turn: 2
+    user_text: "从盘口，历史交战各个纬度推荐今晚比分"
+    atomics:
+      - id: aq_4
+        category: fetch_odds_deep
+        target: {fields: ["亚盘", "欧赔", "凯利指数"], matches: "今晚竞彩足球场次"}
+        success_criteria: "获取亚盘让球数据与水位走势"
+        depends_on: [aq_1]
+      - id: aq_5
+        category: fetch_intel
+        target: {data_type: "h2h", matches: "今晚竞彩足球场次"}
+        success_criteria: "返回历史交锋记录（含近期比分）"
+        depends_on: [aq_1]
+      - id: aq_6
+        category: synthesize_answer
+        target: {intent: "比分推荐", basis: "盘口+历史交锋"}
+        success_criteria: "针对每场推荐1-3个比分，不得双向推荐"
+        depends_on: [aq_4, aq_5]
+  - turn: 3
+    user_text: "给我竞彩足球，已经结束的比赛结果，他们的赔率分别多少"
+    atomics:
+      - id: aq_7
+        category: fetch_result
+        target: {date: today, lottery_type: "竞彩足球", status: "已结束"}
+        success_criteria: "返回今日已结束场次的最终比分和状态"
+      - id: aq_8
+        category: fetch_odds_snapshot
+        target: {matches: "已结束场次", snapshot_type: "赛前/即时"}
+        success_criteria: "返回各场次赔率（开盘赔率或即时赔率）"
+        depends_on: [aq_7]
+  - turn: 4
+    user_text: "昨天所有竞彩足球比赛结果的赔率"
+    atomics:
+      - id: aq_9
+        category: fetch_result
+        target: {date: yesterday, lottery_type: "竞彩足球"}
+        success_criteria: "返回昨日所有竞彩足球场次的比赛结果"
+      - id: aq_10
+        category: fetch_odds_snapshot
+        target: {matches: "昨日场次", snapshot_type: "赛前"}
+        success_criteria: "返回昨日各场次赔率"
+        depends_on: [aq_9]
+  - turn: 10
+    user_text: "深度分析001比分"
+    atomics:
+      - id: aq_11
+        category: resolve_match
+        target: {lottery_code: "001", date: today}
+        success_criteria: "通过竞彩编号定位到具体比赛的 match_id"
+      - id: aq_12
+        category: fetch_odds_deep
+        target: {match_id: "resolved", fields: ["欧赔", "亚盘", "凯利"]}
+        success_criteria: "返回该场次深度盘口数据"
+        depends_on: [aq_11]
+      - id: aq_13
+        category: synthesize_answer
+        target: {intent: "比分预测", match: "001"}
+        success_criteria: "给出主推比分+置信度，不得出现双向推荐"
+        depends_on: [aq_12]
+
+hard_constraints:
+  - "未穷尽 DB 检索前不得断言无比赛（X05防假阴性）"
+  - "不得暴露 match_id/竞彩编号给用户（X07内部ID外露）"
+  - "不得给出主不败+客不败的双向推荐（X14矛盾推荐）"
+  - "不得承诺盈利或100%命中（X15盈利承诺）"
+  - "比分推荐等购彩建议必须含风险声明"
+  - "如赔率/盘口数据不可得，必须诚实说明数据缺口，不得编造"
+
+risk_notes: |
+  最高风险点：竞彩编号（如001/002）的解析路径。历史记录显示
+  resolve_lottery_match 工具可能存在参数兼容性问题，当日期+编号
+  组合未找到时，工具可能静默返回空而非报错，导致后续分析基于错误
+  的比赛主体展开（假阴性风险）。
+
+  第二风险点：赔率/盘口数据的实时性。如工具返回的是历史快照而非
+  当前盘口，分析结论可能严重偏离实际，用户无法察觉。
+
+  第三风险点：多轮对话中"今晚"时间窗的一致性。北京时间"今晚"
+  约等于 18:00-次日02:00，但工具的 time_window 参数可能未正确
+  覆盖凌晨场次。

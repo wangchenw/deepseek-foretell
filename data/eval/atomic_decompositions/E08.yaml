@@ -1,0 +1,15 @@
+type_id: E08
+type_name: 今日竞彩列表
+scenario: E
+entity_entry: date
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 分析一下今天竞彩001为什么会赢球，为什么赢了两个球！
+  atomics:
+  - id: T1-a1
+    category: fetch_schedule
+    target:
+      source: date
+hard_constraints: []

@@ -1,0 +1,85 @@
+type_id: "E05"
+case_id: "TC-E05-REG-007"
+user_intent_analysis: |
+  用户问「本期十四场给个方案」，是足球彩票玩法 401（十四场胜负彩 / sfc）的批量投注方案请求。
+  隐含需求：①『本期』指最新一期 issue=MAX(issue)；②完整列出该期 14 场比赛（主客队、联赛、开赛时间）；
+  ③区分哪些场未开赛可投注（status_id=1）、哪些已完场无效（status_id=8）；④基于可投注场次给方案
+  （胜平负预测倾向 + 推荐理由）；⑤风险提示（任选场次、容错、低置信度场次建议防冷门等）。
+  expected_behaviors 强制「两阶段初筛」（先列 14 场+状态，再筛选可投注的）+「含风险提示」。
+turns:
+  - turn: 1
+    user_text: "本期十四场给个方案"
+    atomics:
+      - id: aq_1
+        category: refine_time_window
+        target:
+          lottery_play: 401 (sfc)
+          period: "本期" = MAX(issue) of lottery_zc_match WHERE type='sfc'
+        success_criteria: "确认最新一期 issue 编号，作为后续查询的过滤条件"
+      - id: aq_2
+        category: fetch_schedule
+        target:
+          table: lottery_zc_match
+          filter: "type='sfc' AND issue=MAX(issue)"
+          fields: id, issue, match_id, comp, home, away, match_time, match_time_str, result
+        success_criteria: "返回完整 14 场记录（count=14），含主客队名、联赛、开赛时间。若 count<14
+          说明本期未开售全或数据缺失，需明确标注"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_schedule
+        target:
+          table: football_match
+          filter: "用 aq_2 拿到的 14 个 match_id 批量查 football_match 详情"
+          fields: match_id, status_id, match_time, home_team_id, away_team_id
+        success_criteria: "对 14 场每场拿到 status_id，能区分未开赛(1)/进行中(2-7,9)/已完场(8)/
+          延期(9)/取消(12) 等。若 match_id 在 football_match 里查不到，标注为『lottery 与 match
+          表关联缺失』"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: synthesize_answer
+        target:
+          phase_1: 列出 14 场 + 状态（两阶段初筛的第一阶段）
+          phase_2: 筛选可投注场次（status_id=1 未开赛），过滤已完场/取消/延期
+        success_criteria: "两阶段初筛完整执行：第一阶段全量 14 场带状态，第二阶段明确标识可投注
+          子集与无效子集。符合 expected_behaviors『两阶段初筛』"
+        depends_on: [aq_2, aq_3]
+      - id: aq_5
+        category: synthesize_answer
+        target:
+          content: 可投注场次的方案（胜平负倾向 + 简要理由）+ 风险提示
+        success_criteria: "对可投注场次给出明确推荐方向（不让用户自己猜），并附风险提示
+          （低置信度场次、冷门防范、容错策略、任九玩法差异）。符合 expected_behaviors『含风险提示』"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target:
+          rule: 含风险提示（强制）
+          rule: 不暴露内部 ID（match_id/team_id/issue 编号内部形态/lottery id）
+          rule: 数据缺失诚实告知
+          rule: 区分十四场（必选 14 场）vs 任九（任选 9 场）玩法差异
+        success_criteria: "最终回答含明确风险提示段落；不暴露内部 ID；若本期不足 14 场或可投注
+          子集为空，诚实告知而非编造方案"
+        depends_on: [aq_5]
+hard_constraints:
+  - "两阶段初筛（expected_behaviors 显式要求）：必须先全量列 14 场+状态，再筛选可投注子集，
+    禁止跳过第一阶段直接给方案"
+  - "含风险提示（expected_behaviors 显式要求）：方案末尾必须有风险提示段落"
+  - "不暴露内部 ID（match_id / team_id / lottery_zc_match.id / issue 内部形态）"
+  - "『本期』= MAX(issue)，不得用历史期次冒充本期"
+  - "已完场(status_id=8)/取消(12)/延期(9) 场次不得纳入投注方案"
+  - "数据缺失诚实告知：若本期不足 14 场或可投注子集为空，明确说明而非编造"
+risk_notes: |
+  预判 E05 最可能在以下环节出问题：
+  1. **lottery_zc_match 与 football_match 关联 gap（中概率）**：lottery_zc_match.match_id
+     字段格式可能与 football_match.id 不直接对应（看 mysql_client.resolve_lottery_match 的
+     match_id 拆分逻辑：`CAST(SUBSTRING(CAST(match_id AS CHAR), CHAR_LENGTH(CAST(issue AS CHAR))+1) AS UNSIGNED)`——
+     说明 match_id 是 issue+entry_num 拼接，需要解析才能 join football_match）。Agent 2 必须验证。
+  2. **本期是否真有 14 场（中概率）**：lottery_zc_match 一期 sfc 应有 14 场，但样本数据可能
+     不完整。若 count<14，aq_4 需诚实标注。
+  3. **status_id 区分（中概率）**：nami_field_map 确认 football_match.status_id 1=not_started、
+     8=finished、9=postponed、12=cancelled。Agent 2 需用此映射区分可投注/无效。
+  4. **get_lottery_schedule 工具默认行为（低-中概率）**：mysql_client 第 666 行默认查
+     `issue=MAX(issue)`，与 aq_1 期望一致。但工具返回字段是否含 status_id？看 _row_lottery_entry
+     实现——lottery_zc_match 表本身无 status_id，需 join football_match 才能拿状态。这是关键 gap：
+     工具可能只返回 14 场但无状态，导致无法做第二阶段筛选（implementation_gap 或 tool_logic_gap）。
+  5. **风险提示质量（低概率）**：Agent 容易给方案但忘记风险提示，需 aq_6 强制检查。

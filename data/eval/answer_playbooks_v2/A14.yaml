@@ -1,0 +1,73 @@
+type_id: "A14"
+case_id: "TC-A14-001"
+classification: "⚠️"
+classification_reason: |
+  找到可行路径但 foretell 工具有 stub 缺口。SQL 直查 football_match_lineup + _detail(单场阵容)
+  与 football_team_squad JOIN football_player(大名单)路径完全可行,字段完整满足 atomic aq_3/aq_5。
+  但 foretell get_match_lineup 是 stub(对存在数据的 match_id 返回 DATA_MISSING),
+  且无 get_team_squad 原生工具,须 SQL workaround。工具直调路径不可用,SQL 路径清晰可行。
+path_assessment: |
+  SQL 路径质量高:
+    (1) 单场阵容:football_match_lineup(阵型+教练)JOIN football_match_lineup_detail(22 球员+首发/替补/队长/位置/球衣号/rating),
+        WHERE match_id=? AND confirmed=1,一次性返回完整阵容,满足模块 B 单场深度与模块 D 复盘需求;
+    (2) 球队大名单:football_team_squad JOIN football_player JOIN football_team,WHERE team_id=?,
+        返回球员中文名+位置+球衣号,满足模块 B 伤停核心球员识别需求。
+  foretell get_match_lineup 路径不可用(stub 返回 DATA_MISSING);无 get_team_squad 工具。
+  须 SQL 直查为首选,且 LLM 层注意:(1) confirmed=1 复盘用/confirmed=0 赛前用;
+  (2) 先查 coverage_lineup=1 再取阵容;(3) 大名单 is_captain 全为 0,队长须查单场 lineup_detail。
+exploration_sufficiency: |
+  探索充分。覆盖了:(1) 近期完赛比赛阵容覆盖率统计(7513 场中 3166 场有阵容);
+  (2) 单场 lineup 父表(阵型+教练+confirmed);(3) 单场 lineup_detail(40 球员+首发/替补/队长/位置/球衣号/rating);
+  (4) foretell get_match_lineup stub 复测(4470722 DATA_MISSING 对照 SQL 实有完整阵容);
+  (5) football_team_squad 大名单(68 人)+ JOIN football_player 取姓名。
+  五个维度全部命中,数据真实可溯源,足以支撑用户 v6.0 工作流模块 B/D 的阵容需求。
+gaps:
+  - gap_type: "tool_implementation_gap"
+    detail: "get_match_lineup 是 stub,对存在数据的 match_id 返回 DATA_MISSING"
+    evidence_ref: "step 6: get_match_lineup(4470722) → DATA_MISSING,SQL 同 match_id 有 lineup_id=71887 + 40 球员 + 阵型"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:866-867 的 stub return None,改为查 football_match_lineup + _detail;或文档明确该工具不可用,引导 SQL 路径"
+  - gap_type: "tool_implementation_gap"
+    detail: "无 get_team_squad 原生工具,球队大名单须 SQL 直查"
+    evidence_ref: "step 7-8: 须 SQL JOIN football_team_squad + football_player,foretell 工具集无对应入口"
+    priority: "P2"
+    recommended_action: "新增 get_team_squad(team_id) 工具,封装 football_team_squad JOIN football_player 返回球员名+位置+球衣号"
+  - gap_type: "squad_is_captain_inconsistency"
+    detail: "football_team_squad.is_captain 全为 0,队长仅在单场 lineup_detail 标注"
+    evidence_ref: "step 7-8: 川崎大名单 34 人 is_captain 全 0,但单场 lineup_detail 胁坂泰斗 captain=1"
+    priority: "P3"
+    recommended_action: "squad 表 is_captain 字段若不可靠,工具层应从近期 lineup_detail 推断常用队长,或文档标注该字段语义"
+  - gap_type: "confirmed_field_semantics"
+    detail: "confirmed=1 正式阵容(复盘)/confirmed=0 预计阵容(赛前),工具须区分"
+    evidence_ref: "step 4: lineup_id=71887 confirmed=1,赛前场景应取 confirmed=0 或不强制 confirmed"
+    priority: "P2"
+    recommended_action: "get_match_lineup 增加 confirmed 可选参数,或在工具描述明确「赛前取 confirmed=0,复盘取 confirmed=1」"
+  - gap_type: "lineup_data_coverage"
+    detail: "仅 42% 比赛有阵容(coverage_lineup=1),非全量"
+    evidence_ref: "step 2: 7513 场中 3166 场 coverage_lineup=1"
+    priority: "P3"
+    recommended_action: "工具层在 match_id 无阵容时返回明确「该比赛无阵容数据」而非 DATA_MISSING,避免与 stub 假阴性混淆"
+recommended_answer_path: |
+  对话时点锚定 2026-05-06(session 28164835),用户工作流要求「今日竟足赛事分析」。
+  步骤 1:先调 get_lottery_schedule(play_type=101, date=今日) 取当日竞彩赛事 match_id 列表。
+  步骤 2:对每个 match_id,SQL 查 coverage_lineup 确认是否有阵容:
+    SELECT coverage_lineup FROM football_match WHERE id=?
+  步骤 3(单场阵容,有阵容时):
+    SELECT l.home_formation, l.away_formation, l.confirmed,
+           ld.team_id, t.name_zh AS team, ld.first, ld.captain, ld.name, ld.shirt_number, ld.position, ld.rating
+    FROM football_match_lineup l
+    JOIN football_match_lineup_detail ld ON ld.lineup_id=l.id
+    JOIN football_team t ON t.id=ld.team_id
+    WHERE l.match_id=? AND l.confirmed=1
+    ORDER BY ld.team_id, ld.first DESC, ld.shirt_number
+    赛前场景用 confirmed=0(预计),复盘场景用 confirmed=1(正式)。
+  步骤 4(球队大名单,用于伤停核心球员识别):
+    SELECT p.name_zh AS player, s.position, s.shirt_number, s.is_captain
+    FROM football_team_squad s
+    JOIN football_player p ON p.id=s.player_id
+    WHERE s.team_id=?
+    ORDER BY s.position, s.shirt_number
+  输出:双方首发阵型 + 11 首发(按 G/D/M/F 分组)+ 替补 + 队长标注 + 大名单核心球员。
+  剥离 match_id/player_id/team_id/lineup_id,用球员名+球队名+位置呈现。
+  foretell get_match_lineup 是 stub,须诚实声明「工具层阵容接口不可用,以下经数据库直查」。
+  数据不足时(coverage_lineup=0)诚实说明「该比赛无阵容数据」,不编造。

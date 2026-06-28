@@ -1,0 +1,15 @@
+{
+  "type_id": "E05",
+  "case_id": "TC-E05-REG-007",
+  "steps": [
+    {
+      "tool": "get_lottery_schedule",
+      "params": {
+        "play_type": "401"
+      },
+      "code": "OK",
+      "count": 14,
+      "stub": false
+    }
+  ]
+}

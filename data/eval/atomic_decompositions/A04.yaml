@@ -1,0 +1,19 @@
+type_id: A04
+type_name: 球队近期赛程
+scenario: A
+entity_entry: team
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 赔率变化，球队预期进球，防守漏洞指数，主客场差异，球队真实战意，近五轮攻防数据，核查核心球员伤病，XG数据分析英超利物浦VS切尔西
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: team
+  - id: T1-a2
+    category: fetch_schedule
+    target:
+      team_id: $a1
+hard_constraints: []

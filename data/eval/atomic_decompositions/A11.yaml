@@ -1,0 +1,18 @@
+type_id: A11
+type_name: 射手榜
+scenario: A
+entity_entry: league
+priority: P1
+generated: true
+turns:
+- turn: 1
+  user: '[射手榜示例问法]'
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

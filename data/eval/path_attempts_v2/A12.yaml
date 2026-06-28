@@ -1,0 +1,55 @@
+type_id: "A12"
+case_id: "TC-A12-001"
+exploration_log:
+  - step: 1
+    action: "读取 atomic_decompositions_v2/A12.yaml 确认任务范围"
+    query: "Read atomic_v2/A12.yaml"
+    result: "用户在 turn 12-15 要求查询七联赛(意甲/西甲/英超/德甲/法甲/日职联/韩职)本季宏观数据,用于泊松模型 λ 校准。atomic 已给定 season_id:意甲=13238/西甲=13355/英超=13242/德甲=13295/法甲=13294/日职联=13870/韩职=13903。"
+    reasoning: "先确认 atomic 是否存在可复用,避免重写。本案 atomic 完整,直接采用其 season_id 期望值。"
+    next: "SQL 直查 football_competition_teams_stats 验证七联赛宏观聚合"
+  - step: 2
+    action: "SQL 验证七联赛 season_id 当前赛季归属"
+    query: "SELECT c.id, c.name_zh, s.id, s.year, s.is_current FROM football_competition c JOIN football_season s ON s.competition_id=c.id WHERE c.id IN (82,108,120,129,142,567,581) ORDER BY c.id, s.id DESC LIMIT 60"
+    result: "确认 season_id 与 atomic 期望一致:英超 13242=2025/26、意甲 13238=2025/26、西甲 13355=2025/26、德甲 13295=2025/26、法甲 13294=2025/26、日职联 13870=2026、韩职 13903=2026。注意:DB 当前 is_current=1 已指向 2026/27(英超 14320/意甲 14222),但对话时点(2026-05-06)应取 2025/26,atomic 正确。"
+    reasoning: "数据库 is_current 已滚到新赛季,但用户「本季」是对话时点的当前赛季,须用 2025/26(欧五)+2026(日韩),不跟随 DB 的 is_current。"
+    next: "用 atomic 给定 season_id 做联赛级聚合"
+  - step: 3
+    action: "SQL 聚合七联赛宏观数据(队数/场次/总进球/场均进球)"
+    query: "SELECT s.id, s.year, s.competition_id, c.name_zh, COUNT(DISTINCT t.team_id), SUM(t.matches), SUM(t.goals), ROUND(SUM(t.goals)/NULLIF(SUM(t.matches),0),3) FROM football_competition_teams_stats t JOIN football_season s ON s.id=t.season_id JOIN football_competition c ON c.id=s.competition_id WHERE t.season_id IN (13238,13355,13242,13295,13294,13870,13903) GROUP BY s.id ORDER BY s.competition_id LIMIT 30"
+    result: "七联赛全部命中:英超 20 队 760 场 1045 球 1.375/场;意甲 20 队 760 场 922 球 1.213/场;西甲 20 队 760 场 1024 球 1.347/场;德甲 18 队 612 场 990 球 1.618/场;法甲 18 队 610 场 863 球 1.415/场;日职联 20 队 400 场 532 球 1.330/场;韩职 12 队 180 场 204 球 1.133/场。与 atomic 期望高度一致(法甲 atomic 写 306 场是 atomic 小误差,实际 610 场更准确)。"
+    reasoning: "football_competition_teams_stats 按 season_id 聚合 SUM(matches)/SUM(goals) 即得联赛级宏观数据,无需原生工具。"
+    next: "查最佳攻击(进球最多)+最佳防守(失球最少)球队"
+  - step: 4
+    action: "SQL 查七联赛最佳攻防球队"
+    query: "SELECT s.competition_id, c.name_zh, t.team_id, tm.name_zh, t.goals, t.goals_against, t.matches FROM football_competition_teams_stats t JOIN football_season s ON s.id=t.season_id JOIN football_competition c ON c.id=s.competition_id JOIN football_team tm ON tm.id=t.team_id WHERE t.season_id IN (...) AND (t.goals IN (SELECT MAX(goals) ...) OR t.goals_against IN (SELECT MIN(goals_against) ... >0)) ORDER BY s.competition_id, t.goals DESC, t.goals_against ASC LIMIT 60"
+    result: "七联赛最佳攻防全部命中:英超最佳攻击曼城 77 球/最佳防守阿森纳 27 失球;意甲最佳攻击国米 89 球/最佳防守科莫 29 失球;西甲最佳攻击巴萨 95 球/最佳防守皇马 35 失球;德甲最佳攻击拜仁 122 球/最佳防守多特 34 失球;法甲最佳攻击兼最佳防守巴黎 74 球/29 失球;日职联最佳攻击名古屋鲸鱼 34 球/最佳防守鹿岛鹿角 14 失球;韩职最佳攻击 FC 首尔 27 球/最佳防守江原 FC 10 失球。"
+    reasoning: "用 MAX(goals)/MIN(goals_against) 子查询锁定每联赛极值球队,JOIN football_team 取中文名。"
+    next: "验证 foretell get_team_season_stats 是否 stub"
+  - step: 5
+    action: "调 foretell get_team_season_stats(曼城 team_id=10181)对照"
+    query: "tool get_team_season_stats {team_id: 10181}"
+    result: "返回 DATA_MISSING,但 SQL 已确认曼城 25/26 赛季有 77 球/35 失球/38 场完整统计。工具是 stub(代码 mysql_client.py:724-725),与 db_schema_map 与 atomic risk_notes 一致。"
+    reasoning: "确认 implementation_gap:工具层对存在数据的 team_id 仍返回 DATA_MISSING,但数据库有数据,SQL 直查即可。"
+    next: "A12 路径确认完成,落盘"
+final_finding: |
+  A12「球队赛季统计」(用户实际要的是七联赛本季宏观数据)存在完全可行的 SQL 路径。
+  核心路径:football_competition_teams_stats 按 season_id 聚合 SUM(matches)/SUM(goals) 得联赛级总进球与场均进球,
+  配 MAX(goals)/MIN(goals_against) 子查询得最佳攻击/最佳防守球队,JOIN football_team 取中文名。
+  七联赛(英超/意甲/西甲/德甲/法甲/日职联/韩职)全部命中,数据完整且与 atomic 期望一致。
+  foretell get_team_season_stats 是 stub(对曼城 10181 返回 DATA_MISSING,而 DB 实有 77 球统计),
+  且 foretell 工具集无「联赛级宏观数据」原生工具,须 SQL 直查 workaround。
+  season_id 选取是关键坑:DB 当前 is_current=1 已指向 2026/27 新赛季,但对话时点(2026-05-06)的「本季」
+  须取 2025/26(欧五跨年)+ 2026(日韩自然年),不能跟随 DB 的 is_current。
+gaps_encountered:
+  - gap_type: "tool_implementation_gap"
+    detail: "get_team_season_stats(team_id) 是 stub,对存在数据的 team_id(如曼城 10181)返回 DATA_MISSING,代码定位 mysql_client.py:724-725"
+    location: "foretell/tools/crazy_sports/mysql_client.py:724-725"
+  - gap_type: "tool_implementation_gap"
+    detail: "foretell 工具集无「联赛级赛季宏观数据」原生工具(get_team_season_stats 是单队维度,get_standings 是积分榜无进球字段),用户要的 league-level 聚合须 SQL 直查 football_competition_teams_stats"
+    location: "foretell/tools/"
+  - gap_type: "season_id_pitfall"
+    detail: "DB 的 football_season.is_current=1 已滚动到 2026/27 新赛季(英超 14320/意甲 14222),但对话时点 2026-05-06 的「本季」应取 2025/26;日韩是自然年赛季取 2026"
+    location: "football_season.is_current 字段语义"
+  - gap_type: "atomic_minor_inaccuracy"
+    detail: "atomic_decompositions_v2/A12.yaml aq_6 写「法甲 18 队 306 场」,实际是 610 场(34 轮×18 队=612 应踢,已踢 610),atomic 场次估算偏小,不影响路径可行性"
+    location: "atomic_decompositions_v2/A12.yaml aq_6"

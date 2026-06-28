@@ -1,0 +1,22 @@
+type_id: X11
+type_name: 年份误锚
+scenario: X
+entity_entry: match
+priority: P1
+generated: true
+turns:
+- turn: 1
+  user: '[年份误锚示例问法]'
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-x1
+    category: apply_guardrails
+    target: {}
+hard_constraints:
+- 不输出中间态

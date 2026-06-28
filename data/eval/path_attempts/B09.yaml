@@ -1,0 +1,19 @@
+type_id: B09
+case_id: TC-B09-REG-006
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: B09-T0-a1
+  tool: resolve_match
+  params:
+    home: 马刺
+    away: 雷霆
+    series_game: 7
+  code: NOT_APPLICABLE
+  stub: false
+satisfied: []
+blocking_gap:
+  type: data_gap
+  description: resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game 维度未入库
+  failed_atomic: B09-T0-a1
+route_complete: false

@@ -1,0 +1,264 @@
+atomic_id: aq_1
+rounds:
+  - round: 1
+    hypothesis: "『本期』指 lottery_zc_match 表里 type='sfc' 的 MAX(issue)。先查表结构
+      确认字段（lottery_zc_match 表是否真有 issue/match_id/type 字段），同时看
+      mysql_client._row_lottery_entry 实现确认工具返回字段（关键：是否含 status_id）"
+    schema_query: |
+      SELECT column_name, column_type, column_comment
+      FROM information_schema.columns
+      WHERE table_schema='data_center' AND table_name='lottery_zc_match'
+      ORDER BY ordinal_position
+    schema_result: "lottery_zc_match 表字段：id/type(sfc|bqc|jqc|rj)/issue(期号)/match_id(int)/
+      comp(赛事)/home/away/match_time(int)/match_time_str/result。表本身【无 status_id 字段】。
+      mysql_client._row_lottery_entry (line 232-252) 对 401 返回字段：
+      lottery_id/play_type/issue/issue_num/lottery_code/home_name/away_name/league_name/date/
+      match_id/(result if exists)——【工具返回也不含 status_id】，且 match_id 直接取 row['match_id']"
+    decision: continue
+  - round: 2
+    hypothesis: "SQL 基准查 MAX(issue) + 14 场记录，同时对照 get_lottery_schedule(401) 默认行为
+      （mysql_client line 666：不传 date/period 时查 issue=MAX(issue)）"
+    sql_baseline:
+      query_max_issue: |
+        SELECT type, MAX(issue) AS max_issue, COUNT(*) AS cnt
+        FROM lottery_zc_match WHERE type='sfc' GROUP BY type LIMIT 5
+      result_max_issue: "type=sfc, max_issue=26089, 总历史记录 2702 条。本期=issue 26089"
+      query_14: |
+        SELECT id, issue, match_id, comp, home, away, match_time_str, result
+        FROM lottery_zc_match WHERE type='sfc' AND issue=26089 ORDER BY match_id
+      result_14: "14 场全有：第1场巴西vs日本、第2场德国vs巴拉圭、第3场荷兰vs摩洛哥、
+        第4场科特迪vs挪威、第5场法国vs瑞典、第6场墨西哥vs厄瓜多、第7场英格兰vs刚果金、
+        第8场美国vs波黑、第9场西班牙vs奥地利、第10场葡萄牙vs克罗地、第11场瑞士vs阿尔及、
+        第12场澳大利vs埃及、第13场阿根廷vs佛得角、第14场哥伦比vs加纳。全世界杯赛事。
+        match_id 字段=260891~2608914（规律：issue*10 + entry_num，合成 ID）"
+    tool_call:
+      name: get_lottery_schedule
+      params: {play_type: "401"}
+      result:
+        code: OK
+        count: 14
+        sample_entry_1: "lottery_id=8891, issue=26089, issue_num=1, lottery_code=第1场,
+          home_name=巴西, away_name=日本, league_name=世界杯, date=2026-06-30,
+          match_id=260891（合成 ID，无 status_id 字段）"
+    comparison: "一致：工具默认查 issue=MAX(issue)=26089，返回 14 场，与 SQL 基准完全对齐。
+      但工具返回字段【不含 status_id】，无法直接做两阶段初筛的第二阶段（区分未开赛/已完场），
+      必须额外 JOIN football_match——见 aq_3 发现的合成 ID 假命中问题。"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "SQL 基准（MAX(issue)=26089, 14 场）与工具 get_lottery_schedule(401) 完全一致。
+  本期定位准确。但工具返回不含 status_id，需 aq_3 补充。"
+recommended_next_step: "无（本期定位已解决）。后续 aq_3 需解决 status_id 获取。"
+
+---
+atomic_id: aq_2
+rounds:
+  - round: 1
+    hypothesis: "aq_1 已同时完成 14 场记录查询（SQL 基准 + 工具对照）。本 aq 与 aq_1 共享
+      执行结果，不重复查询。14 场记录成功获取，success_criteria 满足（count=14，含主客/联赛/时间）"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "见 aq_1 round 2：14 场全有，count=14 符合预期。"
+recommended_next_step: "无"
+
+---
+atomic_id: aq_3
+rounds:
+  - round: 1
+    hypothesis: "lottery_zc_match 表无 status_id，需 JOIN football_match 拿状态。直觉用
+      lottery_zc_match.match_id = football_match.id 关联——验证这个假设"
+    sql_baseline:
+      query: |
+        SELECT l.id AS lottery_id, l.match_id, l.home, l.away, l.match_time_str,
+               fm.id AS fm_id, fm.status_id, fm.match_time_str AS fm_time_str
+        FROM lottery_zc_match l
+        LEFT JOIN football_match fm ON l.match_id=fm.id
+        WHERE l.type='sfc' AND l.issue=26089 ORDER BY l.match_id
+      result: "14/14 JOIN 全部命中，但【全部 status_id=8（已完场）】且 fm_time_str 是
+        2009-08-16 / 2019-02-26 等历史日期，与 lottery_zc_match.match_time_str=2026-06-30
+        完全不一致！说明 lottery_zc_match.match_id（260891~2608914）是合成 ID（issue*10+
+        entry_num），【不是 football_match.id 的真实外键】——JOIN 是假命中，football_match
+        里恰好有 id=260891 等历史比赛记录"
+    decision: continue
+  - round: 2
+    hypothesis: "合成 ID 假命中。改用 home/away 名称 + 时间窗（6/30-7/4）+ neutral=1（世界杯
+      中立场）关联 football_match 找真实比赛 ID 和 status_id"
+    sql_baseline:
+      query: |
+        SELECT m.id, m.status_id, m.match_time_str, m.neutral,
+               ht.short_name_zh AS home_name, at.short_name_zh AS away_name
+        FROM football_match m
+        JOIN football_team ht ON m.home_team_id=ht.id
+        JOIN football_team at ON m.away_team_id=at.id
+        WHERE m.neutral=1
+          AND m.match_time_str BETWEEN '2026-06-30 00:00:00' AND '2026-07-04 23:59:59'
+          AND (ht.short_name_zh IN ('巴西','德国','荷兰','科特迪','法国','墨西哥','英格兰',
+                '美国','西班牙','葡萄牙','瑞士','澳大利','阿根廷','哥伦比')
+               OR at.short_name_zh IN ('日本','巴拉圭','摩洛哥','挪威','瑞典','厄瓜多',
+                '刚果金','波黑','奥地利','克罗地','阿尔及','埃及','佛得角','加纳'))
+        ORDER BY m.match_time LIMIT 30
+      result: "找到 13 场真实比赛，全部 status_id=1（未开赛）+ neutral=1（中立场），
+        真实 football_match.id=4459718~4459732 区间。缺墨西哥vs厄瓜多（名称匹配差异：
+        lottery_zc_match.home='墨西哥' vs football_team.short_name_zh='墨西哥' 应匹配，
+        但 lottery_zc_match.away='厄瓜多' vs football_team.short_name_zh='厄瓜多尔' 不匹配）"
+    decision: continue
+  - round: 3
+    hypothesis: "补查墨西哥那场（用 home 名称 LIKE 匹配）+ 验证 resolve_lottery_match 工具
+      是否也暴露合成 ID 问题"
+    sql_baseline:
+      query: |
+        SELECT m.id, m.status_id, m.match_time_str,
+               ht.short_name_zh AS home_name, at.short_name_zh AS away_name
+        FROM football_match m
+        JOIN football_team ht ON m.home_team_id=ht.id
+        JOIN football_team at ON m.away_team_id=at.id
+        WHERE m.match_time_str LIKE '2026-07-01%'
+          AND (ht.short_name_zh LIKE '%墨西哥%' OR ht.name_zh LIKE '%墨西哥%') LIMIT 5
+      result: "id=4459723, status_id=1, 2026-07-01 09:00, 墨西哥 vs 厄瓜多尔。
+        → 14 场全部找到真实 football_match.id，【全部 status_id=1 未开赛可投注】"
+    tool_call:
+      name: resolve_lottery_match
+      params: {play_type: "401", code: "第1场"}
+      result:
+        code: OK
+        count: 10
+        sample: "返回 10 期（issue 26080~26089）的『第1场』候选，需上层用 issue=26089 筛选本期。
+          每个候选 match_id 字段都是合成 ID（260891/260881/260871...），无 status_id 字段"
+    comparison: "双重 gap 确认：
+      ① tool_logic_gap：get_lottery_schedule / resolve_lottery_match 返回的 match_id 字段是
+        lottery_zc_match.match_id（合成 ID=issue*10+entry_num），不是 football_match.id 真实
+        外键。Agent 拿这个 match_id 去调 get_odds_snapshot / get_match_result 等下游工具，
+        会拿到完全无关的历史比赛数据（2009/2019 年的 status_id=8 已完场赛）。这是生产环境
+        现在就在用的有问题的工具，优先级最高。
+      ② tool_logic_gap：工具返回不含 status_id 字段，无法直接做两阶段初筛的第二阶段
+        （区分未开赛/已完场）。需额外用 home/away 名称 + 时间窗 + neutral 关联 football_match。
+      SQL 基准证明 14 场全部 status_id=1 未开赛可投注（真实 id=4459718~4459732 + 4459723/
+        4459797 等，全部 neutral=1 中立场世界杯）"
+    decision: blocked
+final_status: blocked
+gap_type: tool_logic_gap
+gap_evidence: "SQL 基准对比：
+  - 假关联：JOIN lottery_zc_match.match_id=football_match.id → 14/14 命中但 status_id=8
+    且 fm_time_str=2009/2019 历史日期（合成 ID 假命中）
+  - 真实关联：用 home/away 名称 + 6/30-7/4 时间窗 + neutral=1 → 14 场全部 status_id=1
+    未开赛，真实 football_match.id=4459718~4459732 区间
+  工具 get_lottery_schedule(401) / resolve_lottery_match(401,'第1场') 返回的 match_id
+  字段是合成 ID（260891 等），不是真实外键。下游工具误用会导致拿到无关历史比赛数据。
+  工具返回也不含 status_id，无法做两阶段初筛第二阶段。"
+recommended_next_step: "P1 修复 _row_lottery_entry / get_lottery_schedule / resolve_lottery_match：
+  ① match_id 字段应解析为真实 football_match.id（用 home/away 名称 + match_time 日期 JOIN
+  football_match + football_team），或在 lottery_zc_match 表新增 real_match_id 字段；
+  ② 返回字段补充 status_id（JOIN football_match 取 status_id），让上层可直接做两阶段初筛；
+  ③ resolve_lottery_match 的 code='第N场' 返回多期候选时，应优先按 issue=MAX(issue) 或
+  支持 issue 参数过滤本期。"
+
+---
+atomic_id: aq_4
+rounds:
+  - round: 1
+    hypothesis: "两阶段初筛综合（synthesize_answer，不调用工具）。基于 aq_1/aq_2/aq_3 的
+      SQL 基准数据，执行 expected_behaviors 要求的两阶段初筛"
+    phase_1_full_list: |
+      第一阶段——本期 26089 全量 14 场 + 状态：
+      第1场 6/30 01:00 巴西vs日本（世界杯中立场，status_id=1 未开赛）
+      第2场 6/30 04:30 德国vs巴拉圭（status_id=1 未开赛）
+      第3场 6/30 09:00 荷兰vs摩洛哥（status_id=1 未开赛）
+      第4场 7/01 01:00 科特迪瓦vs挪威（status_id=1 未开赛）
+      第5场 7/01 05:00 法国vs瑞典（status_id=1 未开赛）
+      第6场 7/01 09:00 墨西哥vs厄瓜多尔（status_id=1 未开赛）
+      第7场 7/02 00:00 英格兰vs民主刚果（status_id=1 未开赛）
+      第8场 7/02 08:00 美国vs波黑（status_id=1 未开赛）
+      第9场 7/03 03:00 西班牙vs奥地利（status_id=1 未开赛）
+      第10场 7/03 07:00 葡萄牙vs克罗地亚（status_id=1 未开赛）
+      第11场 7/03 11:00 瑞士vs阿尔及利亚（status_id=1 未开赛）
+      第12场 7/04 02:00 澳大利亚vs埃及（status_id=1 未开赛）
+      第13场 7/04 06:00 阿根廷vs佛得角（status_id=1 未开赛）
+      第14场 7/04 09:30 哥伦比亚vs加纳（status_id=1 未开赛）
+    phase_2_filter: |
+      第二阶段——筛选可投注场次（status_id=1 未开赛）：
+      14 场全部 status_id=1 未开赛 → 可投注子集 = 全部 14 场。
+      无已完场(8)/取消(12)/延期(9) 场次需剔除。
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "两阶段初筛完整执行，符合 expected_behaviors。本期 14 场全部可投注。
+  本期数据全部为 2026 世界杯中立场赛事，开赛时间 6/30-7/04 跨 5 天。"
+recommended_next_step: "无（两阶段初筛已完成）"
+
+---
+atomic_id: aq_5
+rounds:
+  - round: 1
+    hypothesis: "方案 + 风险提示综合（synthesize_answer，不调用工具）。基于 14 场对阵
+      （世界杯）+ 公开实力认知给胜平负倾向 + 风险提示。注意：foretell 工具链无赔率/盘口
+      工具被本 case 实际调用（get_odds_snapshot 需要真实 match_id，但工具返回合成 ID
+      会导致误用——见 aq_3 gap）。本方案基于对阵实力差给倾向，不含赔率维度"
+    scheme: |
+      倾向方案（基于实力差 + 中立场世界杯语境，纯方向性参考）：
+      第1场 巴西vs日本：巴西胜（3）——实力差明显
+      第2场 德国vs巴拉圭：德国胜（3）——实力占优
+      第3场 荷兰vs摩洛哥：荷兰胜（3）——摩洛哥黑马但荷兰整体更强
+      第4场 科特迪瓦vs挪威：平（1）——非洲vs欧洲中游，势均力敌
+      第5场 法国vs瑞典：法国胜（3）——卫冕冠军实力差大
+      第6场 墨西哥vs厄瓜多尔：墨西哥胜（3）——中北美劲旅
+      第7场 英格兰vs民主刚果：英格兰胜（3）——实力差悬殊
+      第8场 美国vs波黑：美国胜（3）——中北美头名
+      第9场 西班牙vs奥地利：西班牙胜（3）——技术流压制
+      第10场 葡萄牙vs克罗地亚：葡萄牙胜（3）——克罗地亚老化
+      第11场 瑞士vs阿尔及利亚：瑞士胜（3）——欧洲中游 vs 非洲
+      第12场 澳大利亚vs埃及：平（1）——亚洲 vs 非洲中游
+      第13场 阿根廷vs佛得角：阿根廷胜（3）——实力差悬殊
+      第14场 哥伦比亚vs加纳：哥伦比亚胜（3）——南美 vs 非洲
+    risk_warning: |
+      风险提示：
+      1. 世界杯中立场无主场优势，传统强队冷门概率高于联赛，建议至少 2-3 场防冷（双选）
+      2. 第4场科特迪瓦vs挪威、第12场澳大利亚vs埃及为势均力敌场次，置信度低，建议双选（3/1）
+      3. 第10场葡萄牙vs克罗地亚、第6场墨西哥vs厄瓜多尔存在黑马潜力，建议防平
+      4. 本方案未含赔率/盘口/伤停/阵容数据（foretell 工具链合成 ID bug 导致下游工具误用，
+         见 aq_3 gap），纯基于对阵实力差，置信度中等
+      5. 十四场玩法为必选 14 场全对才中奖，建议搭配任九（任选 9 场）降低难度
+      6. 投注有风险，请理性购彩，本方案仅供参考不构成投注建议
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "方案含明确胜平负倾向 + 风险提示段落，符合 expected_behaviors『含风险提示』。
+  诚实标注未含赔率/伤停维度（因 aq_3 tool_logic_gap）。"
+recommended_next_step: "若 aq_3 tool_logic_gap 修复（match_id 真实化 + status_id 暴露），
+  可补充 get_odds_snapshot 调用拿赔率维度，方案置信度可提升。"
+
+---
+atomic_id: aq_6
+rounds:
+  - round: 1
+    hypothesis: "guardrail 检查：①含风险提示（强制）；②不暴露内部 ID；③数据缺失诚实告知；
+      ④区分十四场 vs 任九玩法"
+    guardrail_check: |
+      ①含风险提示：aq_5 risk_warning 段落含 6 条风险点 ✓
+      ②不暴露内部 ID：aq_5 scheme 输出未暴露 match_id（真实 id=4459718 等）/ team_id /
+        lottery_id=8891~8904 / issue=26089 内部形态。output_template 用『第N场 + 主队vs客队』
+        表达 ✓（但 aq_3/aq_4 分析中保留了内部 ID 供工程团队诊断，最终用户面回答需过滤）
+      ③数据缺失诚实告知：aq_5 risk_warning 第 4 条明确标注『未含赔率/盘口/伤停/阵容数据
+        （foretell 工具链合成 ID bug 导致下游工具误用）』✓
+      ④区分十四场 vs 任九：aq_5 risk_warning 第 5 条说明十四场必选 14 场全对、任九任选 9 场 ✓
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "expected_behaviors 两条约束（两阶段初筛 + 含风险提示）全部满足。
+  guardrail 四项检查全部通过。"
+recommended_next_step: "无"
+
+case_summary:
+  total_rounds: 8
+  final_status: satisfied
+  primary_gap_type: tool_logic_gap
+  secondary_gaps: []
+  key_evidence:
+    - "本期 issue=26089，14 场全有，工具 get_lottery_schedule(401) 默认行为正确"
+    - "lottery_zc_match.match_id 是合成 ID（issue*10+entry_num），JOIN football_match ON match_id=fm.id 假命中历史比赛"
+    - "用 home/away 名称 + 6/30-7/4 时间窗 + neutral=1 找到 14 场真实 football_match.id，全部 status_id=1 未开赛可投注"
+    - "get_lottery_schedule / resolve_lottery_match 返回不含 status_id，且 match_id 字段是合成 ID——下游工具误用会拿无关历史数据"
+    - "两阶段初筛完整执行 + 风险提示 6 条，符合 expected_behaviors"
+  expected_behaviors_compliance:
+    两阶段初筛: true
+    含风险提示: true

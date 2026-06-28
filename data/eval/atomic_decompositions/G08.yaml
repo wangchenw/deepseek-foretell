@@ -1,0 +1,25 @@
+type_id: G08
+type_name: 同样逻辑
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 【NBA 深度分析请求】 🎯 比赛元数据 | 字段 | 内容 | |------|------| | 对阵 | [主队] VS [客队] | | 时间
+    | [YYYY-MM-DD HH:MM] | | 场地 | [主场球馆名] | | 裁判 | [主裁判名，如有] | 🏥 伤病量化表 | 球队 | 球员 |
+    位置 | 场均数据 | 缺阵影响% | |------|------|------|----------|-----------| | [队名] | [球员]
+    | [PG/SF/C] | [XX 分 XX 板] | [-XX%] | 📉 效率对比 | 指标 | 主队 | 客队 | 联盟排名 | |------|------|------|----------|
+    | 进攻效率 | [XXX] | [XXX] | [X/30] | | 防守效率 | [XXX] | [XXX] | [X/30] | | 节奏 Pace
+    | [XXX] | [XXX] | [X/30] | | 三分命中率 | [XX%] | [XX%] | [X/30] | 💹 盘口追踪 | 时间点 |
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

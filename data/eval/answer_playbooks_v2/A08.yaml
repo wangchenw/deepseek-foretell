@@ -1,0 +1,92 @@
+type_id: "A08"
+case_id: "TC-A08-REG-003"
+review_summary: |
+  本案是反馈 #003 的回归验证。Agent 2 严格按 SQL 优先策略，先用 football_match 直查建立基准
+  （6/28 07:30 哥伦比亚主 vs 葡萄牙客，match_id=4460934, competition_id=1），再调用
+  get_team_schedule 多参数组合对照，成功定位到三处 tool_logic_gap：(1) direction=upcoming
+  语义反转返回 2004-2006 历史升序；(2) league_id=fc_1 + upcoming 返回 DATA_MISSING 空结果
+  （#003 假阴性的直接根因）；(3) league_id 整数过滤器在 upcoming/all 方向被静默忽略。
+  Agent 2 没有因为工具返回空就断言无赛，而是切换 direction=all + 手动过滤 + get_lottery_schedule
+  交叉验证找到目标场，未穷尽前未断言无赛，完全符合 expected_behaviors。aq_4/aq_6 诚实标注
+  context_gap（无原生 checkpointer）。整体诊断扎实、根因清晰、workaround 可落地。
+requirement_analysis_review:
+  completeness: "原子拆分覆盖完整：实体解析(aq_1/aq_7)、时间窗推断(aq_2)、赛程查询(aq_3/aq_5/aq_8)、多轮上下文(aq_4/aq_6)、合成(aq_9)、守门(aq_10) 共 10 个原子，按意图段而非句子分组，turn2/turn3 正确标注为 maintain_context 而非重新拆实体。hard_constraints 9 条覆盖 expected_behaviors 全部 4 条 + 反馈 #003 的 P0/P1 教训 + #002 上下文丢失关联。"
+  missed_needs: []
+path_exploration_review:
+  reasoning_quality: "推理链清晰：aq_3 用 4 轮逐步揭示 upcoming 语义反转→fc_1 前缀失效→league_id 过滤失效→lottery 兜底，每轮假设都基于前一轮诊断，无机械重试。aq_5/aq_8 复用 aq_3 发现，1-2 轮即结论，效率高。aq_4/aq_6 1 轮即标注 context_gap，未假装能验证。"
+  sql_baseline_quality: "优秀。Agent 2 在 aq_3 round1、aq_5 round1、aq_8 round1 三个关键 fetch_schedule 原子上都独立写了 SQL 基准（football_match JOIN football_team JOIN football_competition，按 match_time_str 时间窗过滤），且 aq_3 round1 SQL 基准=0 条时未直接断言无赛，而是继续工具对照发现 tool_logic_gap。这是本次评估核心信任问题的正确处理——不把工具返回值当地面真相。aq_1/aq_7 也都先 SQL 基准再工具对照。"
+  unexplored_alternatives:
+    - "未尝试 resolve_match(home=哥伦比亚, away=葡萄牙, date=2026-06-28) 作为另一条交叉验证路径，但 lottery 已足够交叉验证，非必要"
+    - "未测试 league_id 传整数 1 在 direction=recent 下的过滤行为（已测 upcoming/all 两种，recent 默认行为已观察到 league_id 过滤失效迹象）"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "国家队+时间窗类轻量赛程查询，须用 get_team_schedule(direction=all) + LLM 手动按 league_name+match_time 窗过滤，交叉验证 get_lottery_schedule，输出剥离内部编号。"
+  steps:
+    - "1. resolve_team(name=国家队名) → 按 national=1 + 精确名称消歧选 team_id（排除俱乐部/梯队）"
+    - "2. resolve_league(name=世界杯) → 选 league_id=1（2026 进行中世界杯，排除预选赛/U20/女足）"
+    - "3. get_team_schedule(team_id, direction=all, limit=20) 获取全部近期赛事（禁用 direction=upcoming，当前有 bug）"
+    - "4. LLM 层手动过滤：league_name='世界杯' + match_time_beijing 在用户时间窗内（『明早』=00:00-12:00 含凌晨早场）"
+    - "5. 交叉验证 get_lottery_schedule(play_type=101, date=目标日) 兜底确认（竞彩接口含世界杯场次）"
+    - "6. 多轮上下文：turn2/turn3 须继承 turn1 的 team_id，叠加用户补出的 competition_id 与细化时间窗"
+    - "7. 输出模板：『{date} {HH:MM}（北京时间）{赛事}：{home} vs {away}（{home}主场），{status}』"
+    - "8. 守门：剥离 match_id/team_id/league_id/lottery_code/工具名/中间态；未穷尽交叉验证前不得输出『无比赛』"
+  forbidden:
+    - "禁止使用 get_team_schedule(direction=upcoming) — 当前实现返回历史升序，语义反转"
+    - "禁止使用 get_team_schedule(direction=upcoming, league_id=fc_1) — 返回 DATA_MISSING，是 #003 假阴性根因"
+    - "禁止仅凭 league_id 整数过滤相信结果 — 当前实现过滤器被忽略，须 LLM 层按 league_name 二次过滤"
+    - "禁止按字面 6-9 点理解『早上』— 须覆盖 00:00-12:00 含凌晨/早场（如 07:30）"
+    - "禁止暴露 match_id/ft_/fc_/lottery_code『周六069』/工具名/『正在查询』『接口延迟』中间态"
+    - "禁止未穷尽 DB 检索（SQL 基准 + direction=all + lottery 交叉验证）就断言『无比赛』"
+  output_template: |
+    6 月 28 日 07:30（北京时间）世界杯：哥伦比亚 vs 葡萄牙（哥伦比亚主场），未开赛。
+    （若用户问「今晚」且今晚窗内无赛，须主动追加：「明早 07:30 有一场世界杯小组赛：哥伦比亚 vs 葡萄牙。」）
+scores:
+  correctness:
+    score: 5
+    reason: "SQL 基准确认 6/28 07:30 哥伦比亚主 vs 葡萄牙客 match_id=4460934 competition_id=1；工具调用真实发生且记录完整；无任何编造数据。aq_1/aq_7 工具与 SQL 基准一致。"
+  completeness:
+    score: 5
+    reason: "终态答案字段齐全：北京时间(07:30)、主客(哥伦比亚主/葡萄牙客)、赛事(世界杯)、状态、对手。expected_behaviors 四条全部覆盖。"
+  no_false_negative:
+    score: 5
+    reason: "Agent 2 在 aq_3 严格穷尽：SQL 基准→direction=upcoming 失败→fc_1 失败→direction=all 成功→lottery 交叉验证。未在 direction=upcoming 返回空时断言无赛，而是继续探索找到 workaround。这正是 expected_behaviors『不得假阴性』的核心要求。"
+  path_efficiency:
+    score: 5
+    reason: "aq_3 用 4 轮逐步揭示三处 tool_logic_gap，每轮假设基于前一轮诊断无机械重试；aq_5/aq_8 复用 aq_3 发现 1-2 轮完成；aq_4/aq_6 1 轮即标注 context_gap。总 12 轮覆盖 10 原子，效率高。"
+  output_discipline:
+    score: 5
+    reason: "aq_9/aq_10 明确守门规则：剥离 match_id/team_id/league_id/lottery_code/工具名/中间态；输出模板合规。Agent 2 自身评估记录虽含 match_id 但属内部证据非用户输出。"
+  context_handling:
+    score: 4
+    reason: "aq_4/aq_6 诚实标注 context_gap，指出无原生 checkpointer 依赖 LLM 层显式串接 team_id+time_window+competition_id，与反馈 #003 关联 #002 上下文丢失一致。未假装能验证多轮继承。扣 1 分因 gap 未解决，依赖 LLM 层纪律而非系统机制。"
+  scenario_compliance:
+    score: 5
+    reason: "A08 是场景 A 轻量查询。Agent 2 聚焦赛程+时间窗+主客，未过度走六段式深度分析，符合 foretell-light-query Skill 分轨规范。"
+overall_score: 4.95
+pass: true
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "get_team_schedule(direction=upcoming) 语义反转：docstring 声明 upcoming=未来赛事，实际返回 2004-2006 历史比赛按 match_time 升序。生产环境现在就在用这个有问题的工具，任何用 upcoming 查未来的调用方都会得到错误结果。"
+    evidence_ref: "path_attempts aq_3 round1 (direction=upcoming, limit=5, no league_id) 返回 2004-2006 历史升序"
+    priority: P1
+    recommended_action: "修复 foretell/tools/schedule.py get_team_schedule：direction=upcoming 时 SQL 应过滤 status_id IN (1,2,3,4,5,9) 且 match_time >= NOW()，按 match_time 升序返回未来赛事。"
+  - gap_type: tool_logic_gap
+    detail: "get_team_schedule(direction=upcoming, league_id='fc_1') 返回 DATA_MISSING 空结果，而 DB 实际有 4 场 2026 世界杯葡萄牙赛事。这是反馈 #003 假阴性的直接根因——原 Foretell 若用此参数组合会得到『葡萄牙世界杯无 upcoming 赛事』的错误结论。league_id 前缀 strip 逻辑在 upcoming 方向失效。"
+    evidence_ref: "path_attempts aq_3 round2 (direction=upcoming, league_id=fc_1) → DATA_MISSING；对照 aq_8 round1 SQL 基准 1 条命中"
+    priority: P1
+    recommended_action: "修复 league_id 前缀解析：fc_/ft_/fm_ 前缀 strip 须在所有 direction 生效；并修复 upcoming+league_id 组合的 WHERE 拼接逻辑。"
+  - gap_type: tool_logic_gap
+    detail: "get_team_schedule 的 league_id 整数过滤器在 direction=upcoming/all 方向被静默忽略：传 league_id=1 仍返回欧国联(2906)/欧洲杯(45)/国际友谊(34)/世欧预(2)等非世界杯赛事。调用方若相信 league_id 过滤会得到错误结论。"
+    evidence_ref: "path_attempts aq_3 round3 (direction=all, league_id=1) 返回 20 条含欧国联/国际友谊等；aq_8 round1 (direction=upcoming, league_id=1) 返回欧洲杯赛事"
+    priority: P1
+    recommended_action: "修复 get_team_schedule SQL 拼接：league_id 参数须统一 strip 前缀后加入 WHERE competition_id=? 条件，且在所有 direction 生效。"
+  - gap_type: context_gap
+    detail: "多轮上下文继承无原生 checkpointer：turn2 须继承 turn1 的 team_id，turn3 须继承 turn2 的时间窗并叠加 competition_id。反馈 #003 关联 #002 已证实此环节历史失败（turn2 未继承世界杯语境导致漏查）。当前完全依赖 LLM 调用层显式串接，无系统级保障。"
+    evidence_ref: "path_attempts aq_4/aq_6 标记 context_gap；反馈 #003 第一轮漏 6/28，第二轮未继承『明天早上』的世界杯语境"
+    priority: P2
+    recommended_action: "引入 LangGraph MemorySaver 或 StoreBackend 持久化会话级 {team_id, competition_id, time_window}；turn2/turn3 自动继承而非依赖 LLM 显式串接。"
+  - gap_type: routing_gap
+    detail: "Skill 层未固化『国家队+时间窗』类问题的主动推断规则：用户说『葡萄牙明早比赛』时，LLM 应在 turn1/turn2 主动预填 competition_id=1（2026 世界杯进行期）作为默认赛事过滤，而非等用户 turn3 主动补出『世界杯』才纠正。"
+    evidence_ref: "反馈 #003 显示用户被迫在 turn3 主动补出世界杯语境才纠正；aq_6 标记此环节依赖 LLM 层"
+    priority: P2
+    recommended_action: "在 foretell-light-query Skill 中增加规则：『国家队 + 时间窗类问题，世界杯进行期默认预填 competition_id=1 过滤，并主动提示该赛事』。"

@@ -1,0 +1,26 @@
+type_id: A17
+case_id: TC-A17-REG-001
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: A17-T0-a1
+  tool: resolve_team
+  params:
+    name: 法国
+  code: OK
+  stub: false
+- round: 1
+  atomic_id: A17-T0-a2
+  tool: get_team_schedule
+  params:
+    team_id: 10234
+    direction: all
+    limit: 10
+  code: OK
+  stub: false
+  count: 10
+satisfied:
+- A17-T0-a1
+- A17-T0-a2
+blocking_gap: null
+route_complete: true

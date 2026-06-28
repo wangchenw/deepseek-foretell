@@ -1,0 +1,43 @@
+[
+  {
+    "doc_id": 2002,
+    "title": "纳米足球数据API",
+    "version": "5.0.251204",
+    "description": "纳米足球数据API接口描述",
+    "server": "https://open.sportnanoapi.com",
+    "tags": [
+      "基础数据包",
+      "实时数据包",
+      "统计数据包",
+      "高阶数据包",
+      "扩展数据包",
+      "指数数据包",
+      "必发数据包",
+      "资料库数据包",
+      "体彩数据包",
+      "新闻资讯数据包",
+      "世界杯专题数据包"
+    ],
+    "path_count": 115,
+    "file": "openapi_2002_纳米足球数据API.json",
+    "status_codes_file": "status_codes_2002.md"
+  },
+  {
+    "doc_id": 2003,
+    "title": "纳米篮球数据API",
+    "version": "5.0.251028",
+    "description": "纳米篮球数据API接口描述",
+    "server": "https://open.sportnanoapi.com",
+    "tags": [
+      "基础数据包",
+      "实时数据包",
+      "统计数据包",
+      "高阶数据包",
+      "指数数据包",
+      "资料库数据包"
+    ],
+    "path_count": 54,
+    "file": "openapi_2003_纳米篮球数据API.json",
+    "status_codes_file": "status_codes_2003.md"
+  }
+]

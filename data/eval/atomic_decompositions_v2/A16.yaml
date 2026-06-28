@@ -1,0 +1,134 @@
+type_id: "A16"
+case_id: "TC-A16-001"
+user_intent_analysis: |
+  本案 type_name=NBA赛程,但生产对话横跨 16 轮且夹杂大量足球话题(清水鼓动vs大阪钢巴、
+  利物浦vs小蜜蜂、英超冷门、历史 4 星推荐等)与口语填充(哈哈/宝子/嘿嘿)。按
+  expected_behaviors「意图对齐 + 归纳优先于罗列 + 数据不足时诚实说明」,原子拆分
+  聚焦 NBA 篮球赛程相关意图段(turn 5-9),其余足球话题归为场景噪声(maintain_context
+  继承但不展开原子)。
+  意图段分组:
+  - turn 5 用户要求确认「雷霆和马刺这场比赛分析和信心指数」。隐含需求:
+    (a) 先定位雷霆 vs 马刺的 NBA 比赛实体(主客、日期、状态);
+    (b) 给出比赛分析与信心指数(星级)。注意用户语气「确认下」表明这是承接
+        之前对话的复核,而非全新查询——但本轮是 NBA 话题首次明确入场。
+  - turn 6 用户回溯「之前四颗星说大分」,要求解释为何改动。隐含需求:
+    Foretell 须能回溯自身此前给出的星级/大小分推荐并说明变动依据;
+    若无历史会话记录须诚实说明无法回溯,不得编造历史推荐。
+  - turn 7 用户问「这次应该是雷霆主场了吧」——要求确认主客场。隐含需求:
+    底库验证雷霆 vs 马刺的主客方位;用户带不确定语气,Foretell 须用数据确认
+    而非附和。
+  - turn 8 是确认收尾,无新数据需求。
+  - turn 9 用户主动提供「竞彩大小分是 219.5」——要求将该盘口数据整合进
+    分析。隐含需求:Foretell 须结合用户提供的盘口与底库赛事数据综合分析,
+    不能忽略用户输入也不能盲从。
+  隐含需求汇总:
+  (1) NBA 球队实体解析须能从「雷霆」「马刺」拿到 basketball_team.id;
+      但工具层 resolve_team 只查 football_team(basketball_team 不在候选),
+      需 LLM 层降级或 SQL 兜底——这是 A16 的核心 implementation_gap 风险
+      (参考 P0 B09 篮球工具链缺失);
+  (2) get_team_schedule 文档写 football_team.id,实测传篮球 team_id 会
+      静默返回足球数据(跨运动 ID 碰撞,10219 既是拉科鲁尼亚足球也是雷霆篮球),
+      是 tool_logic_gap 风险;
+  (3) get_schedule_by_date(sport=basketball, league_preset=NBA) 是 NBA 赛程
+      唯一可用工具路径;
+  (4) 多轮上下文跨话题(足球↔篮球↔盘口)继承是历史失败点;
+  (5) 信心指数/星级推荐须有数据支撑,不得编造;历史推荐回溯须依赖会话记录,
+      无记录须诚实说明;
+  (6) 终态输出不暴露 match_id/team_id/竞彩编号/工具名/中间态。
+turns:
+  - turn: 5
+    user_text: "我想确认下雷霆和马刺这场比赛分析和信心指数"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {teams: ["雷霆","马刺"], sport: "basketball", expected: "basketball_team.id 雷霆=10219/马刺=10137"}
+        success_criteria: "返回雷霆与马刺的 basketball_team.id(10219/10137);若 resolve_team 仅返回足球候选须识别 sport mismatch 并降级到 SQL 兜底,不得选 football_team.id 冒充篮球"
+        depends_on: []
+      - id: aq_2
+        category: fetch_schedule
+        target: {teams_from: aq_1, sport: "basketball", league: "NBA", target_match: "雷霆 vs 马刺 最近 NBA 场"}
+        success_criteria: "返回雷霆 vs 马刺的 NBA 比赛实体(含 match_id/主客/日期/状态/赛事);优先用 get_schedule_by_date(sport=basketball, league_preset=NBA) 获取;禁止用 get_team_schedule(篮球 team_id) 因静默返回足球数据"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_stats
+        target: {match_from: aq_2, dimension: "比赛分析(球队状态/交锋/主客战绩)"}
+        success_criteria: "返回雷霆/马刺近期战绩、交锋、主客拆分;若篮球统计工具不可达须诚实说明,不得编造"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: synthesize_answer
+        target: {output: "比赛分析+信心指数(星级)", constraint: "信心指数须有数据支撑,归纳优先"}
+        success_criteria: "给出有数据支撑的比赛分析归纳与信心指数;星级须关联具体依据;不暴露 match_id/team_id/工具名"
+        depends_on: [aq_3]
+  - turn: 6
+    user_text: "可是你之前四颗星说大分呢😱"
+    atomics:
+      - id: aq_5
+        category: maintain_context
+        target: {inherit_from_prior_turns: "Foretell 此前给出的 4 星大分推荐", question_type: "回溯历史推荐"}
+        success_criteria: "识别用户要求回溯此前 4 星大分推荐并说明改动依据;若会话记录不可得须诚实说明,不得编造历史推荐"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target: {check: "历史推荐回溯须有会话记录支撑,不得编造"}
+        success_criteria: "若有会话记录则对比说明改动依据;若无记录须显式说明「无法回溯历史推荐,无会话记录」;不编造"
+        depends_on: [aq_5]
+  - turn: 7
+    user_text: "这次应该是雷霆主场了吧"
+    atomics:
+      - id: aq_7
+        category: maintain_context
+        target: {inherit_from_turn: 5, inherit: "雷霆 vs 马刺 NBA 比赛实体"}
+        success_criteria: "继承 turn 5 的比赛实体,识别本轮要求确认主客场;不重置实体"
+        depends_on: [aq_2]
+      - id: aq_8
+        category: cross_validation
+        target: {match_from: aq_2, dimension: "主客方位", action: "底库验证"}
+        success_criteria: "用底库 basketball_match.home_team_id/away_team_id/neutral 验证雷霆是否主场;不得附和用户,须用数据确认"
+        depends_on: [aq_7]
+  - turn: 9
+    user_text: "宝子，竞彩大小分是219.5"
+    atomics:
+      - id: aq_9
+        category: maintain_context
+        target: {inherit_from_turn: 5, inherit: "雷霆 vs 马刺 NBA 比赛 + 已给分析", add: "用户提供大小分 219.5"}
+        success_criteria: "继承 turn 5 比赛实体与已给分析,叠加用户提供的大小分盘口 219.5;不重置实体"
+        depends_on: [aq_2, aq_4]
+      - id: aq_10
+        category: fetch_odds_snapshot
+        target: {match_from: aq_2, user_provided_line: "大小分 219.5", dimension: "竞篮大小分"}
+        success_criteria: "将用户提供的大小分 219.5 与底库赛事得分能力/近期总分交叉验证;若底库无大小分盘口工具须用用户输入为主、底库统计为辅"
+        depends_on: [aq_9]
+      - id: aq_11
+        category: synthesize_answer
+        target: {output: "结合 219.5 大小分的分析更新与信心指数"}
+        success_criteria: "给出大/小分倾向与信心指数,须结合球队得分能力+近期总分+用户提供 219.5;不编造;归纳优先"
+        depends_on: [aq_10]
+hard_constraints:
+  - "实体解析 sport 校验:resolve_team 仅返回足球候选时,须识别「雷霆/马刺」为篮球实体并降级到 SQL 直查 basketball_team,不得选 football_team.id 冒充篮球(P0 B09 篮球工具链缺失关联)"
+  - "禁止用 get_team_schedule(篮球 team_id) 查 NBA 赛程——实测静默返回足球数据(10219 拉科鲁尼亚 vs 雷霆 ID 碰撞),是 tool_logic_gap"
+  - "NBA 赛程须用 get_schedule_by_date(sport=basketball, league_preset=NBA) 路径,或 SQL 直查 basketball_match JOIN basketball_team JOIN basketball_competition"
+  - "主客场须用底库 basketball_match.home_team_id/away_team_id/neutral 字段验证,不得附和用户「应该是雷霆主场了吧」的语气"
+  - "历史推荐回溯须依赖会话记录;无记录须诚实说明「无法回溯」,不得编造 4 星大分推荐历史(expected_behaviors 数据不足诚实说明)"
+  - "信心指数/星级须有数据支撑,不得编造;输出归纳优先于罗列"
+  - "用户提供的大小分 219.5 须整合进分析,不得忽略;底库无对应盘口工具时以用户输入为主、底库统计为辅"
+  - "不暴露 match_id/team_id/竞彩编号/工具名/中间态;不调用 internet_search"
+  - "多轮跨话题上下文继承(足球↔篮球↔盘口)须维护,不得每轮重置已确认实体"
+risk_notes: |
+  最可能在 aq_1(球队实体解析)与 aq_2(赛程查询)出问题。
+  核心怀疑点:
+  (1) resolve_team 只查 football_team,「雷霆」返回 8 个足球候选(大宾汉顿雷霆/
+      苏福尔斯雷霆FC/北方雷霆室内足球队等),无一篮球;「俄克拉荷马城雷霆」
+      ENTITY_NOT_FOUND——NBA 球队实体在工具层完全不可达,需 SQL 兜底;
+  (2) get_team_schedule 文档写 football_team.id 但接受整数 team_id;实测
+      team_id=10219(雷霆篮球 id)返回拉科鲁尼亚(足球 id=10219)的足球赛程,
+      跨运动 ID 碰撞 + 静默返回错误运动数据——是 tool_logic_gap 铁证;
+  (3) get_schedule_by_date(sport=basketball, league_preset=NBA) 实测可用,
+      返回 2026-05-31 NBA 4 场含雷霆(主)vs马刺 08:00——是 NBA 赛程唯一
+      可用工具路径,但需先有日期;无日期时须 LLM 层推断或问用户;
+  (4) resolve_league('NBA') ENTITY_NOT_FOUND,联赛解析也不支持篮球;
+  (5) turn 6 历史推荐回溯依赖会话记录,无原生 checkpointer——同 A08/A15
+      context_gap;
+  (6) turn 7 主客验证需底库字段,工具返回是否含 home_team_id/neutral 须验证。
+  Agent 2 应优先用 SQL 直查 basketball_match JOIN basketball_team JOIN
+  basketball_competition 建立基准,再用 get_schedule_by_date/get_team_schedule
+  工具对照,重点验证跨运动 ID 碰撞与 sport 校验缺失。

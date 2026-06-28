@@ -1,0 +1,17 @@
+type_id: E14
+case_id: TC-E14-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: E14-probe-1
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-28'
+    tier: top
+  code: OK
+  count: 8
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

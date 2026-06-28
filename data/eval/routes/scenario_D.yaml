@@ -1,0 +1,283 @@
+scenario: D
+explored: 10
+entries:
+- type_id: D01
+  type_name: 这场怎么买
+  scenario: D
+  probe_case_id: TC-D01-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D02
+  type_name: 主不败推荐
+  scenario: D
+  probe_case_id: TC-D02-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D03
+  type_name: 让球推荐
+  scenario: D
+  probe_case_id: TC-D03-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D03.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D04
+  type_name: 大小球推荐
+  scenario: D
+  probe_case_id: TC-D04-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D05
+  type_name: 比分玩法
+  scenario: D
+  probe_case_id: TC-D05-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D06
+  type_name: 单场方案
+  scenario: D
+  probe_case_id: TC-D06-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D07
+  type_name: 篮球让分购彩
+  scenario: D
+  probe_case_id: TC-D07-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D08
+  type_name: 胜平负推荐
+  scenario: D
+  probe_case_id: TC-D08-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D09
+  type_name: 稳胆推荐
+  scenario: D
+  probe_case_id: TC-D09-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D09.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D10
+  type_name: 购彩风险提示
+  scenario: D
+  probe_case_id: TC-D10-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false

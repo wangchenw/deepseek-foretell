@@ -1,0 +1,86 @@
+type_id: "A14"
+case_id: "TC-A14-001"
+user_intent_analysis: |
+  本案 14 轮对话的主线是用户分 10 部分(加 11/10 补充)粘贴「v6.0 足球赛事分析工作流 终极完整版」规范文档,
+  要求 Foretell 确认理解并按工作流执行扫盘→单场深度→组合→复盘的四步闭环。
+  A14「球队阵容:大名单/阵容」语义对应的是工作流模块 B/D 中明确列出的工具调用:
+    模块 B 工具调用链:query_match_lineup(用户原文,映射到 foretell 的 get_match_lineup)— 获取双方首发阵容、替补、伤病信息
+    模块 D 工具调用链:query_match_lineup — 获取双方首发阵容、替补、伤病信息(复盘用)
+    模块 B 五要素基本面 - 伤停信息:核心球员缺阵影响评估(依赖阵容)
+  真正触发 A14 执行的是 turn 13「11个步骤严格执行标准」和 turn 14「今日竟足赛事分析」,
+  即用户要求按工作流执行,其中步骤 4(单场深度)与步骤 8(复盘)需调用 get_match_lineup。
+  隐含需求:
+    (1) 单场阵容须含双方 11 首发 + 替补 + 阵型(4-2-3-1 等)+ 队长 + 位置(G/D/M/F)+ 球衣号;
+    (2) 阵容字段须支持「核心球员缺阵影响评估」(模块 B 五要素),即能识别哪些首发/替补是核心;
+    (3) 球队大名单(非单场)在模块 B「伤停信息」中隐含需要——核心球员是否缺阵需对照大名单;
+    (4) 数据须真实可溯源(expected_behaviors「数据不足时诚实说明」),不得编造阵容;
+    (5) 不暴露内部 match_id/player_id/team_id/lineup_id,用球员名+球队名+位置呈现;
+    (6) 多轮上下文:turn 13/14 须继承前 12 轮工作流定义,按步骤执行而非重新解释规范。
+  对话发生时点视为 2026 年 5-6 月(session 28164835)。
+turns:
+  - turn: 13
+    user_text: "11个步骤严格执行标准"
+    atomics:
+      - id: aq_1
+        category: maintain_context
+        target: {inherit_from_turns: 0-12, inherit: v6.0 工作流定义(模块 A/B/C/D/E + 11 步检查清单), execute: true}
+        success_criteria: "继承前 12 轮工作流定义,识别 turn 13 为执行指令;按 11 步清单执行,不重新解释规范;步骤 4/8 涉及 get_match_lineup"
+        depends_on: []
+      - id: aq_2
+        category: resolve_entity
+        target: {match: 今日竟足赛事, expected: 先 get_lottery_schedule(101, today) 取 match_id}
+        success_criteria: "通过 get_lottery_schedule(play_type=101, date=今日) 取当日竞彩赛事 match_id 列表;不得在无 match_id 时调 get_match_lineup"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_result
+        target: {match_id_from: aq_2, dimension: match_lineup, expected_fields: [阵型, 11首发, 替补, 队长, 位置, 球衣号]}
+        success_criteria: "对目标比赛返回双方首发阵容(11 人)+ 替补 + 阵型 + 队长 + 位置(G/D/M/F)+ 球衣号;若 DATA_MISSING 须穷尽 SQL 兜底(football_match_lineup_detail),不得断言无阵容"
+        depends_on: [aq_2]
+  - turn: 14
+    user_text: "今日竟足赛事分析"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherit_from_turn: 13, inherit: match_ids + lineup_results, continue: 深度分析}
+        success_criteria: "继承 turn 13 取得的 match_id 与阵容结果,进入模块 B 单场深度分析(基本面/赔率/模型/风控);不重复取阵容"
+        depends_on: [aq_2, aq_3]
+      - id: aq_5
+        category: fetch_result
+        target: {team_id_from: aq_3, dimension: team_squad, purpose: 伤停核心球员识别}
+        success_criteria: "返回球队大名单(本季注册球员),用于模块 B「伤停信息-核心球员缺阵影响评估」;若无原生工具须 SQL 兜底(football_competition_players_stats 按 season_id+team_id)"
+        depends_on: [aq_3]
+      - id: aq_6
+        category: synthesize_answer
+        target: {present: 阵容+大名单汇总, hide: match_id/player_id/team_id/lineup_id/工具名/中间态}
+        success_criteria: "输出双方首发阵型+11 首发(按位置 G/D/M/F 分组)+ 替补 + 队长标注 + 大名单核心球员;剥离内部 ID;用于深度分析的基本面输入"
+        depends_on: [aq_3, aq_5]
+      - id: aq_7
+        category: apply_guardrails
+        target: {check: no_internal_id, no_fabrication, honest_on_gap, pre_match_vs_review}
+        success_criteria: "守门:无 match_id/player_id/team_id/lineup_id;数据真实可溯源;工具缺失诚实说明;赛前 vs 复盘区分(赛前用预计阵容,复盘用实际阵容)"
+        depends_on: [aq_6]
+hard_constraints:
+  - "单场阵容须含双方 11 首发 + 替补 + 阵型 + 队长 + 位置(G/D/M/F)+ 球衣号(模块 B/D 明确)"
+  - "球队大名单须可获取,用于模块 B「伤停信息-核心球员缺阵影响评估」(五要素基本面)"
+  - "数据真实可溯源,禁止编造阵容(expected_behaviors「数据不足时诚实说明」)"
+  - "get_match_lineup DATA_MISSING 时须穷尽 SQL 兜底(football_match_lineup + football_match_lineup_detail),不得断言无阵容"
+  - "不暴露内部 match_id/player_id/team_id/lineup_id,用球员名+球队名+位置呈现"
+  - "赛前 vs 复盘区分:赛前用预计/confirmed=0 阵容,复盘用 confirmed=1 实际阵容(模块 B vs D)"
+  - "多轮上下文:turn 13/14 须继承前 12 轮工作流定义,按步骤执行而非重新解释"
+  - "调 get_match_lineup 前须先 resolve_match 或 get_lottery_schedule 取 match_id;禁止无 match_id 调用"
+  - "不调用 internet_search 兜底阵容;discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_3/aq_5(阵容/大名单取数)环节出问题。
+  核心怀疑点:
+  (1) get_match_lineup(match_id) 可能对存在数据的 match_id 返回 DATA_MISSING——P0 已发现 get_team_season_stats
+      有此模式(对存在 team_id 返回 DATA_MISSING),get_match_lineup 同源 ORM/SQL 拼接逻辑可能同样失效。
+      本案需复测确认。
+  (2) 球队大名单(非单场)在 foretell 工具集无原生工具——无 get_team_squad,且 DB 无 football_team_player 表
+      (只有 football_match_lineup_detail 单场阵容 + football_competition_players_stats 赛季球员统计)。
+      用户要的「大名单」须从 football_competition_players_stats(season_id+team_id)派生,属 implementation_gap。
+  (3) 阵型字段(home_formation/away_formation)在 football_match_lineup 表,需 JOIN lineup_detail 取球员;
+      工具若只返回 detail 不返回阵型会缺失关键信息。
+  (4) 赛前 vs 复盘:football_match_lineup.confirmed 字段区分(1=正式阵容/0=预计),工具若不区分会混淆。
+  (5) coverage_lineup=1 不代表工具能取到——可能 DB 有数据但工具取数逻辑失效(同 get_team_season_stats)。
+  Agent 2 应优先 SQL 直查 football_match_lineup + football_match_lineup_detail 建立基准,再调 get_match_lineup 对照,
+  确认 tool_logic_gap;并用 football_competition_players_stats 验证大名单 workaround。

@@ -1,0 +1,23 @@
+{
+  "type_id": "H02",
+  "case_id": "TC-H02-001",
+  "steps": [
+    {
+      "tool": "resolve_league",
+      "params": {
+        "name": "英超"
+      },
+      "code": "OK",
+      "stub": false
+    },
+    {
+      "tool": "get_standings",
+      "params": {
+        "league_id": 82
+      },
+      "code": "OK",
+      "count": 30,
+      "stub": false
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+type_id: "A18"
+case_id: "TC-A18-001"
+user_intent_analysis: |
+  用户在连续多轮对话中围绕当日竞彩足球001-009号进行深度分析：先批量筛选推荐方案，
+  再对每场比赛从基本面、战意、伤停、指数异动等多维度交叉验证，最终输出串关方案。
+  隐含需求：对埃因霍温"已提前锁定联赛冠军"这一语义信息，Foretell需要从基本面判断
+  战意低落风险，不能仅凭赔率盲目推荐深盘。用户还明确要求系统在数据不足时诚实说明
+  而不是编造推论。
+turns:
+  - turn: 1
+    user_text: "对今日竞彩足球001-009完整验证，作出两套不同场次的主推方案以及比分六串一。"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {lottery_schedule: "今日竞彩足球001-009", date: "current"}
+        success_criteria: "返回001到009全部竞彩场次列表，包含每场的主客队、联赛、竞彩编号"
+      - id: aq_2
+        category: fetch_stats
+        target: {match_batch: "001-009", dimensions: ["基本面", "近期表现", "主客场优势"]}
+        success_criteria: "每场比赛至少有近期战绩和基本面信息"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: synthesize_answer
+        target: {output: "两套串关方案+比分六串一", constraint: "方案场次不重叠"}
+        success_criteria: "给出两套逻辑清晰、有数据支撑的串关推荐，各附比分预测"
+        depends_on: [aq_2]
+  - turn: 3
+    user_text: "008埃因霍温竞彩只开了-2球胜负平，没开常规胜负平，在埃因霍温已经提前锁定联赛冠军的前提下，还能净胜三个球吗？"
+    atomics:
+      - id: aq_4
+        category: resolve_entity
+        target: {team: "埃因霍温", context: "已提前锁定联赛冠军"}
+        success_criteria: "识别实体为荷甲PSV埃因霍温，并标注当前赛季冠军状态"
+      - id: aq_5
+        category: fetch_intel
+        target: {topic: "战意分析", team: "埃因霍温", scenario: "冠军已定"}
+        success_criteria: "给出战意评估，说明冠军已定对出战积极性的影响"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: apply_guardrails
+        target: {check: "语义精度_锁定排名", assertion: "埃因霍温冠军锁定=战意下降?"}
+        success_criteria: "不能简单断言战意一定低落；需结合对手、欧战资格等因素"
+        depends_on: [aq_5]
+  - turn: 4
+    user_text: "咱们依次从基本面，战意，指数变化来验证方案中001/002/009/006/007这五场比赛。"
+    atomics:
+      - id: aq_7
+        category: fetch_odds_deep
+        target: {matches: ["001", "002", "009", "006", "007"], dimensions: ["基本面", "战意", "指数变化"]}
+        success_criteria: "每场给出三维度分析，指数变化需有具体数据支撑"
+        depends_on: [aq_1]
+hard_constraints:
+  - "批量调用：必须对001-009全部9场完成resolve_lottery_match，不得只查部分场次"
+  - "不得暴露内部match_id、竞彩编号原始字段给用户"
+  - "语义精度：'锁定冠军'不等价于'一定留力'，必须结合对阵情况和欧战因素判断"
+  - "数据不足时诚实说明，不得编造基本面信息"
+  - "比分预测必须有数据基础，不能凭空给出"
+risk_notes: |
+  最高风险点：批量resolve_lottery_match的成功率——9场比赛中部分可能在系统里查不到，
+  特别是非五大联赛的场次（如001麦克阿瑟FC、002柏太阳神等）。如果部分场次解析失败，
+  Foretell是否能正确标注"未找到"而不是静默跳过，是关键判断点。
+  第二风险：埃因霍温"锁定冠军"语义理解——系统是否有机制识别"赛季剩余战意"场景，
+  还是只会机械查赔率数据。

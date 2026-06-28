@@ -1,0 +1,136 @@
+type_id: "X06"
+case_id: "TC-X06-REG-009"
+exploration_summary: |
+  通过 SQL 基准 + resolve_match 双向查询 + 日期 pin 交叉验证，定位到「法国 vs 挪威具体哪场」的答案是：
+  football_match.id=4460928，2026-06-27 03:00 北京时间，世界杯（competition_id=1，round_group=9 round_num=3 小组赛第3轮），
+  挪威(主) vs 法国(客)，neutral=1 中立场，status_id=8 已完场（今天 6/28，6/27 03:00 已结束）。
+  重大发现：resolve_match(home=法国, away=挪威) 正向查询返回 10 候选全部是女足/U17/U19/U21/U23 等非男足国家队场次，
+  完全漏掉 2026 世界杯那场（因该场是挪威主场，home 参数对不上）——这正是反馈 #002 误判的工具层根因。
+  resolve_match(home=挪威, away=法国) 反向查询以 4460928 为 top-1 命中；加 date=2026-06-27 后唯一锁定。
+  DB 中男足国家队法国 vs 挪威历史共 3 场：2026-06-27 世界杯（挪威主）、2014-05-28 国际友谊赛（法国主）、2010-08-12 球会友谊赛（挪威主）。
+  无未来场次。结论与反馈 #002 的纠正完全一致（年份、赛事、主客、时间均吻合）。
+  本 case 护栏焦点是「不输出中间态」，探索过程证明：要命中目标必须经历「正向失败 → 反向成功」的曲折，若把这个过程外露就违反 #002 P0。
+atomics:
+  - atomic_id: aq_1
+    rounds:
+      - round: 1
+        hypothesis: "resolve_team('法国') 应返回法国男足国家队 team_id=10234；SQL 基准对照 football_team"
+        tool_call:
+          name: resolve_team
+          params: {name: 法国}
+          result: "OK, 10 候选，top-1 team_id=10234 法国 national=1 name_en=France"
+        sql_baseline:
+          query: |
+            SELECT id,name_zh,national,name_en FROM football_team
+            WHERE (name_zh IN ('法国','挪威') OR name_en IN ('France','Norway')) LIMIT 10
+          result: "id=10234 法国 national=1 France"
+        comparison: "一致，team_id=10234 双重确认"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "team_id=10234 由工具与 SQL 双重确认"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_2
+    rounds:
+      - round: 1
+        hypothesis: "resolve_team('挪威') 应返回挪威男足国家队 team_id=13820；SQL 基准已在上条查询中同时给出"
+        tool_call:
+          name: resolve_team
+          params: {name: 挪威}
+          result: "OK, 10 候选含 team_id=13820 挪威 national=1 name_en=Norway"
+        comparison: "与 SQL 基准 id=13820 一致"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "team_id=13820 由工具与 SQL 双重确认"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_3
+    rounds:
+      - round: 1
+        hypothesis: "先 SQL 基准：查 football_match 中 (home=10234 AND away=13820) OR (home=13820 AND away=10234) 的所有场次，了解 DB 里法国男足 vs 挪威男足共有几场、最近一场是什么"
+        sql_baseline:
+          query: |
+            SELECT m.id,m.home_team_id,m.away_team_id,m.competition_id,m.match_time_str,m.status_id,m.neutral,
+                   ht.name_zh AS home_name,at.name_zh AS away_name,c.name_zh AS comp_name
+            FROM football_match m
+            JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            JOIN football_competition c ON c.id=m.competition_id
+            WHERE ((m.home_team_id=10234 AND m.away_team_id=13820) OR (m.home_team_id=13820 AND m.away_team_id=10234))
+            ORDER BY m.match_time DESC LIMIT 20
+          result: "3 行：(1) id=4460928 挪威(主) vs 法国(客) 2026-06-27 03:00 世界杯 status=8 neutral=1；(2) id=856879 法国(主) vs 挪威(客) 2014-05-28 03:00 国际友谊赛 status=8 neutral=0；(3) id=816836 挪威(主) vs 法国(客) 2010-08-12 03:15 球会友谊赛 status=8 neutral=0"
+        decision: continue
+      - round: 2
+        hypothesis: "正向 resolve_match(home=法国, away=挪威) 应能命中至少 2014 国际友谊赛（法国主场），看工具返回什么"
+        tool_call:
+          name: resolve_match
+          params: {home: 法国, away: 挪威}
+          result: "OK, count=10 ambiguous，但 10 个候选全部是女足/U17/U19/U21/U23/室内足球队等非男足国家队场次（法国女足U17 vs 挪威女足U17、法国女足 vs 挪威女足 等），2014 国际友谊赛和 2026 世界杯场均未出现在 top-10"
+        comparison: "工具正向查询完全无法命中目标男足场次：2026 世界杯场是挪威主场（home 对不上），2014 法国主场的友谊赛被排名算法埋到 top-10 之外。SQL 基准证明 DB 里男足场次有 3 场，工具正向 0 命中。这是反馈 #002 的根因——单向查询方向反了就漏"
+        decision: continue
+    final_status: satisfied
+    gap_type: routing_gap
+    gap_evidence: |
+      SQL 基准：男足法国 vs 挪威 3 场（含 2026-06-27 世界杯 id=4460928 挪威主）。
+      工具 resolve_match(home=法国, away=挪威)：10 候选全为女足/青年队，0 男足命中。
+      根因：resolve_match 的 home/away 是位置参数，主客反转的场次无法被正向查询命中；且 top-10 排序把 2014 老友谊赛挤出。这不是工具 bug（签名如此），
+      是 skill/orchestration 层缺「正向无男足命中时必须反向重试」的规则 → routing_gap。
+    recommended_next_step: "在 entity resolution skill 中强制规则：resolve_match 当返回候选均非目标男足国家队（或返回 ambiguous 但无 men's national team）时，必须自动用 (away, home) 反向再查一次；两向结果合并去重后再让 LLM 选定"
+
+  - atomic_id: aq_4
+    rounds:
+      - round: 1
+        hypothesis: "反向 resolve_match(home=挪威, away=法国) 应命中 2026 世界杯那场为 top-1"
+        tool_call:
+          name: resolve_match
+          params: {home: 挪威, away: 法国}
+          result: "OK, count=10 ambiguous，top-1 = match_id=4460928 挪威 vs 法国 2026-06-27 03:00 世界杯 status=finished neutral=true round_group=9 round_num=3，其余 9 个为 U19/女足/U17/U20 等"
+        comparison: "反向查询 top-1 与 SQL 基准 id=4460928 完全一致：挪威(主) vs 法国(客)、2026-06-27 03:00、世界杯、已完场、中立场、小组赛第 3 轮。反向查询是命中目标的关键路径"
+        decision: continue
+      - round: 2
+        hypothesis: "用 date=2026-06-27 pin 到唯一候选，验证能否从 ambiguous 收敛为 single"
+        tool_call:
+          name: resolve_match
+          params: {home: 挪威, away: 法国, date: '2026-06-27'}
+          result: "OK, count=1，match_id=4460928，match_status=finished，match_time_beijing=2026-06-27 03:00:00，neutral=true，round_group=9 round_num=3，home_position=22 away_position=2，含 environment（温度湿度风速气压）"
+        comparison: "与 SQL 基准完全一致，date pin 后唯一锁定。工具可信，路径有效"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "反向 + date pin 双重锁定 match_id=4460928 = 挪威(主) vs 法国(客) 2026-06-27 03:00 世界杯，与 SQL 基准 100% 一致"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_5
+    rounds:
+      - round: 1
+        hypothesis: "确认无未来场次——SQL 查 match_time > 2026-06-28 00:00 的男足法国 vs 挪威"
+        sql_baseline:
+          query: |
+            SELECT m.id,ht.name_zh AS home_name,at.name_zh AS away_name,c.name_zh AS comp_name,m.match_time_str,m.status_id,m.neutral
+            FROM football_match m JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id JOIN football_competition c ON c.id=m.competition_id
+            WHERE ((m.home_team_id=10234 AND m.away_team_id=13820) OR (m.home_team_id=13820 AND m.away_team_id=10234))
+              AND m.match_time > UNIX_TIMESTAMP('2026-06-28 00:00:00') LIMIT 5
+          result: "0 行——6/28 之后无未来男足法国 vs 挪威场次"
+        comparison: "无未来场次，目标场就是 2026-06-27 03:00 那场（已完场）"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "SQL 确认无未来男足法国 vs 挪威场次"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_6
+    rounds:
+      - round: 1
+        hypothesis: "综合所有路径产出最终答案。已穷尽：SQL 基准（3 场男足历史）+ resolve_match 正向（0 命中）+ resolve_match 反向（top-1 命中）+ resolve_match 反向+date pin（唯一锁定）+ 未来场次 SQL（0 行）。可下结论"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: routing_gap
+    gap_evidence: |
+      最终结论：法国 vs 挪威具体哪场 = 2026-06-27 03:00 北京时间 世界杯小组赛第 3 轮 挪威(主) vs 法国(客)（中立场，已完场）。
+      与反馈 #002 的纠正完全一致（年份 2026、赛事 世界杯、主客 挪威主场、开球 03:00、id 4460928）。
+      护栏满足：所有「正向未找到 → 反向命中」的中间过程都不出现在用户可见输出，仅呈现最终结论。
+      最终 user-facing 答案：「2026 世界杯小组赛第 3 轮，挪威 vs 法国，6/27 凌晨 03:00 开球（中立场，已完场）」。
+    recommended_next_step: "P2 在 entity resolution skill 中加入双向 resolve_match 规则；P3 探索 resolve_match 排序是否应优先男足国家队 + 顶级赛事，避免 top-10 被女足/青年队占满"

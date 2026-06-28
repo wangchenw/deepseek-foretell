@@ -1,0 +1,18 @@
+type_id: E02
+type_name: 四串一
+scenario: E
+entity_entry: lottery_batch
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 从基本面，伤停战意，数据指数，战术对位，数据变量，历史盘口，市场资金七大核心维度分析两场比赛，做一个主推方案和比分二串一方案。
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

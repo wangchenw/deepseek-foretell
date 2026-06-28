@@ -1,0 +1,28 @@
+type_id: G01
+case_id: TC-G01-REG-004
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: G01-T0-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '004'
+  code: ENTITY_NOT_FOUND
+  stub: false
+- round: 2
+  atomic_id: G01-T0-a1
+  fallback: list_active_lottery
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  stub: false
+  count: 16
+satisfied:
+- G01-T0-a1-fallback
+blocking_gap:
+  type: data_gap
+  description: 周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context 依赖 checkpointer 未测
+  failed_atomic: G01-T0-a1
+route_complete: false

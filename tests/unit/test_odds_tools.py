@@ -43,15 +43,16 @@ def test_get_odds_trend_missing() -> None:
 
 def test_get_same_odds_history() -> None:
     result = _parse(get_same_odds_history.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
-    assert result["data"]["entries"] == []
+    assert result["code"] == "OK"
+    assert result["data"]["count"] >= 1
 
 
 def test_get_kelly() -> None:
     result = _parse(get_kelly.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
+    assert result["code"] == "OK"
+    assert result["data"]["entries"]
 
 
 def test_get_betfair() -> None:
     result = _parse(get_betfair.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
+    assert result["code"] == "OK"

@@ -1,0 +1,23 @@
+type_id: H05
+case_id: TC-H05-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: H05-probe-1
+  tool: resolve_league
+  params:
+    name: 英超
+  code: OK
+  stub: false
+- round: 2
+  atomic_id: H05-probe-2
+  tool: get_standings
+  params:
+    league_id: 82
+  code: OK
+  count: 30
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

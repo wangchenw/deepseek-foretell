@@ -1,0 +1,89 @@
+type_id: "A16"
+case_id: "TC-A16-001"
+classification: "✅"
+classification_reason: |
+  数据库有完整数据能回答用户全部 turn5-9 NBA 话题问题:basketball_team 含雷霆(10219)/
+  马刺(10137)完整实体,basketball_match 含雷霆vs马刺 10 场 NBA 对战(最近 2026-05-31
+  08:00 雷霆主 vs 马刺客 季后赛 match_id=3921754 neutral=0),lottery_jclq_odds 含竞篮
+  大小分 dxf=214.5。SQL 直查路径完整可行,工具层 stub/跨运动碰撞不阻塞数据获取。
+
+path_assessment: |
+  路径清晰且数据正确:
+  1) 球队实体定位:basketball_team WHERE name_zh LIKE '%雷霆%'/'%马刺%' → 10219/10137
+  2) NBA 赛程查询:basketball_match JOIN basketball_team JOIN basketball_competition,
+     WHERE (home_team_id=10219 OR away_team_id=10219) AND 对手=马刺,返回 10 场含
+     match_id/主客/日期/状态/赛事/比分/neutral 字段
+  3) 主客验证(turn7):2026-05-31 场 home_team_id=10219(雷霆) neutral=0 → 雷霆主场,
+     与用户猜测一致,但须用数据确认而非附和
+  4) 比赛分析(turn5):可由 basketball_match 历史赛事聚合近期战绩/交锋;
+     赛季排名若有 basketball_points_table_team 表可查
+  5) 竞篮大小分(turn9):lottery_jclq_odds(issue=260530, issue_num=6305)返回
+     sf/rf/dxf/sfc 全玩法赔率,大小分=214.5,与用户 219.5 mismatch
+  6) 信心指数/星级:须基于可得数据(赛程+主客+赛季排名+大小分盘口)合成,不得编造
+  7) turn6 历史推荐回溯:依赖会话记录,无原生 checkpointer,须诚实说明无法回溯
+
+  工具层路径:
+  - 可用:get_schedule_by_date(sport=basketball, league_preset=NBA, date=2026-05-31)
+    返回 match_id=3921754 home=雷霆 away=马刺(workaround,需先有日期)
+  - 可用:get_lottery_schedule(play_type=201, date=2026-05-31) 返回竞篮 entries
+  - 禁用:get_team_schedule(10219) 静默返回拉科鲁尼亚足球(跨运动 ID 碰撞)
+  - 禁用:get_recent_form(10219) 同样静默返回足球数据
+  - 不可用:resolve_team('雷霆'/'马刺') 仅查 football_team;get_h2h/get_team_season_stats
+    对篮球 team_id DATA_MISSING
+
+exploration_sufficiency: |
+  探索充分:
+  (1) SQL 直查 basketball_team 确认雷霆=10219/马刺=10137(含跨运动 ID 碰撞提示);
+  (2) SQL 直查 basketball_match JOIN 验证雷霆vs马刺 10 场 NBA 对战,最近 5 场季后赛,
+      最近一场=2026-05-31 08:00 雷霆主,主客方位/状态/赛事/neutral 字段齐全;
+  (3) SQL 直查 lottery_jclq_odds 验证竞篮大小分 dxf=214.5,与用户 219.5 mismatch 确认;
+  (4) 参考旧 path_attempts_v2 验证工具层 gap(resolve_team/get_team_schedule/
+      get_recent_form/get_h2h/get_team_season_stats 对篮球的行为);
+  (5) 验证 get_schedule_by_date/get_lottery_schedule workaround 路径可用性。
+  未穷尽验证:未抽取 basketball_match.home_scores/away_scores 具体比分内容(字段存在,
+  旧 path 已抽测雷霆近期 5 场完场含比分);未验证 basketball_points_table_team 是否
+  含 NBA 当前赛季排名(不影响主路径,赛程实体已足)。
+
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "resolve_team 仅查 football_team,basketball_team 不在数据源;NBA 球队实体解析在工具层完全不可达"
+    evidence_ref: "foretell/tools 实体解析工具;SQL 基准证明 basketball_team 含雷霆/马刺"
+    priority: "P1"
+    recommended_action: "修复 resolve_team 数据源同时查 football_team 与 basketball_team,返回携带 sport 字段供 LLM 消歧;或增加 sport 参数显式指定查询表"
+  - gap_type: "tool_logic_gap"
+    detail: "get_team_schedule/get_recent_form 接受篮球 team_id 但静默返回足球数据(跨运动 ID 碰撞 10219=拉科鲁尼亚足球),无 sport 校验,返回 OK 但运动类型完全错误"
+    evidence_ref: "foretell/tools/crazy_sports/schedule.py + mysql_client.py;旧 path aq_2/aq_3 验证"
+    priority: "P1"
+    recommended_action: "修复工具接受 sport 参数,按 sport 路由到 basketball_match/football_match;team_id 不属于指定 sport 表时返回 ENTITY_NOT_FOUND 而非静默返回另一运动数据"
+  - gap_type: "data_gap"
+    detail: "用户 turn9 提供大小分 219.5 与底库 dxf=214.5 不一致(差 5 分)"
+    evidence_ref: "lottery_jclq_odds dxf 字段 vs 用户输入"
+    priority: "P2"
+    recommended_action: "Skill 层规则化:用户提供盘口与底库不一致时显式指出差异并请用户确认,不盲从不忽略"
+  - gap_type: "context_gap"
+    detail: "多轮跨话题(足球↔篮球↔盘口)继承 + turn6 历史推荐回溯无原生 checkpointer"
+    evidence_ref: "atomic aq_5/aq_7/aq_9"
+    priority: "P2"
+    recommended_action: "引入会话级 checkpointer 持久化 {比赛实体, 历史推荐};无记录时显式说明「无法回溯历史推荐」,不得编造"
+
+recommended_answer_path: |
+  生产 Foretell 答题路径(数据层已验证可行):
+  1. 球队实体:SQL 直查 basketball_team WHERE name_zh LIKE '%雷霆%'/'%马刺%' → 10219/10137
+     (禁用 resolve_team,因仅查 football_team);
+  2. NBA 赛程:SQL 直查 basketball_match JOIN basketball_team JOIN basketball_competition,
+     WHERE (home_team_id=10219 OR away_team_id=10219) AND 对手=马刺 ORDER BY match_time_str DESC
+     → 最近一场 2026-05-31 08:00 雷霆主 vs 马刺客 季后赛 match_id=3921754 neutral=0;
+     或工具路径 get_schedule_by_date(sport=basketball, league_preset=NBA, date=2026-05-31);
+  3. 比赛分析(turn5):聚合 basketball_match 历史赛事得近期战绩/交锋;主客拆分按
+     home_team_id/away_team_id 分组;若有 basketball_points_table_team 取赛季排名;
+  4. 主客验证(turn7):用 home_team_id=10219(雷霆) + neutral=0 确认雷霆主场,
+     不附和用户语气「应该是雷霆主场了吧」;
+  5. 信心指数:基于赛程+主客+赛季排名+大小分盘口合成,列明依据,不编造星级;
+  6. turn6 历史推荐回溯:无会话记录时显式说明「无法回溯此前 4 星大分推荐」,
+     不得编造历史推荐;
+  7. turn9 大小分:SQL 直查 lottery_jclq_odds(issue=今日, issue_num=对应编号)取
+     dxf=214.5;或工具 get_lottery_schedule(play_type=201, date=2026-05-31);
+     显式指出用户 219.5 与底库 214.5 mismatch,请用户确认;结合球队得分能力
+     (basketball_match 历史总分聚合)给出大/小分倾向;
+  8. 全程不暴露 match_id/team_id/竞彩编号/工具名;归纳优先于罗列;
+     统计维度缺失时降级标注「篮球球队统计维度当前工具不可得,已用赛程+主客+盘口合成」。

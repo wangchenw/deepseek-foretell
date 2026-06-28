@@ -1,0 +1,1354 @@
+[
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/category/list",
+    "summary": "获取分类列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/country/list",
+    "summary": "获取国家/地区列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/list",
+    "summary": "获取赛事列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/rule/list",
+    "summary": "获取赛事赛制列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/list",
+    "summary": "获取球队列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/list",
+    "summary": "获取球员列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach/list",
+    "summary": "获取教练列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/referee/list",
+    "summary": "获取裁判列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/venue/list",
+    "summary": "获取场馆列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/honor/list",
+    "summary": "获取荣誉列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/list",
+    "summary": "获取赛季列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/stage/list",
+    "summary": "获取阶段列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/data/more/update",
+    "summary": "获取数据更新",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/recent/match/list",
+    "summary": "获取变动比赛列表",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/schedule/diary",
+    "summary": "获取赛程赛果列表-日期查询",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/schedule/param",
+    "summary": "获取赛程赛果列表-维度查询",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/live",
+    "summary": "获取实时统计数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/trend/live",
+    "summary": "获取实时比赛趋势",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/trend/detail",
+    "summary": "获取单场比赛趋势详情",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/lineup/detail",
+    "summary": "获取比赛阵容详情",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/team_stats/list",
+    "summary": "获取比赛球队统计列表",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/half/team_stats/list",
+    "summary": "获取比赛球队统计(半全场)列表",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/player_stats/list",
+    "summary": "获取比赛球员统计列表",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/stream/urls_free",
+    "summary": "获取版权比赛直播地址",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/stream/video_collection",
+    "summary": "获取版权比赛集锦录像地址",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/table/live",
+    "summary": "获取实时积分榜数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/deleted",
+    "summary": "获取删除数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/analysis",
+    "summary": "获取比赛分析数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/team_stats/detail",
+    "summary": "获取历史比赛球队统计数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/half/team_stats/detail",
+    "summary": "获取历史比赛球队统计(半全场)数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/player_stats/detail",
+    "summary": "获取历史比赛球员统计数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/live/history",
+    "summary": "获取历史比赛统计数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/compensation/list",
+    "summary": "获取比赛历史同赔统计列表",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/bracket",
+    "summary": "获取淘汰阶段对阵图数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/table/detail",
+    "summary": "获取赛事积分榜数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/stats/detail",
+    "summary": "获取赛事统计详情",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/intelligence/list",
+    "summary": "获取情报列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/intelligence/list",
+    "summary": "获取比赛情报列表 New",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/best_lineup/list",
+    "summary": "获取赛季轮次最佳阵容列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/squad/list",
+    "summary": "获取球队阵容列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/injury/list",
+    "summary": "获取球队伤停列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/honor/list",
+    "summary": "获取球队荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/person/list",
+    "summary": "获取球队教练组列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/transfer/list",
+    "summary": "获取球员转会列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/honor/list",
+    "summary": "获取球员荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/market/list",
+    "summary": "获取球员身价列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach/history/list",
+    "summary": "获取教练执教履历列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach/honor/list",
+    "summary": "获取教练荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/ranking/fifa/men",
+    "summary": "获取国家队FIFA男子排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/ranking/fifa/women",
+    "summary": "获取国家队FIFA女子排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/ranking/club",
+    "summary": "获取俱乐部排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/highlight/detail",
+    "summary": "获取比赛事件动图",
+    "tag": "扩展数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/live",
+    "summary": "获取实时指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/history",
+    "summary": "获取单场比赛指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/update",
+    "summary": "获取指数更新数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/half/live",
+    "summary": "获取实时半场指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/half/history",
+    "summary": "获取单场比赛半场指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/half/update",
+    "summary": "获取半场指数更新数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/europe/company/list",
+    "summary": "获取百欧公司列表",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/europe/live",
+    "summary": "获取实时百欧指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/europe/history",
+    "summary": "获取单场比赛百欧指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/bf/live",
+    "summary": "获取实时必发数据",
+    "tag": "必发数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/odds/bf/history",
+    "summary": "获取单场比赛必发数据",
+    "tag": "必发数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/list",
+    "summary": "获取比赛列表",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/schedule/season",
+    "summary": "获取赛程赛果列表-赛季查询",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/table/detail",
+    "summary": "获取赛季积分榜数据",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/stats/detail",
+    "summary": "获取赛季统计详情",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/archive",
+    "summary": "获取打包数据地址",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/lottery/match/list",
+    "summary": "获取体彩比赛关联列表",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/sports/lottery/revise",
+    "summary": "获取体彩数据修正",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/jc/odds",
+    "summary": "获取竞彩比赛指数",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/jc/result",
+    "summary": "获取竞彩比赛开奖结果",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/bd/odds",
+    "summary": "获取北单指数",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/bd/result",
+    "summary": "获取北单开奖结果",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/bd/sf_odds",
+    "summary": "获取北单胜负过关指数",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/bd/sf_result",
+    "summary": "获取北单胜负过关开奖结果",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/zc/matches",
+    "summary": "获取传统足彩赛程",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v2/sports/zc/result",
+    "summary": "获取传统足彩开奖结果",
+    "tag": "体彩数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/sports/news/information/list",
+    "summary": "获取资讯列表",
+    "tag": "新闻资讯数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/ability/list",
+    "summary": "获取球员能力值列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/salary/list",
+    "summary": "获取球员薪资列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/ability/list",
+    "summary": "获取球队能力值列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/detail",
+    "summary": "获取赛事详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/detail",
+    "summary": "获取球队详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player/detail",
+    "summary": "获取球员详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach/detail",
+    "summary": "获取教练详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/referee/detail",
+    "summary": "获取裁判详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/venue/detail",
+    "summary": "获取场馆详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/honor/detail",
+    "summary": "获取荣誉详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/schedule/detail",
+    "summary": "获取赛程赛果详情",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/detail/live",
+    "summary": "获取实时统计数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/stat/live",
+    "summary": "获取比赛球队球员统计数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/match/odds/live",
+    "summary": "获取实时指数数据(专题包)",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_lineup/detail",
+    "summary": "获取球队阵容数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_injury/detail",
+    "summary": "获取球队伤停数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_transfer/detail",
+    "summary": "获取球队转会数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_honor/detail",
+    "summary": "获取球队荣誉数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_person/detail",
+    "summary": "获取球队教练组数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_ability/detail",
+    "summary": "获取球队能力值数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player_transfer/detail",
+    "summary": "获取球员转会数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player_honor/detail",
+    "summary": "获取球员荣誉数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player_market/detail",
+    "summary": "获取球员身价数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player_ability/detail",
+    "summary": "获取球员能力值数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/player_salary/detail",
+    "summary": "获取球员薪资数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach_history/detail",
+    "summary": "获取教练执教履历数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/coach_honor/detail",
+    "summary": "获取教练荣誉数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/season/best_lineup/detail",
+    "summary": "获取赛季最佳阵容数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/compensation/detail",
+    "summary": "获取比赛历史同赔数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/intelligence/detail",
+    "summary": "获取比赛情报数据",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/ranking/fifa/live",
+    "summary": "获取FIFA实时排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/squad/history/detail",
+    "summary": "获取球队历史阵容",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team/record/list",
+    "summary": "获取球队记录列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition/record/list",
+    "summary": "获取赛事记录列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/team_record/detail",
+    "summary": "获取球队记录列表",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2002,
+    "api_title": "纳米足球数据API",
+    "method": "GET",
+    "path": "/api/v5/football/competition_record/detail",
+    "summary": "获取赛事记录列表",
+    "tag": "世界杯专题数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/category/list",
+    "summary": "获取分类列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/country/list",
+    "summary": "获取国家/地区列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/competition/list",
+    "summary": "获取赛事列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/competition/rule/list",
+    "summary": "获取赛事赛制列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/team/list",
+    "summary": "获取球队列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/list",
+    "summary": "获取球员列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/coach/list",
+    "summary": "获取教练列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/venue/list",
+    "summary": "获取场馆列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/honor/list",
+    "summary": "获取荣誉列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/season/list",
+    "summary": "获取赛季列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/stage/list",
+    "summary": "获取阶段列表",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/data/more/update",
+    "summary": "获取数据更新",
+    "tag": "基础数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/recent/match/list",
+    "summary": "获取变动比赛列表",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/schedule/diary",
+    "summary": "获取赛程赛果列表-日期查询",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/schedule/param",
+    "summary": "获取赛程赛果列表-维度查询",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/live",
+    "summary": "获取实时统计数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/trend/live",
+    "summary": "获取实时比赛趋势",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/shoot/point/live",
+    "summary": "获取实时比赛投篮点",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/trend/detail",
+    "summary": "获取单场比赛趋势详情",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/shoot/point",
+    "summary": "获取单场比赛投篮点数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/stream/urls_free",
+    "summary": "获取版权比赛直播地址",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/stream/video_collection",
+    "summary": "获取版权比赛集锦录像地址",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/deleted",
+    "summary": "获取删除数据",
+    "tag": "实时数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/analysis",
+    "summary": "获取比赛分析数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/live/history",
+    "summary": "获取历史比赛统计数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/compensation/list",
+    "summary": "获取比赛历史同赔统计列表",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/season/bracket",
+    "summary": "获取淘汰阶段对阵图数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/competition/table/detail",
+    "summary": "获取赛事积分榜数据",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/competition/stats/detail",
+    "summary": "获取赛事统计详情",
+    "tag": "统计数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/intelligence/list",
+    "summary": "获取情报列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/intelligence/list",
+    "summary": "获取比赛情报列表 New",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/team/squad/list",
+    "summary": "获取球队阵容列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/team/injury/list",
+    "summary": "获取球队伤停列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/team/honor/list",
+    "summary": "获取球队荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/ability/list",
+    "summary": "获取球员能力值列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/transfer/list",
+    "summary": "获取球员转会列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/honor/list",
+    "summary": "获取球员荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/career/list",
+    "summary": "获取球员职业生涯列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/player/salary/list",
+    "summary": "获取球员薪资列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/coach/history/list",
+    "summary": "获取教练执教履历列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/coach/honor/list",
+    "summary": "获取教练荣誉列表",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/ranking/fiba/men",
+    "summary": "获取国家队FIBA男子排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/ranking/fiba/women",
+    "summary": "获取国家队FIBA女子排名",
+    "tag": "高阶数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/live",
+    "summary": "获取实时指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/history",
+    "summary": "获取单场比赛指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/update",
+    "summary": "获取指数更新数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/half/live",
+    "summary": "获取实时半场指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/half/history",
+    "summary": "获取单场比赛半场指数数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/odds/half/update",
+    "summary": "获取半场指数更新数据",
+    "tag": "指数数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/list",
+    "summary": "获取比赛列表",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/match/schedule/season",
+    "summary": "获取赛程赛果列表-赛季查询",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/season/table/detail",
+    "summary": "获取赛季积分榜数据",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/season/stats/detail",
+    "summary": "获取赛季统计详情",
+    "tag": "资料库数据包"
+  },
+  {
+    "doc_id": 2003,
+    "api_title": "纳米篮球数据API",
+    "method": "GET",
+    "path": "/api/v5/basketball/archive",
+    "summary": "获取打包数据地址",
+    "tag": "资料库数据包"
+  }
+]

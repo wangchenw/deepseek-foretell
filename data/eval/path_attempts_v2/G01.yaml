@@ -1,0 +1,195 @@
+type_id: "G01"
+case_id: "TC-G01-REG-004"
+summary: |
+  G01 是 2 轮比分预测追问。turn 1 用"周二004 巴黎 VS 拜仁"定位欧冠半决赛巴黎vs拜仁（2026-04-29 03:00 北京），要求胜平负+比分完整六段；
+  turn 2 仅"比分预测"是 follow-up，要求保持同场定位、给出比分区间、不重复完整六段。
+  路径探索发现两个关键 gap：
+  ①resolve_lottery_match 不带 date 时静默返回最新一期"周二004"（基多体大 vs 时刻准备，2026-05-27 解放者杯），与用户意图（巴黎vs拜仁）完全错位——tool_logic_gap；
+  ②resolve_lottery_match 的 date 参数语义是 match_time 日期（2026-04-29）而非彩票"周二"开售日期（2026-04-28），后者返回 ENTITY_NOT_FOUND——parameter_gap。
+  SQL 基准 + 带 date=match_time 的工具调用一致定位到 lottery_jczq_odds.id=2039404（issue=260428, issue_num=2004, 巴黎圣曼 vs 拜仁, 欧冠, bf/spf/rq/jq/bqc 全字段已拿到），
+  football_match.id=4531806（已完赛），get_odds_snapshot 返回欧赔（公司13: 2.55/3.40/2.75；公司9: 2.30/3.80/2.63）+ 亚盘（平手盘 0.85/0.0/1.07）。
+  bf 字段按 column_comment 固定 31 项顺序切片后，最低赔率（最高概率比分）为 2:1(8.50) 与 1:1(8.50)，次低 1:2(8.75)、0:1(15.50)、1:0(15.00)——比分区间可锚定 2-3 球。
+  checkpointer 存在（foretell/backends.py: MemorySaver/PostgresSaver），maintain_context 在生产可工作；eval helper 单轮调用无法模拟多轮状态，但路径结论基于 turn 1 已定位的 issue/issue_num 可继承。
+atomics:
+  - atomic_id: aq_1
+    rounds:
+      - round: 1
+        hypothesis: "用户给'周二004'，先看 lottery_jczq_odds 表结构与 issue_num 字段，再用 short_home/short_away 含巴黎/拜仁做 SQL 基准定位"
+        schema_query: |
+          SELECT column_name, column_type, column_comment FROM information_schema.columns
+          WHERE table_schema='data_center' AND table_name='lottery_jczq_odds'
+          ORDER BY ordinal_position
+        schema_result: "确认字段：issue(期号int)、issue_num(序号int)、short_home/short_away/short_comp(简称)、home/away/comp(全称)、match_time_str、sell_status、spf/rq/bf/jq/bqc；bf 注释明确给出固定 31 项比分顺序"
+        decision: continue
+      - round: 2
+        hypothesis: "SQL 基准：用 short_home/short_away 含巴黎或拜仁模糊匹配，按 match_time 倒序，找到欧冠巴黎vs拜仁的 issue/issue_num"
+        sql_baseline:
+          query: |
+            SELECT id, issue, issue_num, short_home, short_away, short_comp,
+                   home, away, comp, match_time_str, sell_status
+            FROM lottery_jczq_odds
+            WHERE (short_home LIKE '%巴黎%' OR short_away LIKE '%巴黎%'
+                   OR short_home LIKE '%拜仁%' OR short_away LIKE '%拜仁%')
+            ORDER BY match_time DESC LIMIT 20
+          result: "巴黎圣曼 vs 拜仁（欧冠，2026-04-29 03:00）对应 id=2039404, issue=260428, issue_num=2004；同期还有 5-7 拜仁vs巴黎圣曼（issue=260506, issue_num=3007）"
+        tool_call:
+          name: resolve_lottery_match
+          params: {play_type: "101", code: "周二004"}
+          result: |
+            code=OK 但返回 lottery_id=2039988, issue=260526, issue_num=2004,
+            home_name="基多体大", away_name="时刻准备", league_name="解放者杯",
+            date=2026-05-27, match_id=null —— 与用户意图（巴黎vs拜仁）完全错位
+        comparison: "重大不一致：工具不带 date 时静默取最新一期同名 code 的场次，SQL 基准证明用户要的是 issue=260428 的巴黎vs拜仁。这是 tool_logic_gap——工具默认行为会返回错误场次而无任何警告，对生产致命"
+        decision: continue
+      - round: 3
+        hypothesis: "工具需要 date 才能定位正确期次；试 date=2026-04-28（彩票'周二'开售日，issue=260428 的 28）"
+        tool_call:
+          name: resolve_lottery_match
+          params: {play_type: "101", code: "周二004", date: "2026-04-28"}
+          result: "code=ENTITY_NOT_FOUND —— 工具不接受'周二开售日'语义"
+        comparison: "SQL 基准证明 issue=260428 issue_num=2004 在库存在；工具拒绝该 date → parameter_gap（date 语义不明）"
+        decision: continue
+      - round: 4
+        hypothesis: "date 语义可能是 match_time 日期（2026-04-29 03:00 北京），试之"
+        tool_call:
+          name: resolve_lottery_match
+          params: {play_type: "101", code: "周二004", date: "2026-04-29"}
+          result: |
+            code=OK，lottery_id=2039404, issue=260428, issue_num=2004,
+            home_name=巴黎圣曼, away_name=拜仁, league_name=欧冠,
+            odds={spf:2.22,3.80,2.41; rq:-1,4.55,4.20,1.49; bf:31项; jq:8项; bqc:9项},
+            match_id=null
+        comparison: "工具结果与 round 2 SQL 基准完全一致（同一行 id=2039404）——工具可信，但前提是必须传 match_time 日期"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: tool_logic_gap
+    gap_evidence: |
+      tool_logic_gap（严重）：resolve_lottery_match 不带 date 参数时静默返回最新一期同名 code 场次（基多体大 vs 时刻准备，2026-05-27 解放者杯），与用户"周二004 巴黎 VS 拜仁"意图错位，无任何 ambiguous/警告提示。
+      SQL 基准：SELECT id, issue, issue_num, short_home, short_away FROM lottery_jczq_odds WHERE short_home LIKE '%巴黎%' AND short_away LIKE '%拜仁%' → id=2039404, issue=260428, issue_num=2004, 欧冠, 2026-04-29 03:00。
+      工具调用：resolve_lottery_match(play_type=101, code=周二004) → 返回 id=2039988, 基多体大 vs 时刻准备。
+      二者 id 不同（2039404 vs 2039988），主客队不同（巴黎vs拜仁 vs 基多体大vs时刻准备），赛事不同（欧冠 vs 解放者杯）。
+      parameter_gap（附带）：工具 date 参数语义是 match_time 日期（2026-04-29）而非彩票期号开售日（2026-04-28）；后者 ENTITY_NOT_FOUND，前者 OK。docstring 只写"开奖/销售日期"，与实际行为不符，会误导调用方。
+    recommended_next_step: |
+      P1 修复 resolve_lottery_match：①不带 date 时若同名 code 跨多期存在，必须返回 ambiguous（列出所有候选 issue+主客队），禁止静默取最新；②docstring 明确 date 语义=match_time 所在日期，或同时接受 issue 开售日并做映射；
+      ③在 lottery_jczq_odds.code 字段（如不存在应派生）上做 (code, date) 唯一性约束校验。
+  - atomic_id: aq_2
+    rounds:
+      - round: 1
+        hypothesis: "aq_1 已拿到 bf/spf/rq 完整赔率串；同时尝试把 lottery 映射到 football_match 取 match_id 调 get_odds_snapshot 做交叉"
+        sql_baseline:
+          query: |
+            SELECT id, home_team_id, away_team_id, competition_id, match_time_str, status_id
+            FROM football_match
+            WHERE home_team_id IN (SELECT team_id FROM football_team WHERE team_name LIKE '%巴黎%')
+              AND away_team_id IN (SELECT team_id FROM football_team WHERE team_name LIKE '%拜仁%')
+              AND match_time_str LIKE '2026-04-29%' LIMIT 10
+          result: "（通过 resolve_match 工具间接验证）match_id=4531806, home_team_id=10368, away_team_id=10016, competition_id=46(欧冠), status_id=8(完赛), match_time_str=2026-04-29 03:00:00"
+        tool_call:
+          name: get_odds_snapshot
+          params: {match_id: "4531806"}
+          result: |
+            code=OK，european=[
+              {company_id:13, odd1:2.55, odd2:3.40, odd3:2.75},
+              {company_id:5,  odd1:2.30, odd2:3.90, odd3:2.70},
+              {company_id:9,  odd1:2.30, odd2:3.80, odd3:2.63},
+              {company_id:3,  odd1:2.34, odd2:4.05, odd3:2.66}],
+            asian=[{company_id:3, 0.80/0.0/1.08}, {company_id:0, 0.85/0.0/1.01}, ...] —— 平手盘，巴黎略占优
+        comparison: |
+          欧赔公司13(2.55/3.40/2.75)与lottery spf(2.22/3.80/2.41)方向一致（巴黎优），数值有差异属正常（不同公司/抽水）。
+          亚盘平手盘(0)与lottery rq(-1)让一球方向一致——巴黎需赢2球才让胜，与"巴黎小胜或平"的bf主推(2:1,1:1)吻合。
+          数据交叉可信，aq_2 满足。
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "lottery_jczq_odds 的 spf/rq/bf 字段与 football_match 的 football_odds_europe/asian 方向一致，两套数据源互相印证；bf 字段是比分预测的主基准"
+    recommended_next_step: "比分预测应优先用 lottery_jczq_odds.bf（官方竞彩比分赔率，31 项全覆盖），用 football_odds_europe 做倾向校验"
+  - atomic_id: aq_3
+    rounds:
+      - round: 1
+        hypothesis: "turn 1 要求完整六段分析（胜平负+比分），不需新工具，基于 aq_1/aq_2 数据合成"
+        synthesis_basis: |
+          spf=2.22/3.80/2.41 → 巴黎主胜优（隐含概率≈45%），平≈26%，客胜≈41%（注意 2.41 客胜不低，拜仁客战实力强）；
+          rq=-1,4.55/4.20/1.49 → 让一球下让负1.49低赔，意味着拜仁+1让球赢概率高，暗示巴黎小胜或平；
+          bf 最低赔率：2:1=8.50, 1:1=8.50, 1:2=8.75, 1:0=15.00, 0:1=15.50 → 进球数2-3球为主；
+          欧赔公司13: 2.55/3.40/2.75 与亚盘平手盘印证"势均力敌、巴黎略占优"。
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "synthesis_answer 不需工具，基于已验证数据合成；输出六段：定位/对阵/赔率倾向/让球口径/比分倾向/风险提示"
+    recommended_next_step: "六段输出模板应包含：①比赛定位（赛事+北京开赛时间，不暴露 match_id/lottery 编号）②主客排名 ③胜平负三选倾向+让球口径 ④比分倾向3-5个 ⑤历史交锋/近期状态（如有）⑥风险提示"
+  - atomic_id: aq_4
+    rounds:
+      - round: 1
+        hypothesis: "turn 2 '比分预测' 是 follow-up，应复用 turn 1 的 match 定位；先确认代码库是否有 checkpointer"
+        code_inspection: |
+          foretell/backends.py: create_checkpointer(deploy_env) → dev 用 MemorySaver，prod 用 PostgresSaver；
+          foretell/agent.py L41: checkpointer=create_checkpointer(deploy_env) 注入到 deepagents；
+          foretell/backends.py L67: create_store 同样支持 InMemoryStore/PostgresStore。
+          结论：生产 agent 具备会话级 checkpointer，thread_id 维度可继承 turn 1 的 state（含已定位的 issue/issue_num/match_id）。
+        tool_call:
+          name: (no tool — context inheritance via LangGraph thread state)
+          params: {thread_id: "<session>", inherits_turn1_state: true}
+          result: "eval helper 单轮调用无法模拟多轮 thread 状态，但生产路径可行：turn 2 触发时 agent state 已含 turn 1 解析出的 issue=260428, issue_num=2004, match_id=4531806"
+        comparison: "checkpointer 存在 → maintain_context 在生产可工作；eval harness 层面是 context_simulation_gap（不是生产 context_gap）"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "foretell/backends.py L38-64 实现了 MemorySaver/PostgresSaver 双环境 checkpointer，foretell/agent.py L41 注入到 agent。生产环境 turn 2 可继承 turn 1 state。eval helper 单轮模式无法端到端验证多轮继承，但路径逻辑成立。"
+    recommended_next_step: "eval 流水线应增加 multi-turn thread 模拟（用同一 thread_id 串行 invoke 两次），以端到端验证 maintain_context；当前 eval harness 限制不构成生产 gap"
+  - atomic_id: aq_5
+    rounds:
+      - round: 1
+        hypothesis: "turn 2 聚焦比分，aq_1 已拿到 bf 串；本轮只需按 column_comment 固定顺序切片成 (比分→赔率) 列表，识别低赔率比分"
+        bf_field_order: "1:0,2:0,2:1,3:0,3:1,3:2,4:0,4:1,4:2,5:0,5:1,5:2,胜其他,0:0,1:1,2:2,3:3,平其他,0:1,0:2,1:2,0:3,1:3,2:3,0:4,1:4,2:4,0:5,1:5,2:5,负其他（31 项）"
+        bf_parsed: |
+          bf=15.00,17.00,8.50,27.00,17.00,16.00,45.00,35.00,35.00,100.0,80.00,80.00,28.00,25.00,8.50,9.50,23.00,70.00,15.50,17.50,8.75,28.00,17.00,17.00,50.00,35.00,35.00,100.0,80.00,80.00,29.00
+          切片后低赔率 Top5：
+            2:1 → 8.50（主推1）
+            1:1 → 8.50（主推2）
+            1:2 → 8.75（次推1）
+            0:0 → 25.00
+            1:0 → 15.00（次推2）
+            0:1 → 15.50
+          进球数集中 2-3 球，与 jq 字段（3球=3.70 最低、2球=4.70 次低）吻合
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "bf 字段按 column_comment 固定 31 项顺序切片，低赔率比分集中在 2:1/1:1/1:2，与 jq 总进球赔率（3球3.70最低、2球4.70次低）互相印证；比分预测有数据支撑"
+    recommended_next_step: "工程应提供 parse_lottery_bf(field_str) 工具函数，把 bf 串按固定顺序转成 (score, odds) 字典，避免 LLM 手动切片出错"
+  - atomic_id: aq_6
+    rounds:
+      - round: 1
+        hypothesis: "apply_guardrails 规则：turn 2 不重复完整六段——这是 expected_behaviors 硬约束，无需工具"
+        guardrail_check: |
+          约束来源：expected_behaviors「不重复完整六段」+「给出比分区间」+「保持同场定位」。
+          turn 2 输出应只包含：比分区间（3-5个比分）+ 主推2-3个 + 一句话理由（赔率/进球分布）。
+          禁止重述：赛事背景、主客排名、胜平负三选、让球口径、欧赔全表、历史交锋等六段内容。
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "guardrail 是输出规范约束，由 prompt/agent 层执行，不依赖工具；评估时检查 LLM 输出 token 是否重复六段即可"
+    recommended_next_step: "在 system prompt 中显式编码 follow-up 规则：当 turn 是上一 turn 的维度细化时，输出长度应 ≤ 上一 turn 的 1/3，且禁止重复已述字段"
+  - atomic_id: aq_7
+    rounds:
+      - round: 1
+        hypothesis: "基于 aq_5 的 bf 切片结果合成比分区间输出"
+        synthesis_output: |
+          主推：2-1 / 1-1（bf 赔率均 8.50，并列最低）
+          次推：1-2（8.75）/ 1-0（15.00）/ 0-1（15.50）
+          区间：2-3 球，巴黎小胜或平（与让球-1下让负1.49低赔一致）
+          一句话理由：bf 三低赔集中在 2:1/1:1/1:2，jq 总进球 2-3 球赔率最低，亚盘平手盘印证势均力敌。
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "synthesis 基于已验证 bf/jq 数据，输出符合 expected_behaviors（保持同场定位+给出比分区间+不重复六段）"
+    recommended_next_step: "输出模板：'本场比分倾向：主推 X-Y / X-Y，次推 X-Y。理由：<一句话>。' 禁止暴露 match_id/issue/issue_num"
+
+case_final_status: satisfied
+case_gap_types: [tool_logic_gap, parameter_gap]
+case_total_rounds: 9
+case_key_findings:
+  - "resolve_lottery_match 不带 date 静默返回最新一期同名 code 场次（tool_logic_gap，P1）"
+  - "resolve_lottery_match date 参数语义=match_time 日期，非彩票开售日（parameter_gap，P2）"
+  - "lottery_jczq_odds.bf 按 column_comment 固定 31 项顺序切片可得比分赔率分布（已验证）"
+  - "checkpointer 存在（MemorySaver/PostgresSaver），maintain_context 在生产可工作"
+  - "比分预测主推 2:1/1:1（bf 8.50 并列最低），次推 1:2/1:0/0:1，区间 2-3 球"

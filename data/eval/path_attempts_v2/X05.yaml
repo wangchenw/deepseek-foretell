@@ -1,0 +1,190 @@
+type_id: "X05"
+case_id: "TC-X05-REG-008"
+exploration_summary: |
+  通过 5 条独立路径（SQL 基准 + get_team_schedule×2 变体 + get_schedule_by_date×2 + resolve_match 交叉验证）
+  穷尽 DB 检索后确认：DB 中确实有葡萄牙 2026-06-28 07:30 北京时间的世界杯场次
+  （football_match.id=4460934，哥伦比亚主 vs 葡萄牙客，neutral=1，status_id=8 已完场，round_group=11 轮次 3）；
+  6/29 早上的世界杯仅南非 vs 加拿大 03:00 一场，无葡萄牙；葡萄牙下一场世界杯为 2026-07-03 07:00 vs 克罗地亚。
+  重大发现：get_team_schedule(direction=upcoming) 工具严重失效——返回 2004-2006 年的已完场历史赛事，
+  且 league_id=1 过滤被忽略（返回的包含 league_id=45 欧洲杯场次），与 SQL 基准完全不一致 → tool_logic_gap。
+  这正是反馈 #003 「下一场为 9/25 欧国联」误判的根因：工具本身坏了，Agent 若信任工具就会漏掉真实的 6/28 世界杯场。
+atomics:
+  - atomic_id: aq_1
+    rounds:
+      - round: 1
+        hypothesis: "resolve_team('葡萄牙') 应返回多个候选，需筛 national=1 且 name=葡萄牙 的男足国家队；同时用 SQL 直接查 football_team 做基准对照"
+        tool_call:
+          name: resolve_team
+          params: {name: 葡萄牙}
+          result: "OK, 10 候选，含 team_id=13152 葡萄牙 national=1，及俱乐部/U16/B队等干扰项"
+        sql_baseline:
+          query: |
+            SELECT id,name_zh,national,name_en FROM football_team
+            WHERE name_zh LIKE '%葡萄牙%' OR name_en LIKE '%Portugal%' LIMIT 20
+          result: "20 行，确认 id=13152=葡萄牙 national=1 name_en=Portugal；其余为葡萄牙体育/AA葡萄牙人/各 U 系列"
+        comparison: "工具与 SQL 基准一致，均能定位 13152；工具 top-10 截断但已含目标，无歧义"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "team_id=13152 由工具与 SQL 双重确认，national=1 满足球队消歧"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_2
+    rounds:
+      - round: 1
+        hypothesis: "resolve_league('世界杯') 应返回 competition_id=1；用 SQL 查 football_competition 做基准"
+        tool_call:
+          name: resolve_league
+          params: {name: 世界杯}
+          result: "OK, 10 候选，league_id=1=世界杯 FIFA World Cup"
+        sql_baseline:
+          query: |
+            SELECT id,name_zh,name_en FROM football_competition
+            WHERE name_zh LIKE '%世界杯%' OR name_en LIKE '%World Cup%' LIMIT 10
+          result: "id=1=世界杯，id=2~9 为各洲预选赛，id=13 女世界杯 等"
+        comparison: "完全一致，competition_id=1 双重确认"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "competition_id=1 由工具与 SQL 双重确认"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_3
+    rounds:
+      - round: 1
+        hypothesis: "「明天早上」存在两种解释需并行验证：(A) 按 #003 语境（对话发生在 6/27）明天=6/28 早上；(B) 按评估日今天=6/28 明天=6/29 早上。两条路径都不能漏"
+        decision: continue
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "时间窗已拆为 6/28 早上 + 6/29 早上两个分支，由 aq_4/aq_5/aq_6 分别验证"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_4
+    rounds:
+      - round: 1
+        hypothesis: "先 SQL 基准：查 football_match 中葡萄牙 id=13152 在世界杯 competition_id=1 下、6/28 与 6/29 早上（00:00-12:00）的场次"
+        sql_baseline:
+          query: |
+            SELECT m.id,m.home_team_id,m.away_team_id,m.competition_id,m.match_time,m.match_time_str,
+                   m.status_id,m.neutral,ht.name_zh AS home_name,at.name_zh AS away_name,c.name_zh AS comp_name
+            FROM football_match m
+            JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            JOIN football_competition c ON c.id=m.competition_id
+            WHERE (m.home_team_id=13152 OR m.away_team_id=13152) AND m.competition_id=1
+              AND m.match_time_str LIKE '2026-06-2%'
+            ORDER BY m.match_time LIMIT 20
+          result: "2 行：id=4460933 葡萄牙 vs 乌兹别克斯坦 6/24 01:00 status=8；id=4460934 哥伦比亚 vs 葡萄牙 6/28 07:30 status=8 neutral=1"
+        decision: continue
+      - round: 2
+        hypothesis: "扩展 SQL：查葡萄牙在 competition_id=1 下所有近期场次，确认 6/29 早上无场次、下一场为何时"
+        sql_baseline:
+          query: |
+            SELECT m.id,ht.name_zh AS home_name,at.name_zh AS away_name,m.match_time_str,m.status_id
+            FROM football_match m JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            WHERE (m.home_team_id=13152 OR m.away_team_id=13152) AND m.competition_id=1
+            ORDER BY m.match_time DESC LIMIT 10
+          result: "葡萄牙最近 WC 场次：2026-07-03 07:00 葡萄牙 vs 克罗地亚 status=1（未赛，下一场）；2026-06-28 07:30 哥伦比亚 vs 葡萄牙 status=8（已完场）；2026-06-24 01:00 葡萄牙 vs 乌兹别克斯坦 status=8；2026-06-18 01:00 葡萄牙 vs 刚果民主共和国 status=8；…"
+        decision: continue
+      - round: 3
+        hypothesis: "现在调工具 get_team_schedule(direction=upcoming) 对照——预期应返回 2026-07-03 vs 克罗地亚（最早未赛场）。如果工具返回的是历史场次，就是 tool_logic_gap"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 13152, direction: upcoming, limit: 10}
+          result: "OK, count=10，但 matches 全是 2004-2006 年的已完场历史赛事（2004-06-13 vs 希腊、2006-06-12 vs 安哥拉 等），无任何 2026 场次"
+        comparison: "严重不一致：SQL 基准证明葡萄牙 2026 世界杯有 4 场（6/18, 6/24, 6/28 已完场 + 7/3 未赛），而工具 direction=upcoming 返回 2004-2006 历史。工具的 upcoming 语义完全失效——未按 match_time>NOW() 过滤，也未按 status_id 过滤未赛场。这是 #003 误判的直接根因"
+        decision: continue
+      - round: 4
+        hypothesis: "怀疑 league_id 过滤也失效——传 league_id=1 看工具是否仍返回非世界杯场次"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 13152, direction: upcoming, limit: 10, league_id: 1}
+          result: "OK, count=10，仍是同一批 2004-2006 场次，且包含 league_id=45 欧洲杯场次（葡萄牙 vs 希腊/英格兰/荷兰）——league_id=1 过滤被完全忽略"
+        comparison: "确认双重 bug：(1) direction=upcoming 不过滤未来；(2) league_id 参数失效。SQL 基准与工具严重背离 → tool_logic_gap 钉死"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: tool_logic_gap
+    gap_evidence: |
+      SQL 基准（round 1+2）：葡萄牙 WC 场次含 2026-06-28 07:30 哥伦比亚 vs 葡萄牙（id=4460934, status=8）+ 2026-07-03 07:00 葡萄牙 vs 克罗地亚（id=4459727, status=1 未赛）。
+      工具 get_team_schedule(direction=upcoming, league_id=1)：返回 2004-2006 历史，无 2026 场次，且 league_id 过滤失效（混入欧洲杯）。
+      这就是反馈 #003 中「下一场为 9/25 欧国联」误判的工具层根因——direction=upcoming 实际未做 upcoming 过滤。
+    recommended_next_step: "修复 foretell/tools/crazy_sports/client.get_team_schedule：(1) direction=upcoming 必须 WHERE match_time > UNIX_TIMESTAMP(NOW()) AND status_id IN (1,9,13)；(2) league_id 参数需真正加入 WHERE competition_id=%s 过滤；(3) 排序改 match_time ASC。修复前禁止把 get_team_schedule 的结果当作「下一场」依据"
+
+  - atomic_id: aq_5
+    rounds:
+      - round: 1
+        hypothesis: "用 get_schedule_by_date(date=2026-06-28, league_preset=世界杯) 交叉验证 6/28 全天赛程，预期看到哥伦比亚 vs 葡萄牙 07:30"
+        sql_baseline:
+          query: |
+            SELECT m.id,ht.name_zh AS home_name,at.name_zh AS away_name,m.match_time_str,m.status_id
+            FROM football_match m JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            WHERE m.competition_id=1 AND m.match_time_str LIKE '2026-06-28%'
+            ORDER BY m.match_time LIMIT 30
+          result: "6 场：巴拿马vs英格兰 05:00、克罗地亚vs加纳 05:00、哥伦比亚vs葡萄牙 07:30、民主刚果vs乌兹别克斯坦 07:30、约旦vs阿根廷 10:00、阿尔及利亚vs奥地利 10:00"
+        tool_call:
+          name: get_schedule_by_date
+          params: {date: '2026-06-28', sport: football, league_preset: 世界杯, tier: all}
+          result: "OK, count=6，与 SQL 基准完全一致，含哥伦比亚(主) vs 葡萄牙(客) 07:30 status=finished, neutral=null（注：工具返回 neutral=null，SQL 查 neutral=1，工具字段映射有小差异但不影响主客结论）"
+        comparison: "一致，工具可信。6/28 早上确实有葡萄牙世界杯场（07:30 北京时间）"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "6/28 早上 07:30 哥伦比亚 vs 葡萄牙由 SQL 与 get_schedule_by_date 双重确认"
+    recommended_next_step: "无（小差异：工具 neutral 字段返回 null，SQL 实际 neutral=1，建议后续核对 client 字段映射，但不影响本 case 主客判断）"
+
+  - atomic_id: aq_6
+    rounds:
+      - round: 1
+        hypothesis: "用 get_schedule_by_date(date=2026-06-29, league_preset=世界杯) 验证「明天=6/29」解释下是否有葡萄牙场"
+        sql_baseline:
+          query: |
+            SELECT m.id,ht.name_zh AS home_name,at.name_zh AS away_name,m.match_time_str,m.status_id
+            FROM football_match m JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            WHERE m.competition_id=1 AND m.match_time_str LIKE '2026-06-29%'
+            ORDER BY m.match_time LIMIT 30
+          result: "1 场：南非 vs 加拿大 03:00 status=1，无葡萄牙"
+        tool_call:
+          name: get_schedule_by_date
+          params: {date: '2026-06-29', sport: football, league_preset: 世界杯, tier: all}
+          result: "OK, count=1，南非 vs 加拿大 03:00 not_started，无葡萄牙"
+        comparison: "完全一致，6/29 早上确实无葡萄牙世界杯场"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "6/29 早上无葡萄牙 WC 场，由 SQL 与工具双重确认"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_7
+    rounds:
+      - round: 1
+        hypothesis: "用 resolve_match(home=哥伦比亚, away=葡萄牙, date=2026-06-28) 做第三路径交叉验证，确认主客与 match_id"
+        tool_call:
+          name: resolve_match
+          params: {home: 哥伦比亚, away: 葡萄牙, date: '2026-06-28'}
+          result: "OK, 1 候选 match_id=4460934，home_name=哥伦比亚 away_name=葡萄牙，match_time_beijing=2026-06-28 07:30:00，status=finished，neutral=true，round_group=11 round_num=3"
+        comparison: "与 SQL 基准 id=4460934 完全一致，主客、时间、轮次均吻合。3 条独立路径（SQL + get_schedule_by_date + resolve_match）交叉确认 6/28 07:30 场次存在"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "resolve_match 第三路径确认 6/28 07:30 哥伦比亚(主) vs 葡萄牙(客) id=4460934"
+    recommended_next_step: "无"
+
+  - atomic_id: aq_8
+    rounds:
+      - round: 1
+        hypothesis: "综合所有路径产出最终答案。已穷尽 4+ 条独立路径：SQL 基准 / get_team_schedule(2 变体) / get_schedule_by_date(6/28+6/29) / resolve_match。可下结论"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: tool_logic_gap
+    gap_evidence: |
+      综合结论：
+      - 6/28 早上 07:30 北京时间有哥伦比亚(主) vs 葡萄牙(客) 世界杯场（id=4460934，已完场）——由 SQL、get_schedule_by_date、resolve_match 三重确认。
+      - 6/29 早上无葡萄牙世界杯场（仅南非 vs 加拿大）——由 SQL + get_schedule_by_date 双重确认。
+      - 葡萄牙下一场世界杯为 2026-07-03 07:00 vs 克罗地亚（未赛）——由 SQL 确认；get_team_schedule(direction=upcoming) 未能给出，因其 direction/league_id 双失效。
+      护栏满足：在穷尽 SQL 基准 + 3 条工具路径后才下结论，未单凭失效工具断言「无比赛」。
+      最终 user-facing 答案（按 #003 语境「明天=6/28」解释）：「有，明早 07:30 世界杯 哥伦比亚 vs 葡萄牙（哥伦比亚主场，世界杯小组赛第 3 轮）」。
+      若按今天=6/28、「明天=6/29」解释：「明早（6/29）无葡萄牙世界杯比赛；最近一场是今天 07:30 哥伦比亚 vs 葡萄牙（已完场），下一场 7/3 07:00 葡萄牙 vs 克罗地亚」。
+    recommended_next_step: "P1 修复 get_team_schedule 的 direction=upcoming 与 league_id 过滤；同时在赛程类 Skill 中强制要求「未穷尽 SQL 基准 + get_schedule_by_date 交叉前不得断言无比赛」"

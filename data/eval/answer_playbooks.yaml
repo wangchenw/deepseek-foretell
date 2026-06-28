@@ -1,0 +1,308 @@
+version: '1.0'
+meta:
+  phase: llm_eval_phase1
+  p0_count: 10
+  evaluated_at: '2026-06-28'
+  rubric_weights:
+    correctness: 0.30
+    completeness: 0.20
+    no_false_negative: 0.20
+    path_efficiency: 0.10
+    output_discipline: 0.10
+    context_handling: 0.05
+    scenario_compliance: 0.05
+  pass_threshold:
+    overall_min: 3.5
+    dimension_min: 3.0
+entries:
+- type_id: A08
+  case_id: TC-A08-REG-003
+  playbook_id: PB-A08
+  summary: 三轮回纠时间窗（今晚→明早→世界杯），resolve_team + team_schedule(direction fallback)
+    + schedule_by_date 交叉验证；DB 可支撑，关键在 maintain_context 与 no_false_negative。
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - schedule_fetch
+  - cross_validation
+  - answer_synthesis
+  existing_tools_sufficient: true
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 5.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.5
+      scenario_compliance: 4.5
+    overall: 4.4
+    pass: true
+    path_ref: path_attempts/A08.yaml
+    atomic_ref: atomic_decompositions/A08.yaml
+    notes: "探针 resolve_team/get_team_schedule/get_schedule_by_date 均 OK；feedback #003 期望 6/28 07:30 哥伦比亚 vs 葡萄牙。"
+- type_id: A17
+  case_id: TC-A17-REG-001
+  playbook_id: PB-A17
+  summary: 法国国家队世界杯赛程；resolve_team(prefer national) + get_team_schedule(all,10)。
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: true
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.5
+      no_false_negative: 4.5
+      path_efficiency: 4.5
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.5
+    overall: 4.43
+    pass: true
+    path_ref: path_attempts/A17.yaml
+    atomic_ref: atomic_decompositions/A17.yaml
+    notes: 10 场赛程 OK；需输出日期/对手/状态/北京时间/主客场。
+- type_id: X05
+  case_id: TC-X05-REG-008
+  playbook_id: PB-X05
+  summary: 假阴性护栏：葡萄牙明早世界杯有赛否；必须 team_schedule(all) + schedule_by_date 交叉验证后再答。
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - exhaustive_schedule_search
+  - cross_validation
+  - guardrail_synthesis
+  existing_tools_sufficient: true
+  gaps:
+  - prompt 层须强制穷尽检索顺序
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 5.0
+      path_efficiency: 4.0
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 5.0
+    overall: 4.45
+    pass: true
+    path_ref: path_attempts/X05.yaml
+    atomic_ref: atomic_decompositions/X05.yaml
+    notes: discover_via_search skipped；工具链 verified。
+- type_id: X06
+  case_id: TC-X06-REG-009
+  playbook_id: PB-X06
+  summary: 法国 vs 挪威场次消歧；resolve_match 一次返回 10 候选，直接输出结论无中间态。
+  atomic_tools_needed:
+  - resolve_match
+  pipeline_stages:
+  - entity_resolution
+  - answer_synthesis
+  existing_tools_sufficient: true
+  gaps:
+  - 输出纪律依赖 prompt/output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 4.0
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 5.0
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 4.5
+    overall: 4.18
+    pass: true
+    path_ref: path_attempts/X06.yaml
+    atomic_ref: atomic_decompositions/X06.yaml
+    notes: resolve_match OK count=10；禁止「正在查询」类中间态。
+- type_id: X12
+  case_id: TC-X12-REG-002
+  playbook_id: PB-X12
+  summary: 用户给错年份(2024)后纠正 2026 世界杯；DB 以挪威主场入库，需 swap home/away 或候选消歧。
+  atomic_tools_needed:
+  - resolve_match
+  pipeline_stages:
+  - entity_resolution
+  - time_window_refine
+  - home_away_disambiguation
+  - answer_synthesis
+  existing_tools_sufficient: true
+  gaps:
+  - routing：法国主场参数 date=2026-06-27 失败，挪威 vs 法国 成功
+  llm_eval:
+    scores:
+      correctness: 4.0
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 3.5
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 4.5
+    overall: 4.05
+    pass: true
+    path_ref: path_attempts/X12.yaml
+    atomic_ref: atomic_decompositions/X12.yaml
+    notes: round4 挪威 vs 法国 2026-06-27 OK；feedback #002 主客纠正已验证。
+- type_id: B01
+  case_id: TC-B01-001
+  playbook_id: PB-B01
+  summary: 竞彩模板深度分析；resolve_lottery_match 周日009 2026-06-15 返回 ENTITY_NOT_FOUND，整条链 blocked。
+  atomic_tools_needed:
+  - resolve_lottery_match
+  - get_recent_form
+  - get_odds_snapshot
+  - get_injury_report
+  pipeline_stages:
+  - lottery_entity_resolution
+  - stats_odds_intel
+  - subagent_analysis
+  existing_tools_sufficient: false
+  gaps:
+  - data_gap：lottery 表无该场次
+  - implementation_gap：深度工具 stub
+  llm_eval:
+    scores:
+      correctness: 1.5
+      completeness: 1.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.5
+      context_handling: 3.0
+      scenario_compliance: 2.0
+    overall: 1.95
+    pass: false
+    path_ref: path_attempts/B01.yaml
+    atomic_ref: atomic_decompositions/B01.yaml
+    notes: 预期 blocked；须诚实说明无法定位场次，不得编造分析。
+- type_id: B09
+  case_id: TC-B09-REG-006
+  playbook_id: PB-B09
+  summary: NBA 马刺 vs 雷霆 G7；resolve_match series_game=7 返回 NOT_APPLICABLE，篮球系列赛维度未入库。
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - series_match_resolution
+  - analysis
+  existing_tools_sufficient: false
+  gaps:
+  - data_gap：series_game 不支持 NBA 季后赛
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 1.5
+      no_false_negative: 3.5
+      path_efficiency: 2.5
+      output_discipline: 3.5
+      context_handling: 3.0
+      scenario_compliance: 2.5
+    overall: 2.35
+    pass: false
+    path_ref: path_attempts/B09.yaml
+    atomic_ref: atomic_decompositions/B09.yaml
+    notes: 不得降级 G6；NOT_APPLICABLE 时诚实 decline。
+- type_id: E05
+  case_id: TC-E05-REG-007
+  playbook_id: PB-E05
+  summary: 十四场方案；get_lottery_schedule(401) 返回 14 场 OK，但 screening 所需 form/odds 为 stub。
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list_fetch
+  - screening_agent
+  - risk_disclosure
+  existing_tools_sufficient: false
+  gaps:
+  - implementation_gap：get_recent_form/get_odds_snapshot stub
+  llm_eval:
+    scores:
+      correctness: 3.5
+      completeness: 2.5
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 3.5
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 3.35
+    pass: false
+    path_ref: path_attempts/E05.yaml
+    atomic_ref: atomic_decompositions/E05.yaml
+    notes: 场次列表可支撑初筛；完整两阶段方案需 Phase2 补 stub 工具。
+- type_id: G01
+  case_id: TC-G01-REG-004
+  playbook_id: PB-G01
+  summary: 多轮追问比分；resolve_lottery_match 004 ENTITY_NOT_FOUND，maintain_context 未跑 agent checkpointer。
+  atomic_tools_needed:
+  - resolve_lottery_match
+  - get_lottery_schedule
+  pipeline_stages:
+  - lottery_entity_resolution
+  - initial_analysis
+  - follow_up_score_prediction
+  existing_tools_sufficient: false
+  gaps:
+  - data_gap：周二004 未命中
+  - routing：多轮 context 需 checkpointer
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.5
+      output_discipline: 3.5
+      context_handling: 2.5
+      scenario_compliance: 2.5
+    overall: 2.45
+    pass: false
+    path_ref: path_attempts/G01.yaml
+    atomic_ref: atomic_decompositions/G01.yaml
+    notes: fallback get_lottery_schedule(101) OK 但无 004 映射。
+- type_id: G07
+  case_id: TC-G07-001
+  playbook_id: PB-G07
+  summary: 5标准北单比分筛选+优化追问；北单301(19场)与今日赛程 OK，赔率/伤停/跨窗口 context 不足。
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_schedule_by_date
+  - get_odds_snapshot
+  - get_injury_report
+  pipeline_stages:
+  - criteria_template
+  - beidan_schedule_fetch
+  - multi_criteria_filter
+  - follow_up_optimization
+  existing_tools_sufficient: false
+  gaps:
+  - implementation_gap：标准2/4/5 依赖 stub 赔率与 stats
+  - routing：跨窗口/session 引用无 checkpointer
+  - discover_via_search skipped
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.5
+      path_efficiency: 3.5
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 2.5
+    overall: 2.95
+    pass: false
+    path_ref: path_attempts/G07.yaml
+    atomic_ref: atomic_decompositions/G07.yaml
+    notes: 北单列表可拉；完整5标准筛选与跨窗口解释 blocked。

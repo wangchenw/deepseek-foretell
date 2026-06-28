@@ -1,0 +1,127 @@
+type_id: "A13"
+case_id: "TC-A13-001"
+user_intent_analysis: |
+  本案 16 轮对话的主线是用户要求「模拟赛前 12 小时视角」对 5/17 当日多场比赛做深度前瞻分析,
+  并反复强调「不要反推结果」「数据用赛前 12 小时数据」「必须用工具查询真实有效的数据并给出来源,
+  不得虚构」。A13「历史交锋:两队历史对战」语义对应的输入维度是用户在 turn 0/2/3/10/13 等
+  反复列出的「历史交锋记录:最近3-5次直接交手,是否呈现明显的风格克制或比分规律」,
+  以及 turn 0/7/9/10/11 五轮分别点名 5 对球队要求赛前分析(隐含需取 h2h 作为分析输入):
+    turn 0:  5/17 福伦丹 vs 特尔斯达
+    turn 7:  5/17 科莫 vs 帕尔马
+    turn 9:  5/17 全北现代 vs 金泉尚武
+    turn 10: 5/17 川崎前锋 vs 町田泽维
+    turn 11: 5/17 富川FC vs 浦项制铁
+    turn 13: 5/17 川崎前锋 vs 町田泽维(重复,带强制闭环检查)
+  隐含需求:
+    (1) 每对球队须取最近 3-5 次直接交锋的真实记录(日期/比分/主客),用于「风格克制/比分规律」归纳;
+    (2) 数据须真实可溯源(用户明确「不得虚构」「必须用工具查询」),expected_behaviors「数据不足时诚实说明」;
+    (3) 5/17 当日那场属「赛前视角」,h2h 须排除该场之后的所有比赛(不得反推),仅取该场之前的交锋;
+    (4) 球队名消歧须精准:町田泽维→町田泽维亚(J1,非青年队/U18/室内五人制),
+        浦项制铁→浦项铁人(K1 一线队,非后备队/U18),富川FC→Bucheon FC 1995(K2,非富川SK/U18/后备);
+    (5) 不暴露内部 match_id/team_id,用球队名+日期+比分呈现;
+    (6) 多场重复追问(turn 13 川崎vs町田)须继承前轮上下文,不重复取数但需复用 h2h 结果。
+  对话发生时点视为 2026-05-17 前(session 28066650,5/17 当日)。
+turns:
+  - turn: 0
+    user_text: "5/17号的足彩比赛福伦丹和特尔斯达这场比赛的特点是什么"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {teams: [福伦丹, 特尔斯达], expected_team_ids: [10647, 10455]}
+        success_criteria: "resolve_team 双方均命中一线队 team_id(福伦丹=10647/特尔斯达=10455);排除同名青年队/梯队"
+      - id: aq_2
+        category: fetch_result
+        target: {team_a_from: aq_1, team_b_from: aq_1, n: 5, before: 2026-05-17, dimension: h2h}
+        success_criteria: "返回福伦丹vs特尔斯达 5/17 之前最近 5 次直接交锋(日期/主客/比分),用于风格克制归纳;不得含 5/17 当日场(赛前视角)"
+        depends_on: [aq_1]
+  - turn: 7
+    user_text: "5/17号的科莫和帕尔马这场比赛你怎么看"
+    atomics:
+      - id: aq_3
+        category: resolve_entity
+        target: {teams: [科莫, 帕尔马], expected_team_ids: [13402, 10907]}
+        success_criteria: "resolve_team 命中科莫=13402/帕尔马=10907(意甲一线队)"
+      - id: aq_4
+        category: fetch_result
+        target: {team_a_from: aq_3, team_b_from: aq_3, n: 5, before: 2026-05-17, dimension: h2h}
+        success_criteria: "返回科莫vs帕尔马 5/17 之前最近 5 次交锋;预期含 2025-10-25/2025-05-03/2024-10-19/2024-02-24/2023-10-21 等(意甲+意乙)"
+        depends_on: [aq_3]
+  - turn: 9
+    user_text: "5/17号的全北现代和金泉尚武这场"
+    atomics:
+      - id: aq_5
+        category: resolve_entity
+        target: {teams: [全北现代, 金泉尚武], expected_team_ids: [10238, 10652]}
+        success_criteria: "resolve_team 命中全北现代=10238/金泉尚武=10652(韩K联一线队)"
+      - id: aq_6
+        category: fetch_result
+        target: {team_a_from: aq_5, team_b_from: aq_5, n: 5, before: 2026-05-17, dimension: h2h}
+        success_criteria: "返回全北vs金泉 5/17 之前最近 5 次交锋;预期含 2026-03-08/2025-10-25/2025-09-20/2025-06-27/2025-02-16 等(韩K联)"
+        depends_on: [aq_5]
+  - turn: 10
+    user_text: "5/17号的川崎前锋和町田泽维这场"
+    atomics:
+      - id: aq_7
+        category: resolve_entity
+        target: {teams: [川崎前锋, 町田泽维], expected_team_ids: [10908, 25413], alias_note: "「町田泽维」须映射到「町田泽维亚」(25413),排除町田室内足球队/青年队/U18"}
+        success_criteria: "resolve_team 命中川崎前锋=10908/町田泽维亚=25413(J1 一线队);排除 14793 町田室内/21873 青年队/23139 U18"
+        depends_on: []
+      - id: aq_8
+        category: fetch_result
+        target: {team_a_from: aq_7, team_b_from: aq_7, n: 5, before: 2026-05-17, dimension: h2h}
+        success_criteria: "返回川崎vs町田 5/17 之前最近 5 次交锋;预期含 2026-03-28/2025-08-31/2025-04-06/2024-10-05/2024-04-07 等(J1)"
+        depends_on: [aq_7]
+  - turn: 11
+    user_text: "5/17号的富川fc和浦项制铁这场"
+    atomics:
+      - id: aq_9
+        category: resolve_entity
+        target: {teams: [富川FC, 浦项制铁], expected_team_ids: [20060, 10417], alias_note: "「浦项制铁」用户常用名,resolve_team 此别名仅命中青年/后备队,须降级「浦项铁人」命中一线队 10417;「富川FC」须选 Bucheon FC 1995=20060,排除富川SK=10272/U18/后备"}
+        success_criteria: "命中富川FC=20060/浦项铁人=10417(K1 一线队);若 resolve_team('浦项制铁') 仅返回 30019/31800/82260 等青年后备队,须降级「浦项铁人」或 SQL 兜底,不得误选后备队"
+        depends_on: []
+      - id: aq_10
+        category: fetch_result
+        target: {team_a_from: aq_9, team_b_from: aq_9, n: 5, before: 2026-05-17, dimension: h2h}
+        success_criteria: "返回富川FCvs浦项铁人 5/17 之前所有交锋;预期含 2016-05-11 韩国杯 + 2026-03-22 韩K联(共 2 场历史);不得因别名误路由返回空"
+        depends_on: [aq_9]
+  - turn: 13
+    user_text: "5/17号川崎前锋和町田泽维...模拟赛前12小时前分析"
+    atomics:
+      - id: aq_11
+        category: maintain_context
+        target: {inherit_from_turn: 10, inherit: team_ids(川崎=10908/町田=25413) + h2h_result, reuse: true}
+        success_criteria: "继承 turn 10 的川崎/町田 team_id 与已取 h2h 结果,不重复调工具;仅在用户新增强制闭环检查时复用数据"
+        depends_on: [aq_7, aq_8]
+      - id: aq_12
+        category: synthesize_answer
+        target: {present: 5 对球队 h2h 汇总(日期/主客/比分/胜负规律), hide: match_id/team_id/工具名/中间态}
+        success_criteria: "输出 5 对球队历史交锋汇总,含最近 N 次日期+比分+主客方位+胜负统计;剥离 match_id/team_id;标注数据来源;不得反推 5/17 当日结果"
+        depends_on: [aq_2, aq_4, aq_6, aq_8, aq_10, aq_11]
+      - id: aq_13
+        category: apply_guardrails
+        target: {check: no_internal_id, no_fabrication, no_reverse_engineering, honest_on_gap}
+        success_criteria: "守门:无 match_id/team_id;数据真实可溯源;赛前视角不反推;工具缺失/别名误路由时诚实说明"
+        depends_on: [aq_12]
+hard_constraints:
+  - "5 对球队 h2h 全覆盖:福伦丹vs特尔斯达/科莫vs帕尔马/全北vs金泉/川崎vs町田/富川FCvs浦项铁人,一个不得漏"
+  - "赛前视角:h2h 须排除 5/17 当日场及之后的比赛,仅取 5/17 之前的交锋(用户明确「不要反推」「赛前12小时数据」)"
+  - "数据真实可溯源,禁止虚构(用户明确「必须用工具查询真实有效的数据并给出来源,不得虚构」+ expected_behaviors)"
+  - "球队名消歧须精准:町田泽维→町田泽维亚(25413,非室内/青年/U18);浦项制铁→浦项铁人(10417,非后备队 30019/U18 31800);富川FC→20060(非富川SK 10272)"
+  - "resolve_team('浦项制铁') 仅返回青年/后备队时,须降级「浦项铁人」或 SQL 兜底,不得误选后备队导致假阴性"
+  - "不暴露内部 match_id/team_id,用球队名+日期+比分呈现"
+  - "多轮重复追问(turn 13 川崎vs町田)须继承前轮 team_id 与 h2h 结果,不重复取数"
+  - "h2h 工具返回的 scores 数组须正确解析(索引0=常规比分/索引1=半场比分),不得误读为红牌/角球"
+  - "不调用 internet_search 兜底 h2h;discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_9/aq_10(富川FCvs浦项制铁)环节出问题。
+  核心怀疑点:
+  (1) resolve_team('浦项制铁') 别名表仅命中青年/后备队(30019/31800/82260),一线队「浦项铁人」(10417)
+      不在候选中——若 LLM 误选 30019,get_h2h(20060, 30019) 会返回 DATA_MISSING 假阴性,
+      而 DB 实际有 4 场富川FCvs浦项铁人交锋(2016 韩国杯 + 2026 三场 K1)。这是 P1 data_gap 导致假阴性。
+  (2) get_h2h 返回的 scores 是数组 [比分, 半场比分, 红牌, 黄牌, 角球, 加时, 点球],
+      LLM 须取索引 0 作为常规比分,误读会出错。
+  (3) get_h2h 暴露 match_id/home_team_id/away_team_id 内部 ID,须 LLM 层剥离。
+  (4) get_h2h 不返回 competition_name 与球队名(仅 ID),需 LLM 层 JOIN 名称或额外调 resolve_team 反查。
+  (5) 「町田泽维」用户简称,resolve_team 须映射到町田泽维亚(25413),排除同名室内/青年/U18。
+  Agent 2 应优先 SQL 直查 football_match(home/away team_id 双向 + match_time < 5/17)建立基准,
+  再调 get_h2h 对照,确认别名误路由导致的假阴性。

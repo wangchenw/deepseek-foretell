@@ -1,0 +1,499 @@
+version: '1.1'
+meta:
+  source: route_matrix.yaml + llm_eval_phase1
+  p0_types:
+  - A08
+  - A17
+  - X05
+  - X06
+  - X12
+  - B01
+  - B09
+  - E05
+  - G01
+  - G07
+  evaluated_at: '2026-06-28'
+  pass_count: 5
+  fail_count: 5
+entries:
+- type_id: A08
+  type_name: 时间窗_明早
+  scenario: A
+  probe_case_id: TC-A08-REG-003
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    - name: get_schedule_by_date
+      params:
+        date: $today
+        tier: top
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A08.json
+    route_status: verified
+    db_status: ok
+    step_count: 3
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+  llm_eval_status: pass
+  llm_eval_score: 4.4
+  llm_eval_scores:
+    correctness: 4.5
+    completeness: 4.0
+    no_false_negative: 5.0
+    path_efficiency: 4.0
+    output_discipline: 4.0
+    context_handling: 4.5
+    scenario_compliance: 4.5
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  playbook_id: PB-A08
+  playbook_ref: answer_playbooks.yaml#PB-A08
+  path_attempt_ref: path_attempts/A08.yaml
+  atomic_decomposition_ref: atomic_decompositions/A08.yaml
+  existing_tools_sufficient: true
+  llm_eval_gaps: []
+- type_id: A17
+  type_name: 实体消歧_国家队
+  scenario: A
+  probe_case_id: TC-A17-REG-001
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 法国
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 10
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A17.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+  llm_eval_status: pass
+  llm_eval_score: 4.43
+  llm_eval_scores:
+    correctness: 4.5
+    completeness: 4.5
+    no_false_negative: 4.5
+    path_efficiency: 4.5
+    output_discipline: 4.0
+    context_handling: 4.0
+    scenario_compliance: 4.5
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  playbook_id: PB-A17
+  playbook_ref: answer_playbooks.yaml#PB-A17
+  path_attempt_ref: path_attempts/A17.yaml
+  atomic_decomposition_ref: atomic_decompositions/A17.yaml
+  existing_tools_sufficient: true
+  llm_eval_gaps: []
+- type_id: B01
+  type_name: 竞彩模板分析
+  scenario: B
+  probe_case_id: TC-B01-001
+  priority: P0
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_lottery_match
+      params:
+        lottery_code: 周日009
+        date: '2026-06-15'
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B01.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+  llm_eval_status: fail
+  llm_eval_score: 1.95
+  llm_eval_scores:
+    correctness: 1.5
+    completeness: 1.0
+    no_false_negative: 3.0
+    path_efficiency: 2.0
+    output_discipline: 3.5
+    context_handling: 3.0
+    scenario_compliance: 2.0
+  atomic_tools_needed:
+  - resolve_lottery_match
+  - get_recent_form
+  - get_odds_snapshot
+  - get_injury_report
+  playbook_id: PB-B01
+  playbook_ref: answer_playbooks.yaml#PB-B01
+  path_attempt_ref: path_attempts/B01.yaml
+  atomic_decomposition_ref: atomic_decompositions/B01.yaml
+  existing_tools_sufficient: false
+  llm_eval_gaps:
+  - data_gap：lottery 表无该场次
+  - implementation_gap：深度工具 stub
+- type_id: B09
+  type_name: 系列赛G7
+  scenario: B
+  probe_case_id: TC-B09-REG-006
+  priority: P0
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params:
+        home: 马刺
+        away: 雷霆
+        series_game: 7
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B09.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+  llm_eval_status: fail
+  llm_eval_score: 2.35
+  llm_eval_scores:
+    correctness: 2.0
+    completeness: 1.5
+    no_false_negative: 3.5
+    path_efficiency: 2.5
+    output_discipline: 3.5
+    context_handling: 3.0
+    scenario_compliance: 2.5
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_odds_snapshot
+  playbook_id: PB-B09
+  playbook_ref: answer_playbooks.yaml#PB-B09
+  path_attempt_ref: path_attempts/B09.yaml
+  atomic_decomposition_ref: atomic_decompositions/B09.yaml
+  existing_tools_sufficient: false
+  llm_eval_gaps:
+  - data_gap：series_game 不支持 NBA 季后赛
+- type_id: E05
+  type_name: 十四场
+  scenario: E
+  probe_case_id: TC-E05-REG-007
+  priority: P0
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params:
+        play_type: '401'
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+  llm_eval_status: fail
+  llm_eval_score: 3.35
+  llm_eval_scores:
+    correctness: 3.5
+    completeness: 2.5
+    no_false_negative: 4.0
+    path_efficiency: 4.0
+    output_discipline: 3.5
+    context_handling: 3.0
+    scenario_compliance: 3.0
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  playbook_id: PB-E05
+  playbook_ref: answer_playbooks.yaml#PB-E05
+  path_attempt_ref: path_attempts/E05.yaml
+  atomic_decomposition_ref: atomic_decompositions/E05.yaml
+  existing_tools_sufficient: false
+  llm_eval_gaps:
+  - implementation_gap：get_recent_form/get_odds_snapshot stub
+- type_id: G01
+  type_name: 比分预测追问
+  scenario: G
+  probe_case_id: TC-G01-REG-004
+  priority: P0
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G01.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+  llm_eval_status: fail
+  llm_eval_score: 2.45
+  llm_eval_scores:
+    correctness: 2.0
+    completeness: 2.0
+    no_false_negative: 3.0
+    path_efficiency: 2.5
+    output_discipline: 3.5
+    context_handling: 2.5
+    scenario_compliance: 2.5
+  atomic_tools_needed:
+  - resolve_lottery_match
+  - get_lottery_schedule
+  playbook_id: PB-G01
+  playbook_ref: answer_playbooks.yaml#PB-G01
+  path_attempt_ref: path_attempts/G01.yaml
+  atomic_decomposition_ref: atomic_decompositions/G01.yaml
+  existing_tools_sufficient: false
+  llm_eval_gaps:
+  - data_gap：周二004 未命中
+  - routing：多轮 context 需 checkpointer
+- type_id: G07
+  type_name: 优化方案
+  scenario: G
+  probe_case_id: TC-G07-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G07.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+  llm_eval_status: fail
+  llm_eval_score: 2.95
+  llm_eval_scores:
+    correctness: 3.0
+    completeness: 2.5
+    no_false_negative: 3.5
+    path_efficiency: 3.5
+    output_discipline: 3.0
+    context_handling: 2.5
+    scenario_compliance: 2.5
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_schedule_by_date
+  - get_odds_snapshot
+  - get_injury_report
+  playbook_id: PB-G07
+  playbook_ref: answer_playbooks.yaml#PB-G07
+  path_attempt_ref: path_attempts/G07.yaml
+  atomic_decomposition_ref: atomic_decompositions/G07.yaml
+  existing_tools_sufficient: false
+  llm_eval_gaps:
+  - implementation_gap：标准2/4/5 依赖 stub 赔率与 stats
+  - routing：跨窗口/session 引用无 checkpointer
+  - discover_via_search skipped
+- type_id: X05
+  type_name: 假阴性风险
+  scenario: X
+  probe_case_id: TC-X05-REG-008
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X05.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+  llm_eval_status: pass
+  llm_eval_score: 4.45
+  llm_eval_scores:
+    correctness: 4.5
+    completeness: 4.0
+    no_false_negative: 5.0
+    path_efficiency: 4.0
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 5.0
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  playbook_id: PB-X05
+  playbook_ref: answer_playbooks.yaml#PB-X05
+  path_attempt_ref: path_attempts/X05.yaml
+  atomic_decomposition_ref: atomic_decompositions/X05.yaml
+  existing_tools_sufficient: true
+  llm_eval_gaps:
+  - prompt 层须强制穷尽检索顺序
+- type_id: X06
+  type_name: 中间态外露
+  scenario: X
+  probe_case_id: TC-X06-REG-009
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+  llm_eval_status: pass
+  llm_eval_score: 4.18
+  llm_eval_scores:
+    correctness: 4.0
+    completeness: 4.0
+    no_false_negative: 4.0
+    path_efficiency: 5.0
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 4.5
+  atomic_tools_needed:
+  - resolve_match
+  playbook_id: PB-X06
+  playbook_ref: answer_playbooks.yaml#PB-X06
+  path_attempt_ref: path_attempts/X06.yaml
+  atomic_decomposition_ref: atomic_decompositions/X06.yaml
+  existing_tools_sufficient: true
+  llm_eval_gaps:
+  - 输出纪律依赖 prompt/output-discipline skill
+- type_id: X12
+  type_name: 主客颠倒
+  scenario: X
+  probe_case_id: TC-X12-REG-002
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+        date: '2024-06-27'
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X12.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+  llm_eval_status: pass
+  llm_eval_score: 4.05
+  llm_eval_scores:
+    correctness: 4.0
+    completeness: 4.0
+    no_false_negative: 4.0
+    path_efficiency: 3.5
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 4.5
+  atomic_tools_needed:
+  - resolve_match
+  playbook_id: PB-X12
+  playbook_ref: answer_playbooks.yaml#PB-X12
+  path_attempt_ref: path_attempts/X12.yaml
+  atomic_decomposition_ref: atomic_decompositions/X12.yaml
+  existing_tools_sufficient: true
+  llm_eval_gaps:
+  - routing：法国主场参数 date=2026-06-27 失败，挪威 vs 法国 成功

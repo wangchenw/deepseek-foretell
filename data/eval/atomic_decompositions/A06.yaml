@@ -1,0 +1,18 @@
+type_id: A06
+type_name: 完场赛果
+scenario: A
+entity_entry: match
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 通过世界杯开赛以来，请从第一场比赛开始分析，包括盘口走向，资金流动，庄家的收割方式，比如昨天天强队打弱队四场全平，今天四场强队打弱队又全部打穿，综上分析明天四场比赛最终比分的
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

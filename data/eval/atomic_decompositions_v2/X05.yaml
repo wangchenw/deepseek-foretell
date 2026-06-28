@@ -1,0 +1,63 @@
+type_id: "X05"
+case_id: "TC-X05-REG-008"
+user_intent_analysis: |
+  用户问「葡萄牙明天早上世界杯有比赛吗」——核心意图是判断葡萄牙国家队在世界杯赛事中，
+  是否在「明天早上」这个时间窗内有比赛，并得到明确的是/否结论（如有，需含对阵+开球时间+主客场）。
+  「明天早上」在球迷语境里常指凌晨至上午时段（如 07:30 北京时间），不能按 0:00-12:00 的宽泛窗口机械理解。
+  本 case 关联反馈 #003：6/27 对话场景中用户问「明天早上」，真实答案是 6/28 07:30 哥伦比亚(主) vs 葡萄牙(客)，
+  世界杯 id=4460934。因此评估重点是「在穷尽 DB 检索前不得断言无比赛」+「交叉验证赛程」。
+turns:
+  - turn: 1
+    user_text: "葡萄牙明天早上世界杯有比赛吗"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {team: 葡萄牙, expected: 葡萄牙男足国家队, national: true}
+        success_criteria: "返回唯一确定的 team_id（应为 13152，national=1），无俱乐部/梯队歧义；多候选时能正确筛选国家队"
+      - id: aq_2
+        category: resolve_entity
+        target: {competition: 世界杯, expected_competition_id: 1}
+        success_criteria: "返回唯一确定的 competition_id=1（世界杯），与 user 提及的「世界杯」字面对齐"
+        depends_on: []
+      - id: aq_3
+        category: refine_time_window
+        target: "明天早上"
+        success_criteria: "正确锚定「明天早上」的北京时间窗口。参考反馈 #003 的语境：以 6/27 为参照日，明天早上=6/28 00:00-12:00（重点 06:00-12:00，覆盖 07:30 凌晨场）。若以评估日 6/28 为参照日，明天早上=6/29 00:00-12:00。两种解释都必须穷尽 DB 检索，不能因其中一种解释查无就断言「无比赛」"
+      - id: aq_4
+        category: fetch_schedule
+        target: {team_id: aq_1, competition_id: aq_2, time_window: aq_3, direction: upcoming}
+        success_criteria: "返回该队在世界杯赛事下、落在明天早上时间窗内的场次；如有多场需全部返回；如返回空必须经过 aq_5/aq_6 交叉验证后才能下结论"
+        depends_on: [aq_1, aq_2, aq_3]
+      - id: aq_5
+        category: fetch_schedule
+        target: {date: "2026-06-28", tier: "all", league_preset: "世界杯"}
+        success_criteria: "通过 get_schedule_by_date 交叉验证 6/28 全天赛程，确认世界杯下是否含葡萄牙场次"
+        depends_on: [aq_3]
+      - id: aq_6
+        category: fetch_schedule
+        target: {date: "2026-06-29", tier: "all", league_preset: "世界杯"}
+        success_criteria: "通过 get_schedule_by_date 交叉验证 6/29 全天赛程（应对「明天=6/29」的解释）"
+        depends_on: [aq_3]
+      - id: aq_7
+        category: apply_guardrails
+        target: "禁止未穷尽前断言无比赛"
+        success_criteria: "在 aq_4/aq_5/aq_6 至少 3 条独立路径都返回空、且 SQL 基准也确认无数据后，才允许输出「无比赛」结论；任一非空则给出对阵+北京时间+主客场"
+        depends_on: [aq_4, aq_5, aq_6]
+      - id: aq_8
+        category: synthesize_answer
+        target: "用户可见的最终回答"
+        success_criteria: "若 DB 有场次：明确「有」+对阵（home vs away 形式，主场在前）+开球北京时间+赛事名；若穷尽后无：明确「无」+简短说明已查 6/28 与 6/29 早上的世界杯赛程。禁止暴露 match_id/team_id/工具名/查询过程"
+        depends_on: [aq_7]
+hard_constraints:
+  - "禁止未穷尽 DB 检索前断言无比赛（expected_behaviors + 反馈 #003 P0）"
+  - "必须交叉验证赛程：至少 resolve_team → get_team_schedule(direction=upcoming, 世界杯) 与 get_schedule_by_date 两条独立路径（expected_behaviors「交叉验证赛程」）"
+  - "不暴露 match_id / team_id / competition_id / 竞彩编号 / 工具名给用户（反馈 #003 P1）"
+  - "不输出「正在查询」「未找到」「接口延迟」等中间态（反馈 #003 P1 + foretell-output-discipline）"
+  - "主客场信息必须保留：以工具返回的 home_name vs away_name 为准，不要按用户表述「葡萄牙 vs X」臆测（反馈 #003 数据核验）"
+  - "「明天早上」需覆盖凌晨至上午窗口（07:30 北京时间属此类），不能机械按 06:00-09:00 等窄窗（反馈 #003 P1 时间窗理解偏差）"
+risk_notes: |
+  最可能在 aq_4 环节出问题：get_team_schedule 默认 direction=recent（仅已完场），若 Agent 不显式传 direction=upcoming 或不传 league_id=世界杯，
+  会漏掉 6/28 07:30 的未赛世界杯场，进而误判「无比赛」——这正是反馈 #003 的根因之一。
+  第二个风险是「明天」锚定歧义：若 Agent 把今天当作 6/28，明天=6/29，而 DB 里只有 6/28 07:30 这场，Agent 可能在只查 6/29 后草率下「无比赛」结论，
+  违反护栏。需要在 SQL 基准层同时查 6/28 与 6/29 两个早上，并交叉 get_schedule_by_date。
+  第三个风险是 resolve_league("世界杯") 是否能稳定命中 competition_id=1（早期 case 反馈里 client 内部 strip 前缀 fc_1 → 1，需复核）。

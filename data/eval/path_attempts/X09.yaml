@@ -1,0 +1,15 @@
+type_id: X09
+case_id: null
+explored_at: '2026-06-28'
+source: route_matrix
+attempts:
+- round: 1
+  atomic_id: X09-prompt
+  status: prompt_only
+  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+satisfied: []
+blocking_gap:
+  type: routing_gap
+  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  failed_atomic: null
+route_complete: false

@@ -1,0 +1,30 @@
+type_id: G14
+type_name: 半全场追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: '001   002半全场从基本面、伤停、赛
+
+    程、战意、战术克制
+
+    、数据变化、市场热
+
+    度七个维度筛选；最
+
+    后把比赛分成低风险
+
+    、中风险、高风险并说明每一场的核心风险点，那些可以重点关注，那些可以直接放弃！'
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

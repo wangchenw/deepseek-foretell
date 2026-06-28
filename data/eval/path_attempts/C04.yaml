@@ -1,0 +1,19 @@
+type_id: C04
+case_id: TC-C04-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: C04-probe-1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '004'
+  code: ENTITY_NOT_FOUND
+  stub: false
+satisfied: []
+blocking_gap:
+  type: routing_gap
+  description: 工具链未返回 OK
+  failed_atomic: C04-probe-1
+route_complete: false

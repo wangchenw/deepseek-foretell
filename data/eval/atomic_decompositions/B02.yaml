@@ -1,0 +1,29 @@
+type_id: B02
+type_name: 竞彩篮球模板
+scenario: B
+entity_entry: lottery_code
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: '{DATE} 竞彩篮球赛事信息整理 场次 客队 vs 主队 让分盘口 大小分盘口 {WEEKDAY}{CODE}场（美职篮） 老鹰 vs 尼克斯
+    主队-6.50（让分主胜1.65 / 让分客胜1.75） 预设总分213.5（大分1.62 / 小分1.78） {WEEKDAY}{CODE}场（美职篮）
+    开拓者 vs 马刺 主队-11.50（让分主胜1.60 / 让分客胜1.81） 预设总分215.5（大分1.62 / 小分1.78） 说明：让分盘口以主队让分为基准，如“主队-9.50”表示奥林匹亚让摩纳哥9.5分；大小分盘口为预设总分线，大分/小分分别对应总分高于/低于该线的赔率。
+    分析一下这两场比赛'
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: lottery
+  - id: T1-b1
+    category: delegate_subagent
+    target:
+      agents:
+      - fundamentals
+      - odds
+      - intel
+  - id: T1-b2
+    category: synthesize_answer
+    target:
+      format: six_segment
+hard_constraints: []

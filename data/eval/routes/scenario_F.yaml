@@ -1,0 +1,313 @@
+scenario: F
+explored: 10
+entries:
+- type_id: F01
+  type_name: 赔率对比
+  scenario: F
+  probe_case_id: TC-F01-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F02
+  type_name: 赔率走势
+  scenario: F
+  probe_case_id: TC-F02-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F03
+  type_name: 变动最大
+  scenario: F
+  probe_case_id: TC-F03-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F03.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F04
+  type_name: 凯利指数
+  scenario: F
+  probe_case_id: TC-F04-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F05
+  type_name: 赔率时间线
+  scenario: F
+  probe_case_id: TC-F05-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F06
+  type_name: 盘口解读
+  scenario: F
+  probe_case_id: TC-F06-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F07
+  type_name: 临场盘口
+  scenario: F
+  probe_case_id: TC-F07-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F08
+  type_name: 现在盘口
+  scenario: F
+  probe_case_id: TC-F08-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F09
+  type_name: 水位方向
+  scenario: F
+  probe_case_id: TC-F09-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F09.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F10
+  type_name: 欧赔亚盘
+  scenario: F
+  probe_case_id: TC-F10-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false

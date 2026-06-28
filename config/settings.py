@@ -11,6 +11,8 @@ FORETELL_SKILLS_DIR = PROJECT_ROOT / "foretell" / "skills"
 
 DEFAULT_MODEL = os.environ.get("MINIMAX_MODEL", "MiniMax-M3")
 DEFAULT_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1")
+# MiniMax M3 思考模式：true=adaptive（默认），false=disabled
+MINIMAX_THINKING_ENABLED = os.environ.get("MINIMAX_THINKING_ENABLED", "true").lower() == "true"
 
 LANGSMITH_TRACING = os.environ.get("LANGSMITH_TRACING", "false").lower() == "true"
 LANGSMITH_PROJECT = os.environ.get("LANGSMITH_PROJECT", "foretell")
@@ -38,6 +40,10 @@ class Settings:
     @property
     def is_prod(self) -> bool:
         return self.deploy_env == "prod"
+
+    @property
+    def conversation_log_enabled(self) -> bool:
+        return self.is_prod and bool(self.database_url)
 
     @property
     def mysql_configured(self) -> bool:

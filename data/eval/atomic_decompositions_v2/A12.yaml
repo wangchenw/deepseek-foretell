@@ -1,0 +1,129 @@
+type_id: "A12"
+case_id: "TC-A12-001"
+user_intent_analysis: |
+  本案 16 轮对话的主线是用户想用 Foretell 的数据"建一个泊松+贝叶斯+战意+伤停的足球预测模型",
+  前 11 轮围绕建模/收费/回测/扩样(属建模咨询与批量查询,非 A12 核心),
+  真正落入 A12「球队赛季统计」语义的是 turn 12-15 的四轮宏观数据查询:
+    turn 12: 查询意甲/西甲/英超本季宏观数据
+    turn 13: 查询德甲/法甲本赛季宏观数据
+    turn 14: 查询日职联本赛季宏观数据
+    turn 15: 查询韩职本季宏观数据
+  "宏观数据"在用户建模语境下=联赛级赛季聚合统计(总进球/场均进球/场均失球/最佳攻防球队),
+  用于为泊松模型的 λ 参数做联赛基准校准——这与 taxonomy A12「球队赛季统计:球队进失球等赛季数据」
+  及 entity_entry=team 一致,但用户实际要的是 league-level 聚合而非单队。
+  隐含需求:
+    (1) "本季"锚定对话发生时点的当前赛季:欧洲五大联赛=2025/26 赛季(2025-08 开赛、2026-05 完赛),
+        日职联/韩职=2026 赛季(2026-02 开赛、年内进行中);
+    (2) 七个联赛须全部覆盖,不得漏掉韩职(turn 15 字面"韩职"是 K League 1 常用简称);
+    (3) 宏观数据须含进球维度(总进球/场均/最佳攻击)与失球维度(最佳防守/最少失球),
+        仅给积分榜不满足"宏观"语义;
+    (4) 数据须真实可溯源,禁止编造——expected_behaviors「数据不足时诚实说明」;
+    (5) 不暴露内部 season_id/team_id/competition_id,用联赛名+球队名呈现。
+  对话发生时点视为 2026 年 5-6 月(production session 28042482)。
+turns:
+  - turn: 12
+    user_text: "查询意甲，/西甲/英超本季宏观数椐"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {leagues: [意甲, 西甲, 英超], expected_competition_ids: [108, 120, 82]}
+        success_criteria: "resolve_league 三个联赛名均命中顶级联赛 competition_id(意甲=108/西甲=120/英超=82),排除西甲候选中的巴西甲/墨西甲/西甲U18 等同名干扰项"
+      - id: aq_2
+        category: refine_time_window
+        target: {phrase: 本季, base_date: 2026-05~06, season: 2025/26}
+        success_criteria: "「本季」推断为 2025/26 赛季(season_id 意甲=13238/西甲=13355/英超=13242),非 2024/25 亦非尚未开赛的 2026/27"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_stats
+        target: {competition_ids_from: aq_1, season_ids_from: aq_2, level: league_macro, metrics: [总进球, 场均进球, 最佳攻击球队, 最佳防守球队]}
+        success_criteria: "返回意甲/西甲/英超 25/26 赛季联赛级聚合:总进球/场均进球/最佳攻击(进球最多)球队/最佳防守(失球最少)球队;不得仅给积分榜(积分榜无进球字段)"
+        depends_on: [aq_1, aq_2]
+  - turn: 13
+    user_text: "查询德甲法甲本赛季宏观数据"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherit_from_turn: 12, inherit: season_window(2025/26), add_leagues: [德甲, 法甲]}
+        success_criteria: "继承 turn 12 的「本季=2025/26」时间窗,新增德甲=129/法甲=142;不重置已确认赛季"
+        depends_on: [aq_2]
+      - id: aq_5
+        category: resolve_entity
+        target: {leagues: [德甲, 法甲], expected_competition_ids: [129, 142]}
+        success_criteria: "resolve_league 命中德甲=129/法甲=142(各自唯一候选)"
+        depends_on: [aq_4]
+      - id: aq_6
+        category: fetch_stats
+        target: {competition_ids_from: aq_5, season_ids: [德甲=13295, 法甲=13294], level: league_macro}
+        success_criteria: "返回德甲/法甲 25/26 联赛级宏观数据(总进球/场均/最佳攻防);德甲 18 队 306 场、法甲 18 队 306 场"
+        depends_on: [aq_4, aq_5]
+  - turn: 14
+    user_text: "查询日职联本赛季宏观数据"
+    atomics:
+      - id: aq_7
+        category: maintain_context
+        target: {inherit_from_turn: 13, shift_season_to: J1_2026, add_leagues: [日职联]}
+        success_criteria: "日职联赛制为自然年(2-12 月),「本季」须切换为 2026 赛季(season_id=13870),不沿用欧洲的 2025/26 跨年赛季"
+        depends_on: [aq_2]
+      - id: aq_8
+        category: resolve_entity
+        target: {leagues: [日职联], expected_competition_id: 567}
+        success_criteria: "resolve_league('日职联')命中 J1=567(唯一候选)"
+        depends_on: [aq_7]
+      - id: aq_9
+        category: fetch_stats
+        target: {competition_id_from: aq_8, season_id: 13870, level: league_macro}
+        success_criteria: "返回日职联 2026 赛季联赛级宏观数据(20 队、进行中,截至数据时点 400 场/532 球)"
+        depends_on: [aq_7, aq_8]
+  - turn: 15
+    user_text: "查询韩职本季宏观数据"
+    atomics:
+      - id: aq_10
+        category: maintain_context
+        target: {inherit_from_turn: 14, inherit: natural_year_season(2026), add_leagues: [韩职]}
+        success_criteria: "继承 turn 14 的亚洲自然年赛季语境,新增韩职=K League 1"
+        depends_on: [aq_7]
+      - id: aq_11
+        category: resolve_entity
+        target: {leagues: [韩职], expected_competition_id: 581, alias_note: "用户简称「韩职」,resolve_league 此别名缺失,须降级用「韩K」命中"}
+        success_criteria: "定位到韩K联 competition_id=581;若 resolve_league('韩职')返回 ENTITY_NOT_FOUND,须改用「韩K」或 SQL 兜底,不得断言无此联赛"
+        depends_on: [aq_10]
+      - id: aq_12
+        category: fetch_stats
+        target: {competition_id_from: aq_11, season_id: 13903, level: league_macro}
+        success_criteria: "返回韩K联 2026 赛季宏观数据(12 队、进行中,180 场/204 球)"
+        depends_on: [aq_10, aq_11]
+  - turn: 16
+    user_text: (合成最终建模基准)
+    atomics:
+      - id: aq_13
+        category: synthesize_answer
+        target: {present: 7 联赛宏观数据汇总表, hide: season_id/team_id/competition_id/工具名/中间态}
+        success_criteria: "输出七联赛本季宏观数据汇总(联赛/队数/场次/总进球/场均进球/最佳攻击球队+进球数/最佳防守球队+失球数),用于泊松模型 λ 校准;不暴露 season_id/team_id"
+        depends_on: [aq_3, aq_6, aq_9, aq_12]
+      - id: aq_14
+        category: apply_guardrails
+        target: {check: no_internal_id, no_fabrication, honest_on_gap}
+        success_criteria: "守门:无 season_id/team_id/competition_id;数据真实可溯源;工具缺失时诚实说明「联赛级宏观数据无原生工具,以下经数据库聚合计算」"
+        depends_on: [aq_13]
+hard_constraints:
+  - "七联赛全覆盖:意甲/西甲/英超/德甲/法甲/日职联/韩职一个不得漏(expected_behaviors「意图对齐」)"
+  - "「本季」语义双轨:欧洲五大联赛=2025/26 跨年赛季,日职联/韩职=2026 自然年赛季;不得统一套用同一 season_id"
+  - "宏观数据须含进球+失球两维(总进球/场均进球/最佳攻击/最佳防守);仅给积分榜不算「宏观数据」(积分榜工具无进球字段)"
+  - "数据真实可溯源,禁止编造(expected_behaviors「数据不足时诚实说明」)"
+  - "resolve_league('韩职')别名缺失时不得断言无此联赛,须降级「韩K」或 SQL 兜底"
+  - "不暴露内部 season_id/team_id/competition_id,用联赛名+球队名呈现"
+  - "工具缺失(联赛级宏观数据无原生工具)时须诚实声明数据来源,不得假装工具返回"
+  - "多轮上下文:turn 13 继承 turn 12 的「本季」窗,turn 14/15 切换亚洲自然年赛季,不重置已确认实体"
+  - "不调用 internet_search 兜底宏观数据;discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_3/aq_6/aq_9/aq_12(fetch_stats 联赛级宏观数据)环节出问题。
+  核心怀疑点:
+  (1) foretell 工具集无「联赛级赛季宏观数据」工具——get_team_season_stats 是单队维度(get_team_season_stats(team_id)),
+      get_standings 是积分榜且无进球字段。用户要的 league-level 聚合在工具层 implementation_gap。
+  (2) 即便降级到单队 get_team_season_stats,P0 已发现该工具对存在数据的 team_id 仍返回 DATA_MISSING,
+      本案需复测确认是否系统性 bug。
+  (3) get_standings(league_id) 的返回疑似多赛季第 1 名混杂行(position 全为 1、count=30),
+      无法作为宏观数据来源,且可能误导 LLM 把历史第 1 名当作「本季榜首」。
+  (4) resolve_league('韩职')别名缺失,会 ENTITY_NOT_FOUND,需主动降级「韩K」。
+  Agent 2 应优先用 SQL 直查 football_competition_teams_stats 按 season_id 聚合建立基准,
+  再调 get_team_season_stats / get_standings 对照,确认 implementation_gap 与 tool_logic_gap。

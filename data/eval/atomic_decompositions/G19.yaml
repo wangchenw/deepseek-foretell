@@ -1,0 +1,25 @@
+type_id: G19
+type_name: 短确认
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 全部3场比赛均为韩国时间18:30开赛 1. 釜山偶像 vs 忠南牙山 2. 大邱FC vs 坡州市民 3. 城南FC vs 金海FC 2008 二、国际友谊赛（今晚即将开赛场次，已结束场次已省略）
+    1. 韩国时间20:30 新加坡 vs 中国男足（A级友谊赛，世界杯热身赛） 2. 韩国时间21:30 泰国 vs 科威特 3. 韩国时间22:00 印度尼西亚
+    vs 阿曼 4. 韩国时间22:00 塔吉克斯坦 vs 印度 5. 韩国时间23:00 白俄罗斯 vs 叙利亚 6. 韩国时间23:00 格鲁吉亚 vs 巴林
+    7. 韩国时间23:30 斯洛伐克 vs 黑山 8. 韩国时间次日00:00 摩尔多瓦 vs 保加利亚 9. 韩国时间次日00:00 俄罗斯 vs 布基纳法索
+    10. 韩国时间次日00:00 圣马力诺 vs 孟加拉国 11. 韩国时间次日00:45 匈牙利 vs 芬兰 12. 韩国时间次日02:00 安哥拉 vs
+    毛里塔尼亚需要这几场的分析预测比分
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

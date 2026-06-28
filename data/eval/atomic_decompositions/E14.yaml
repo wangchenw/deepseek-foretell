@@ -1,0 +1,15 @@
+type_id: E14
+type_name: 竞篮今日
+scenario: E
+entity_entry: date
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 篮球竞篮的大小分走向分析
+  atomics:
+  - id: T1-a1
+    category: fetch_schedule
+    target:
+      source: date
+hard_constraints: []

@@ -1,0 +1,109 @@
+type_id: "A16"
+case_id: "TC-A16-001"
+exploration_log:
+  - step: 1
+    action: "读取 atomic_decompositions_v2/A16.yaml 复用原子分解(11 个原子,turn5-9 NBA 话题)"
+    reasoning: "原子分解已存在且拆解充分,核心维度:球队实体解析/NBA 赛程/比赛分析/主客验证/竞篮大小分"
+    next: "SQL 直查 basketball_team 确认雷霆/马刺 team_id"
+
+  - step: 2
+    action: "SQL 直查 basketball_team 确认雷霆/马刺 id"
+    query: |
+      SELECT id,name_zh,name_en,short_name_zh,national FROM basketball_team
+      WHERE name_zh LIKE '%雷霆%' OR name_zh LIKE '%马刺%'
+        OR name_en LIKE '%Thunder%' OR name_en LIKE '%Spurs%' LIMIT 10
+    result: |
+      雷霆=俄克拉荷马城雷霆 id=10219 short=雷霆;
+      马刺=圣安东尼奥马刺 id=10137 short=马刺。
+      (注意:football_team.id=10219=拉科鲁尼亚,跨运动 ID 碰撞风险)
+    reasoning: "底库 basketball_team 含雷霆/马刺完整实体,可 SQL 直查定位"
+    next: "验证雷霆vs马刺 NBA 对战赛程"
+
+  - step: 3
+    action: "SQL 直查 basketball_match JOIN basketball_team JOIN basketball_competition 验证雷霆vs马刺 NBA 对战"
+    query: |
+      SELECT m.id,m.home_team_id,m.away_team_id,m.competition_id,m.match_time_str,
+             m.status_id,m.neutral,m.kind,ht.name_zh AS h,at.name_zh AS a,c.name_zh AS comp
+      FROM basketball_match m JOIN basketball_team ht ON ht.id=m.home_team_id
+      JOIN basketball_team at ON at.id=m.away_team_id
+      JOIN basketball_competition c ON c.id=m.competition_id
+      WHERE (m.home_team_id=10219 OR m.away_team_id=10219)
+        AND (ht.name_zh='俄克拉荷马城雷霆' OR at.name_zh='俄克拉荷马城雷霆')
+        AND (ht.name_zh='圣安东尼奥马刺' OR at.name_zh='圣安东尼奥马刺')
+      ORDER BY m.match_time_str DESC LIMIT 10
+    result: |
+      10 条雷霆vs马刺 NBA 对战,最近 5 场季后赛(kind=2 status=10 完场):
+      - 2026-05-31 08:00 雷霆(主)vs马刺(客) match_id=3921754 neutral=0
+      - 2026-05-29 08:30 马刺(主)vs雷霆(客) match_id=3921525
+      - 2026-05-27 08:30 雷霆(主)vs马刺(客) match_id=3921246
+      - 2026-05-25 08:00 马刺(主)vs雷霆(客) match_id=3920591
+      - 2026-05-23 08:30 马刺(主)vs雷霆(客) match_id=3920590
+      答案:最近一场=2026-05-31 08:00 雷霆(主)vs马刺(客) NBA 季后赛 status=完场,
+      与用户 turn7「这次应该是雷霆主场了吧」猜测一致(turn5 那场=2026-05-31 主场)。
+    reasoning: "底库 basketball_match 含雷霆vs马刺完整 NBA 赛程,主客方位/状态/赛事/比分字段齐全,可回答 turn5/turn7"
+    next: "验证竞篮大小分盘口"
+
+  - step: 4
+    action: "SQL 直查 lottery_jclq_odds 验证竞篮雷霆vs马刺大小分(turn9 用户说 219.5)"
+    query: |
+      SELECT issue, issue_num, home, away, match_time_str, sf, rf, dxf, sfc
+      FROM lottery_jclq_odds
+      WHERE home LIKE '%雷霆%' AND away LIKE '%马刺%' AND match_time_str LIKE '2026-05-31%' LIMIT 2
+    result: |
+      issue=260530 issue_num=6305=周六305,2026-05-31 08:00 雷霆vs马刺 美国职业篮球联盟,
+      sf=1.58,1.83(胜负), rf=-3.5,1.78,1.62(让分), dxf=214.5,1.66,1.74(大小分),
+      sfc=5.30,5.35,...(胜分差)。
+      **底库大小分 dxf=214.5,与用户提供 219.5 不一致(差 5 分)**。
+    reasoning: "竞篮盘口数据齐全,但用户输入 219.5 与底库 214.5 mismatch,Foretell 须显式指出差异并请用户确认,不盲从不忽略"
+    next: "验证跨运动 ID 碰撞风险与篮球工具可达性"
+
+  - step: 5
+    action: "参考旧 path_attempts_v2/A16.yaml 与 db_schema_map.md 确认工具层 gap"
+    reasoning: |
+      旧 path 已验证:
+      - resolve_team('雷霆'/'马刺') 仅查 football_team,返回 8-10 个足球候选,无一篮球;
+        「俄克拉荷马城雷霆」「圣安东尼奥马刺」全名 ENTITY_NOT_FOUND(implementation_gap)
+      - get_team_schedule(team_id=10219) 静默返回拉科鲁尼亚足球赛程(跨运动 ID 碰撞,
+        tool_logic_gap)——禁止用此路径
+      - get_recent_form(team_id=10219) 同样静默返回足球数据(tool_logic_gap)
+      - get_h2h(10219,10137) / get_team_season_stats(10219) DATA_MISSING(implementation_gap)
+      - get_schedule_by_date(sport=basketball, league_preset=NBA, date=2026-05-31) OK 返回
+        match_id=3921754 home=雷霆 away=马刺(workaround 可用)
+      - get_lottery_schedule(play_type=201, date) OK 返回竞篮 entries 含 sf/rf/dxf/sfc
+      篮球工具链大面积缺失,但底库 basketball_match + basketball_team + basketball_competition
+      + lottery_jclq_odds 数据齐全,SQL 直查可回答全部 turn5-9 问题。
+    next: "审查并落盘 A16"
+
+final_finding: |
+  A16(NBA赛程)底库路径完全可行:
+  (1) 球队实体:basketball_team 含雷霆(10219)/马刺(10137)完整实体,SQL 直查可得;
+  (2) NBA 赛程:basketball_match JOIN basketball_team JOIN basketball_competition 返回
+      雷霆vs马刺 10 场 NBA 对战,最近一场=2026-05-31 08:00 雷霆(主)vs马刺(客)
+      季后赛 match_id=3921754 neutral=0,可回答 turn5(比赛分析)+turn7(主客验证);
+  (3) 比赛分析维度:basketball_match.home_scores/away_scores 含比分;
+      近期战绩/交锋可由 SQL 直查 basketball_match 历史赛事聚合;
+      球队赛季统计若有 basketball_competition_team_stats 表(SQL 探索可得);
+  (4) 竞篮大小分:lottery_jclq_odds(issue=260530, issue_num=6305)返回 dxf=214.5,
+      与用户 turn9 提供 219.5 mismatch,Foretell 须显式指出差异;
+  (5) 信心指数/星级:须基于可得数据(赛程+主客+赛季排名+大小分盘口)合成,不得编造;
+  (6) turn6 历史推荐回溯:依赖会话记录,无原生 checkpointer,须诚实说明无法回溯。
+
+  结论:数据库有数据能回答用户全部 turn5-9 问题,SQL 直查路径完整可行,
+  工具层 stub/跨运动碰撞不阻塞数据获取,只影响生产 Foretell 是否能直查 SQL。
+
+gaps_encountered:
+  - gap_type: "implementation_gap"
+    detail: "resolve_team 仅查 football_team,basketball_team 不在数据源;雷霆/马刺全名 ENTITY_NOT_FOUND;get_h2h/get_team_season_stats 对篮球 team_id DATA_MISSING。NBA 球队实体与统计在工具层完全不可达,需 SQL 兜底"
+    location: "foretell/tools/crazy_sports/mysql_client.py 实体解析+统计工具"
+  - gap_type: "tool_logic_gap"
+    detail: "get_team_schedule(team_id=10219) / get_recent_form(team_id=10219) 接受篮球 team_id 但静默返回足球数据(10219=拉科鲁尼亚足球,跨运动 ID 碰撞),无 sport 校验。返回 OK + 看似合理的比赛数据但运动类型完全错误"
+    location: "foretell/tools/crazy_sports/schedule.py + mysql_client.py"
+  - gap_type: "data_gap"
+    detail: "用户 turn9 提供大小分 219.5 与底库 dxf=214.5 不一致(差 5 分)。Foretell 须显式指出 mismatch 并请用户确认,不盲从不忽略"
+    location: "lottery_jclq_odds dxf 字段 vs 用户输入"
+  - gap_type: "context_gap"
+    detail: "turn5-9 多轮跨话题(足球↔篮球↔盘口)继承 + turn6 历史推荐回溯无原生 checkpointer,依赖 LLM 层显式串接。无会话记录时须诚实说明无法回溯,不得编造 4 星大分推荐历史"
+    location: "agent 层 checkpointer 缺失"
+  - gap_type: "workaround 可用但需先有日期"
+    detail: "get_schedule_by_date(sport=basketball, league_preset=NBA, date) 是 NBA 赛程唯一可用工具路径,但需先有日期;无日期时 LLM 须推断或问用户。SQL 直查 basketball_match 无此限制"
+    location: "工具层 vs SQL 路径"

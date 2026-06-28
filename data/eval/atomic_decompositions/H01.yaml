@@ -1,0 +1,18 @@
+type_id: H01
+type_name: 争冠悬念
+scenario: H
+entity_entry: league
+priority: P1
+generated: true
+turns:
+- turn: 1
+  user: 英超争冠还有悬念吗
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

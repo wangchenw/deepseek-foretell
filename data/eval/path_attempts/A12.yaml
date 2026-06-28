@@ -1,0 +1,25 @@
+type_id: A12
+case_id: TC-A12-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: A12-probe-1
+  tool: resolve_team
+  params:
+    name: 利物浦
+  code: OK
+  stub: false
+- round: 2
+  atomic_id: A12-probe-2
+  tool: get_team_schedule
+  params:
+    team_id: 10249
+    direction: upcoming
+    limit: 3
+  code: OK
+  count: 3
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

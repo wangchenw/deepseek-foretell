@@ -1,0 +1,22 @@
+type_id: X04
+type_name: 定位失败
+scenario: X
+entity_entry: match
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 四大VS瓦勒伦加两队最可能的进球数
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-x1
+    category: apply_guardrails
+    target: {}
+hard_constraints:
+- 不输出中间态

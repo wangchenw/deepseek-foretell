@@ -1,0 +1,100 @@
+type_id: "A05"
+case_id: "TC-A05-001"
+exploration_log:
+  - step: 1
+    action: "SQL 直查 football_match 验证 3 场 5/16 比赛"
+    query: "SELECT id, home_team_id, away_team_id, competition_id, season_id, status_id, match_time_str, home_scores, away_scores, coverage_lineup, coverage_intelligence FROM football_match WHERE id IN (4470724,4480359,4470725)"
+    result: "3 场全部存在且 status_id=8 已完场:4470724 浦和(10298)vs FC东京(10061) J联赛 comp=567 season=13870 15:00 主场0-0点球9-10;4470725 横滨(10336)vs 柏(10380) 16:00 0-1;4480359 大田(10438)vs FC首尔(10305) K联赛 comp=581 season=13903 15:30 1-2。coverage_lineup=1, coverage_intelligence=1 三场全有。"
+    reasoning: "atomic 标注三场已完场,SQL 直查最快建立基准,绕开 resolve_match 命名容错风险(用户语序东京FC/首尔FC↔DB存FC东京/FC首尔)。"
+    next: "验证 6 个 team_id 实体 + 查首发/伤停/情报/赔率/统计"
+  - step: 2
+    action: "SQL 验证 6 个 team_id 实体"
+    query: "SELECT id, name_zh, short_name_zh, national, competition_id FROM football_team WHERE id IN (10298,10061,10438,10305,10336,10380)"
+    result: "6 队全中:10298 浦和红钻、10061 FC东京、10438 大田市民、10305 FC首尔、10336 横滨水手、10380 柏太阳神,均为 national=0 俱乐部,competition_id 与 match 表一致。"
+    reasoning: "确认实体解析正确,排除梯队/青年队/女足,用户「东京FC/首尔FC」语序反转通过 team_id 直查绕过 resolve_team 风险。"
+    next: "查首发阵容"
+  - step: 3
+    action: "SQL 查 football_match_lineup 父表"
+    query: "SELECT id, match_id, confirmed, home_formation, away_formation, home_coach_id, away_coach_id FROM football_match_lineup WHERE match_id IN (4470724,4480359,4470725)"
+    result: "3 场均有 confirmed=1 阵容:4470724 浦和4-2-3-1 vs FC东京4-4-2;4470725 横滨4-2-3-1 vs 柏3-4-2-1;4480359 大田4-3-3 vs FC首尔4-4-2。教练 id 齐全。"
+    reasoning: "atomic 称 get_match_lineup 三场 DATA_MISSING,但 coverage_lineup=1 暗示数据存在,需 SQL 验证。"
+    next: "查 lineup_detail 首发球员"
+  - step: 4
+    action: "SQL 查 football_match_lineup_detail 首发球员"
+    query: "SELECT ld.team_id, ld.first, ld.captain, ld.name, ld.shirt_number, ld.position, ld.rating FROM football_match_lineup l JOIN football_match_lineup_detail ld ON ld.lineup_id = l.id WHERE l.match_id = 4470724 AND l.confirmed = 1 AND ld.first = 1 ORDER BY ld.team_id, ld.shirt_number LIMIT 30"
+    result: "4470724 浦和 11 人首发(西川周作G/宫本优太D/渡边凌磨C 等)+ FC东京 11 人首发(室屋成C/马塞洛F/金承奎G 等),共 22 人,含队长/球衣号/位置/评分。"
+    reasoning: "验证首发数据完整存在,foretell get_match_lineup stub 是 implementation_gap,SQL workaround 完整可用。"
+    next: "确认另两场首发计数 + foretell stub 复现"
+  - step: 5
+    action: "SQL COUNT 首发球员 + foretell 工具 stub 复现"
+    query: "SELECT COUNT(*) AS cnt, l.match_id FROM football_match_lineup l JOIN football_match_lineup_detail ld ON ld.lineup_id = l.id WHERE l.match_id IN (4470724,4480359,4470725) AND l.confirmed = 1 AND ld.first = 1 GROUP BY l.match_id"
+    result: "三场各 22 人(first=1),首发数据完整。同时调 foretell get_match_lineup(match_id=4470724) 返回 DATA_MISSING,确认 stub(对应 db_schema_map 第866-867行)。"
+    reasoning: "atomic aq_3/aq_13/aq_19 关于「首发 DATA_MISSING」是工具层问题,SQL 层路径完整。"
+    next: "查伤停"
+  - step: 6
+    action: "SQL 查 football_team_injury 6 队伤停"
+    query: "SELECT team_id, player_id, competition_id, type, reason, missed_matches, del_flag FROM football_team_injury WHERE team_id IN (10298,10061,10438,10305,10336,10380) AND del_flag = 1 LIMIT 50"
+    result: "12 条伤停:FC东京 2 条(膝关节/肌肉挫伤)、浦和 1 条(轮休停赛)、FC首尔 2 条(踝关节/未知)、横滨 2 条(膝关节/跟腱)、柏 4 条(3膝关节+1跟腱)、大田 1 条(手指骨折)。"
+    reasoning: "伤停数据丰富,foretell get_injury_report 是 stub(db_schema_map 869-870行),SQL 直查覆盖。"
+    next: "查情报"
+  - step: 7
+    action: "SQL 查 football_intelligence 三场情报"
+    query: "SELECT id, good_home, good_away, bad_home, bad_away, neutral FROM football_intelligence WHERE id IN (4470724,4480359,4470725)"
+    result: "三场均返回完整 good_home/good_away/bad_home/bad_away/neutral 文本(每段 3000 字符),含状态/交锋/攻防/伤停/赛果走势等结构化情报。"
+    reasoning: "atomic 称 get_intel_tags stub,但 football_intelligence 表数据完整,SQL 直查覆盖 8 视角分析所需情报。"
+    next: "查欧赔"
+  - step: 8
+    action: "SQL 查 football_odds_europe 三场欧赔"
+    query: "SELECT match_id, company_id, first_odd1, first_odd2, first_odd3, odd1, odd2, odd3, real_odd1, real_odd2, real_odd3, is_zoudi FROM football_odds_europe WHERE match_id IN (4470724,4480359,4470725) ORDER BY match_id, company_id LIMIT 30"
+    result: "4470724 返回 19 家公司欧赔(初盘/即时/最新),4470725 返回 11+ 家,多公司 cross-validation 可行。is_zoudi 标识走地赔率。"
+    reasoning: "赔率快照充足,支撑 8 视角之「市场热度+爆冷预警」;赔率走势需 football_odds_europe_change_* 历史分区表(get_odds_trend stub)。"
+    next: "查球队赛季统计"
+  - step: 9
+    action: "SQL 查 football_competition_teams_stats 6 队赛季统计"
+    query: "SELECT season_id, team_id, matches, goals, penalty, assists, red_cards, yellow_cards, shots, shots_on_target, ball_possession FROM football_competition_teams_stats WHERE season_id IN (13870,13903) AND team_id IN (10298,10061,10336,10380,10438,10305) ORDER BY team_id LIMIT 20"
+    result: "6 队全有:J联赛(13870)4 队 20 场,K联赛(13903)2 队 15 场。含进球/助攻/射门/射正/控球率/红黄牌等全维度。浦和 20场26球、FC东京 20场31球、横滨 20场32球、柏 20场27球、大田 15场17球、FC首尔 15场27球。"
+    reasoning: "atomic 称 get_team_season_stats stub(db_schema_map 724-725行),但 SQL 直查 football_competition_teams_stats 完整覆盖场均进失球/射门/控球等基础数据。xG/xGA 字段无(数据库未采集,需诚实说明)。"
+    next: "查近况战绩(h2h + recent form)"
+  - step: 10
+    action: "SQL 查浦和近 10 场 + 浦和 vs FC东京 h2h"
+    query: "SELECT id, match_time_str, home_team_id, away_team_id, home_scores, away_scores FROM football_match WHERE (home_team_id = 10298 OR away_team_id = 10298) AND status_id = 8 AND match_time_str < '2026-05-16' ORDER BY match_time DESC LIMIT 10"
+    result: "浦和近 10 场完整比分序列,含 5/9 客 4-1 水户、5/6 客 1-0 柏、5/2 主 2-0、4/29 主 2-0 等。h2h SQL 返回近 5 次交锋:2026/5/16、2026/2/14(点球)、2025/8/27、2025/7/19、2025/5/17。"
+    reasoning: "recent_form 与 h2h 均可 SQL 直查,覆盖 aq_7/aq_8。foretell get_recent_form/get_h2h 工具理论上可用但需 team_id 输入,SQL 直查更稳。"
+    next: "审查结论"
+final_finding: |
+  A05 三场比赛(浦和vs FC东京 4470724、横滨vs 柏 4470725、大田vs FC首尔 4480359)数据路径完整存在:
+  (1) 实体解析:6 队 team_id 经 SQL 验证为唯一正确俱乐部,用户「东京FC/首尔FC」语序反转通过 team_id 直查绕过 resolve_team 命名风险;
+  (2) 比赛定位:3 场 match_id 全部存在且 status_id=8 已完场,赛果 home_scores/away_scores 解读为浦和0-0点球9-10、横滨0-1、大田1-2;
+  (3) 首发阵容:三场各 22 人首发(first=1)含阵型/教练/队长/球衣/位置/评分,football_match_lineup_detail 数据完整;
+  (4) 伤停:6 队共 12 条伤停/停赛记录;
+  (5) 情报:三场 football_intelligence 完整 good/bad/neutral 文本;
+  (6) 欧赔:多公司初盘/即时/最新赔率充足;
+  (7) 赛季统计:6 队 matches/goals/shots/possession 等全维度,xG/xGA 字段数据库未采集;
+  (8) 近况/h2h:均 SQL 可查。
+  foretell 工具层 5 个 stub(get_match_lineup/get_injury_report/get_intel_tags/get_team_season_stats/get_odds_trend)在 SQL 直查下全部覆盖,工具坏不等于无解。
+  唯一真不可得:xG/xGA(数据库无此字段)、官方发布会信息(无 internet_search 路径,Tavily 不在评估范围)——须按 expected_behaviors 诚实说明。
+gaps_encountered:
+  - gap_type: "implementation_gap"
+    detail: "get_match_lineup stub 返回 DATA_MISSING(db_schema_map 866-867行),但 football_match_lineup_detail 三场各 22 人首发完整。"
+    location: "foretell/tools/crazy_sports/mysql_client.py:866-867"
+  - gap_type: "implementation_gap"
+    detail: "get_injury_report stub 返回 DATA_MISSING(869-870行),football_team_injury 6 队 12 条伤停完整。"
+    location: "foretell/tools/crazy_sports/mysql_client.py:869-870"
+  - gap_type: "implementation_gap"
+    detail: "get_intel_tags stub 返回 [](872-873行),football_intelligence 三场完整 good/bad/neutral 文本。"
+    location: "foretell/tools/crazy_sports/mysql_client.py:872-873"
+  - gap_type: "implementation_gap"
+    detail: "get_team_season_stats stub 返回 None(724-725行),football_competition_teams_stats 6 队全维度统计完整。"
+    location: "foretell/tools/crazy_sports/mysql_client.py:724-725"
+  - gap_type: "implementation_gap"
+    detail: "get_odds_trend stub 返回 [](854-855行),赔率走势需 football_odds_europe_change_* 历史分区表,本次未深入验证(欧赔快照足够支撑 8 视角之市场热度分析)。"
+    location: "foretell/tools/crazy_sports/mysql_client.py:854-855"
+  - gap_type: "data_gap"
+    detail: "xG/xGA 字段数据库未采集,用户 turn3/4/6/7/16 明确要求,须按 expected_behaviors 诚实说明,不得编造。"
+    location: "football_competition_teams_stats 表无 xG/xGA 列"
+  - gap_type: "routing_gap"
+    detail: "用户「东京FC/首尔FC」语序与 DB 存「FC东京/FC首尔」相反,resolve_team 可能 ENTITY_NOT_FOUND;SQL team_id 直查绕过。"
+    location: "foretell resolve_team 命名匹配"
+  - gap_type: "discover_via_search_gap"
+    detail: "官方发布会/俱乐部官方/联赛官方信息无 internet_search 路径(Tavily 不在评估范围),须诚实说明缺失,不编造。"
+    location: "foretell tools 无可用搜索入口"

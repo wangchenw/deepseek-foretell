@@ -1,0 +1,140 @@
+type_id: "A17"
+case_id: "TC-A17-REG-001"
+atomic_path_attempts:
+  - atomic_id: aq_1
+    rounds:
+      - round: 1
+        hypothesis: "resolve_team('法国') 应返回法国男足国家队 team_id=10234；SQL 基准确认"
+        sql_baseline:
+          query: |
+            SELECT id,name_zh,short_name_zh,national FROM football_team
+            WHERE name_zh LIKE '%法国%' LIMIT 20
+          result: "20 条候选，id=10234 name_zh='法国' national=1 为男足国家队正选；其他含法国U21/U20/U19/U23/女足各梯队(national=1)、法国球迷队(15891,national=0)、法国沙滩/室内足球队等"
+        tool_call:
+          name: resolve_team
+          params: {name: 法国}
+          result: "code=OK，返回 10 候选，首位 {team_id:10234, name:法国, name_en:France, national:1}；其他含法国U21/U20/女足/U19 等梯队"
+        comparison: "工具首位即 SQL 基准的 team_id=10234，完全一致。比 A08 葡萄牙案例更友好（葡正选在末位，法正选在首位）。消歧责任在 LLM 调用方按 national=1 + 精确名称='法国' 选择 10234，排除梯队（U21/U20/女足等）"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "resolve_team 行为正常，team_id=10234 为首选候选"
+    recommended_next_step: "无需修复；调用方须按 national=1 + 精确名称消歧，排除 U21/U20/女足梯队"
+
+  - atomic_id: aq_2
+    rounds:
+      - round: 1
+        hypothesis: "resolve_league('世界杯') 应返回 2026 世界杯 competition_id=1；A08 已验证此工具正常，复用结论"
+        sql_baseline:
+          query: |
+            SELECT id,name_zh,name_en FROM football_competition
+            WHERE name_zh LIKE '%世界杯%' LIMIT 20
+          result: "id=1 name_zh='世界杯' name_en='FIFA World Cup' 为正选；其他含世欧预(2)/世亚预(3)/女世界杯(13)/U20世界杯(14)/室内世界杯(20) 等"
+        tool_call:
+          name: resolve_league
+          params: {name: 世界杯}
+          result: "code=OK，首位 {league_id:1, name:世界杯, name_en:FIFA World Cup, sport:football}（A08 已验证，复用）"
+        comparison: "工具首位即 SQL 基准的 competition_id=1，完全一致。须按 year=2026 + 排除预选赛/U20/女足 选择 league_id=1"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "resolve_league 行为正常，competition_id=1 为首选候选"
+    recommended_next_step: "无需修复；调用方须按 year=2026 进行中选择 league_id=1，排除预选赛/U20/女足/往届"
+
+  - atomic_id: aq_3
+    rounds:
+      - round: 1
+        hypothesis: "fetch_schedule：法国队 2026 世界杯全部赛事。复用 A08 发现——direction=upcoming 有 tool_logic_gap，直接用 direction=all + LLM 手动按 league_name='世界杯' 过滤。先 SQL 建立基准"
+        sql_baseline:
+          query: |
+            SELECT m.id,m.home_team_id,m.away_team_id,m.competition_id,m.match_time_str,m.status_id,
+                   ht.name_zh AS home_name, at.name_zh AS away_name, c.name_zh AS comp_name
+            FROM football_match m
+            JOIN football_team ht ON ht.id=m.home_team_id
+            JOIN football_team at ON at.id=m.away_team_id
+            JOIN football_competition c ON c.id=m.competition_id
+            WHERE (m.home_team_id=10234 OR m.away_team_id=10234)
+              AND m.competition_id=1
+              AND m.match_time_str LIKE '2026%'
+            ORDER BY m.match_time LIMIT 20
+          result: "4 条基准答案：(1) 6/17 03:00 法国(主) vs 塞内加尔(客) status_id=8 已完赛；(2) 6/23 05:00 法国(主) vs 伊拉克(客) status_id=8 已完赛；(3) 6/27 03:00 挪威(主) vs 法国(客) status_id=8 已完赛；(4) 7/01 05:00 法国(主) vs 瑞典(客) status_id=1 未赛。注：反馈 #001 记录时点(6/26)只列 3 场小组赛，DB 现已含 4 场（7/1 淘汰赛 vs 瑞典）"
+        decision: continue
+      - round: 2
+        hypothesis: "调用 get_team_schedule(direction=all, league_id=1) 获取法国队全部赛事，LLM 手动按 league_name='世界杯' 过滤。复用 A08 已知 league_id 过滤器失效的发现"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 10234, direction: all, league_id: 1, limit: 20}
+          result: "code=OK，20 条按 match_time desc。league_id=1 过滤器失效（返回欧国联/国际友谊/世欧预/欧洲杯等）。手动过滤 league_name='世界杯' → 4 条：(1) 7/01 05:00 法国(主) vs 瑞典(客) status=not_started；(2) 6/27 03:00 挪威(主) vs 法国(客) status=finished；(3) 6/23 05:00 法国(主) vs 伊拉克(客) status=finished；(4) 6/17 03:00 法国(主) vs 塞内加尔(客) status=finished"
+        comparison: "手动过滤后工具结果与 SQL 基准完全一致：4 场法国 2026 世界杯赛事，含日期/对手/状态/北京时间/主客方位。所有 expected_behaviors 字段齐全（含日期对手状态+北京时间+主客场）。7/1 瑞典场是反馈 #001 漏掉的淘汰赛，DB 现已包含"
+        decision: continue
+      - round: 3
+        hypothesis: "验证 A08 发现的 direction=upcoming+league_id=fc_1 bug 在法国队上也存在（确认是工具层 bug 而非球队特定）"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 10234, direction: upcoming, league_id: "fc_1", limit: 10}
+          result: "code=DATA_MISSING，data.matches=[]，空结果"
+        comparison: "确认 bug 重现：direction=upcoming+league_id=fc_1 在法国队上也返回空。而 SQL 基准证明 DB 有 4 场法国世界杯赛事（含 7/1 未赛）。这是 A08 已记录的 tool_logic_gap 在 A17 的重现——若原 Foretell 用此参数组合查法国队世界杯赛程，会得到『法国世界杯无 upcoming 赛事』的假阴性"
+        decision: continue
+      - round: 4
+        hypothesis: "交叉验证 get_lottery_schedule(101, '2026-07-01') 确认 7/1 法国vs瑞典场存在（法国已进入淘汰赛）"
+        tool_call:
+          name: get_lottery_schedule
+          params: {play_type: "101", date: "2026-07-01"}
+          result: "code=OK，3 条 entries，含 lottery_code='周二078' home_name='法国' away_name='瑞典' league_name='世界杯' date='2026-07-01'（lottery_id=2040346, issue=260630）。与 SQL 基准 match_id=4459721 完全对应"
+        comparison: "lottery 路径正确命中 7/1 法国vs瑞典世界杯场，交叉验证 SQL 基准与 direction=all 工具结果。lottery_code='周二078' 是内部编号，须在最终回答中隐藏"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: tool_logic_gap
+    gap_evidence: |
+      核心证据：SQL 基准（round1）证明法国 2026 世界杯有 4 场赛事（6/17 塞内加尔、6/23 伊拉克、6/27 挪威、7/1 瑞典）。
+      工具对照三处 tool_logic_gap（与 A08 同源）：
+      (1) get_team_schedule(direction=all, league_id=1) league_id 过滤器失效——返回欧国联/国际友谊等非世界杯赛事，须 LLM 手动按 league_name 二次过滤；手动过滤后命中 4 场与 SQL 基准一致；
+      (2) get_team_schedule(direction=upcoming, league_id='fc_1') 返回 DATA_MISSING 空结果，而 DB 实际有 4 场（含 7/1 未赛）——bug 在法国队上重现，证明是工具层 bug 而非球队特定；
+      (3) 交叉验证 get_lottery_schedule(101, '2026-07-01') 命中周二078 法国vs瑞典，确认 7/1 场存在。
+      可行 workaround：direction=all + LLM 手动按 league_name+match_time 过滤；或 get_lottery_schedule 兜底。
+      本案 expected_behaviors 四字段（日期/对手/状态/北京时间/主客）全部从 direction=all 工具结果获取，无字段缺失。
+    recommended_next_step: |
+      同 A08：P1 修复 get_team_schedule 的 direction=upcoming 语义反转 + league_id 前缀解析 + league_id 过滤器失效三处 bug。
+      在工具修复前，Skill 层强制规则：「国家队世界杯赛程查询须用 direction=all + LLM 手动按 league_name 过滤，禁用 direction=upcoming+league_id 组合；交叉验证 get_lottery_schedule」。
+
+  - atomic_id: aq_4
+    rounds:
+      - round: 1
+        hypothesis: "synthesize_answer：基于 aq_3 命中的 4 场法国世界杯赛事，生成符合 expected_behaviors 的回答（表格含日期+对手+状态+北京时间+主客）。反馈 #001 漏了开球时间和主客，本案须强制这两字段进入输出"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 10234, direction: all, league_id: 1, limit: 20}
+          result: "命中 4 场字段齐全：home_name/away_name/match_time_beijing/status/league_name。需 LLM 层字段裁剪：剥离 match_id/home_team_id/away_team_id/league_id/lottery_code，保留 name/match_time_beijing/status/主客方位（home=主）"
+        comparison: "工具返回字段足以合成合规回答。输出模板（表格）：| 日期(北京时间) | 赛事 | 对阵 | 主场 | 状态 |。例：6/17 03:00 世界杯 法国 vs 塞内加尔 法国主场 已完赛；... 7/01 05:00 世界杯 法国 vs 瑞典 法国主场 未开赛。消歧说明可压缩为一句：『以上默认法国男足 2026 世界杯；若指女足或其他赛事请说明』（反馈 #001 P2 歧义说明略重）"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "aq_3 已提供齐全字段；synthesize 环节无数据缺口，仅需 LLM 层字段裁剪与输出守门。反馈 #001 漏的开球时间+主客本案已强制进入模板"
+    recommended_next_step: "Skill 层固化输出模板：表格列须含『日期(北京时间)|赛事|对阵|主场|状态』；消歧说明压缩为一句；不暴露内部编号"
+
+  - atomic_id: aq_5
+    rounds:
+      - round: 1
+        hypothesis: "apply_guardrails：终态守门——无内部编号、无中间态、未穷尽前未断言无赛、轻量路径未走六段式深度分析"
+        tool_call:
+          name: get_team_schedule
+          params: {team_id: 10234, direction: all, limit: 20}
+          result: "guardrail 检查：(1) 输出无 match_id/team_id/ft_/fc_/lottery_code → 须 LLM 层剥离；(2) 无『正在查询/接口延迟』中间态 → 须 LLM 层不外露推理；(3) 未穷尽 DB 检索前不断言无赛 → 已通过 SQL 基准+direction=all+lottery 交叉验证穷尽；(4) 轻量路径 → 未调用深度分析工具（get_match_lineup/get_injury_report/get_intel_tags 等），符合场景 A 分轨"
+        comparison: "守门规则在 LLM 输出层执行。反馈 #001 显示原回答输出纪律良好（无中间态/无工具名），本案沿用并强化内部编号剥离"
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: "守门规则须 LLM 层强制执行；本评估路径已穷尽 DB 检索（SQL 基准 + direction=all + lottery 交叉验证），未走深度分析，守门通过"
+    recommended_next_step: "Skill 层固化输出守门：剥离所有内部 ID/编号/工具名/中间态；轻量查询禁用深度分析工具；未交叉验证前不得输出『无比赛』结论"
+
+overall_path_summary:
+  atomic_count: 5
+  satisfied: 5
+  blocked: 0
+  partial: 0
+  total_rounds: 8
+  primary_gap_type: tool_logic_gap
+  primary_gap_root_cause: "get_team_schedule 的 direction=upcoming+league_id=fc_1 返回 DATA_MISSING + league_id 整数过滤器失效（与 A08 同源）。复用 A08 发现，未重复全部探索"
+  workaround_path: "direction=all + LLM 手动按 league_name='世界杯' 过滤；交叉验证 get_lottery_schedule(101, date)"
+  context_gap_note: "A17 是单轮对话，无 context_gap"
+  cross_case_note: "A17 复用 A08 的工具 bug 发现，探索更高效（aq_3 用 4 轮但 round2 直接用 direction=all 命中，round3 仅验证 bug 重现，round4 lottery 交叉验证）。7/1 法国vs瑞典场是反馈 #001 时点未呈现的淘汰赛，DB 现已包含——本案答案应含 4 场而非反馈的 3 场"

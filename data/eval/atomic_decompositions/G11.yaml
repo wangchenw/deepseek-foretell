@@ -1,0 +1,20 @@
+type_id: G11
+type_name: 用户纠正
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: FIFA官方管辖、在FIFA指定国际比赛日周期内举办的男子国家队国际A级赛事，禁止引入世界杯决赛圈正赛的赛会制分析逻辑、数据样本、胜负规律，包括但不限于世界杯小组赛/淘汰赛的战意模型、阵容轮换逻辑、数据分布特征；禁止以俱乐部联赛、俱乐部洲际…
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

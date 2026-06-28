@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from functools import lru_cache
 from zoneinfo import ZoneInfo
@@ -7,10 +8,11 @@ from fastapi.responses import StreamingResponse
 
 from api.auth import get_user_id
 from api.schemas import ChatRequest, ChatResponse
-from api.streaming import stream_agent_messages
+from api.streaming import _extract_text_content, stream_agent_messages
 from api.threads import assert_thread_owned_by_user, default_thread_id
 from config.settings import get_settings
 from foretell import create_foretell_agent
+from foretell.conversation_log import log_conversation_turn
 
 app = FastAPI(title="Foretell API", version="0.1.0")
 
@@ -60,7 +62,14 @@ def chat(
 
     if body.stream:
         return StreamingResponse(
-            stream_agent_messages(agent, input_state, config, thread_id),
+            stream_agent_messages(
+                agent,
+                input_state,
+                config,
+                thread_id,
+                user_id,
+                body.message,
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -69,7 +78,33 @@ def chat(
             },
         )
 
-    result = agent.invoke(input_state, config=config)
-    content = result["messages"][-1].content
+    started = time.monotonic()
+    try:
+        result = agent.invoke(input_state, config=config)
+    except Exception as exc:
+        log_conversation_turn(
+            user_id=user_id,
+            thread_id=thread_id,
+            user_message=body.message,
+            assistant_message=None,
+            stream=False,
+            status="error",
+            error_message=str(exc),
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+        raise
+
+    content = _extract_text_content(result["messages"][-1].content)
+
+    status_value = "ok" if content.strip() else "empty_reply"
+    log_conversation_turn(
+        user_id=user_id,
+        thread_id=thread_id,
+        user_message=body.message,
+        assistant_message=content,
+        stream=False,
+        status=status_value,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
 
     return ChatResponse(thread_id=thread_id, content=content)

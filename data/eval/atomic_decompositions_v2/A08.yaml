@@ -1,0 +1,91 @@
+type_id: "A08"
+case_id: "TC-A08-REG-003"
+user_intent_analysis: |
+  用户在三轮对话里要的是同一件事：葡萄牙国家队的下一场世界杯比赛何时开赛。
+  turn 1 字面问「今晚」葡萄牙比赛开赛时间，turn 2 把时间窗细化到「明天早上」，
+  turn 3 用户主动补出赛事语境「世界杯」并保留「明天早上」。隐含需求：
+  (1) 默认指向葡萄牙男足国家队（非俱乐部，非梯队）；
+  (2) 「明天早上」在球迷语境含凌晨/早场（如 07:30），不是字面 6-9 点；
+  (3) 答案必须含对手、北京时间、主客场，且不暴露内部编号；
+  (4) 若 DB 有 6/28 世界杯场次，未穷尽检索前不得断言「无比赛」。
+  对话发生时点视为 2026-06-27 晚（反馈 #003 记录时间），故「今晚」=6/27 evening，
+  「明天早上」=6/28 凌晨至中午，最终答案锚定 6/28 07:30 哥伦比亚(主) vs 葡萄牙(客)。
+turns:
+  - turn: 1
+    user_text: "今晚的葡萄牙比赛什么时候开始"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {team: 葡萄牙, national: true, prefer: men_national_team}
+        success_criteria: "返回唯一确定的 team_id（葡萄牙男足国家队），national=1；若返回多候选须按 national + 世界杯语境消歧，不得默认俱乐部"
+      - id: aq_2
+        category: refine_time_window
+        target: {phrase: 今晚, base_date: 2026-06-27, window: "2026-06-27 18:00 ~ 2026-06-28 00:00 北京时间"}
+        success_criteria: "时间窗覆盖 6/27 晚间至 6/28 00:00；若用户语境可能含凌晨场，应延伸到次日早场并主动提示"
+        depends_on: []
+      - id: aq_3
+        category: fetch_schedule
+        target: {team_id_from: aq_1, window_from: aq_2, direction: upcoming, competition_id: null}
+        success_criteria: "返回葡萄牙队在时间窗内的所有赛事（含未赛），含 match_time_str/北京时间、对手、主客、status_id；若时间窗内无赛，须先穷尽 DB 检索（含世界杯 competition_id=1）才能断言无"
+        depends_on: [aq_1, aq_2]
+  - turn: 2
+    user_text: "明天早上的"
+    atomics:
+      - id: aq_4
+        category: maintain_context
+        target: {inherit_from_turn: 1, inherit: team_id(葡萄牙), shift_window_to: "明天早上"}
+        success_criteria: "继承 turn 1 的葡萄牙 team_id，不重新解析；时间窗从「今晚」推进到「明天早上」=2026-06-28 00:00 ~ 12:00 北京时间（含凌晨/早场 07:30）"
+        depends_on: [aq_1]
+      - id: aq_5
+        category: fetch_schedule
+        target: {team_id_from: aq_1, window_from: aq_4, direction: upcoming, competition_id: null}
+        success_criteria: "返回葡萄牙队在 6/28 00:00-12:00 的所有赛事；若仍为空，必须交叉验证（get_lottery_schedule/resolve_match/直接 SQL）后才能断言无；不得仅凭 get_team_schedule 默认 direction=recent 漏判"
+        depends_on: [aq_1, aq_4]
+  - turn: 3
+    user_text: "葡萄牙明天早上世界杯比赛啊"
+    atomics:
+      - id: aq_6
+        category: maintain_context
+        target: {inherit_from_turn: 2, inherit: team_id(葡萄牙) + 时间窗(6/28 早), add_competition: 世界杯}
+        success_criteria: "继承 turn 2 的 team_id 与「明天早上」时间窗，叠加用户补出的赛事=世界杯；不重置已确认的实体/时间"
+        depends_on: [aq_1, aq_4]
+      - id: aq_7
+        category: resolve_entity
+        target: {league: 世界杯, year: 2026, expected_competition_id: 1}
+        success_criteria: "返回唯一确定的世界杯 competition_id（默认 2026 美加墨世界杯，非 2022/女足）；用于过滤球队赛程"
+        depends_on: []
+      - id: aq_8
+        category: fetch_schedule
+        target: {team_id_from: aq_1, competition_id_from: aq_7, window_from: aq_4, direction: upcoming}
+        success_criteria: "返回葡萄牙+世界杯+6/28 早场赛事；预期命中 6/28 07:30 哥伦比亚 vs 葡萄牙（match_id=4460934, status_id=1, home=哥伦比亚, away=葡萄牙）；含北京时间/主客/状态"
+        depends_on: [aq_1, aq_4, aq_7]
+      - id: aq_9
+        category: synthesize_answer
+        target: {present: 对手+北京时间+主客场+状态, hide: match_id/team_id/竞彩编号/工具名/中间态}
+        success_criteria: "输出形如「6 月 28 日 07:30（北京时间）哥伦比亚 vs 葡萄牙，哥伦比亚主场，未开赛」；不暴露 match_id/ft_/fc_ 前缀/竞彩周六 069 等内部标识；不输出「正在查询/接口延迟」中间态"
+        depends_on: [aq_8]
+      - id: aq_10
+        category: apply_guardrails
+        target: {check: no_internal_id, no_intermediate_state, no_false_negative}
+        success_criteria: "终态回答通过守门检查：无内部编号、无中间态、未穷尽前未断言无赛"
+        depends_on: [aq_9]
+hard_constraints:
+  - "不得假阴性：未穷尽 DB 检索（含 competition_id=1 世界杯过滤、direction=upcoming、交叉验证 lottery_schedule/SQL）前不得断言无比赛（expected_behaviors + #003 P0）"
+  - "终态必须命中 6/28 07:30 哥伦比亚 vs 葡萄牙（expected_behaviors）"
+  - "含主客场：须明确哥伦比亚(主) vs 葡萄牙(客)，不可只写「葡萄牙 vs 哥伦比亚」丢主客（expected_behaviors + #003 P1）"
+  - "不暴露内部编号：match_id、team_id(ft_ 前缀)、competition_id(fc_ 前缀)、竞彩场次编号「周六 069」均不得出现在用户可见回答（expected_behaviors + #003 P1 + #002）"
+  - "get_team_schedule 调用必须显式传 direction=upcoming 且 league_id=世界杯(competition_id=1)；禁止使用默认 direction=recent，否则会漏掉 6/28 未赛场（#003 根因假设 1,2）"
+  - "时间窗「明天早上」须覆盖凌晨/早场（00:00-12:00），不得按字面 6-9 点窄窗（#003 P1）"
+  - "多轮上下文继承：turn 2 继承 turn 1 的葡萄牙 team_id；turn 3 继承 turn 2 的「明天早上」时间窗，再叠加世界杯赛事；不得每轮重置已确认实体（#003 关联 #002 上下文丢失）"
+  - "不输出中间态/推理过程外露（如「接口数据更新延迟」「竞彩接口里能查到」）（#003 P1 + #002）"
+  - "不调用 internet_search/Tavily；discover_via_search 标记 skipped"
+risk_notes: |
+  最可能在 aq_3/aq_5（fetch_schedule）环节出问题，对应反馈 #003 的 P0 假阴性。
+  核心怀疑点：(1) get_team_schedule 默认 direction=recent 仅返回已赛场，会直接漏掉
+  6/28 07:30 未赛场次（status_id=1）；必须显式 direction=upcoming + league_id=世界杯。
+  (2) 即便 direction=upcoming，若未传 league_id=1，欧国联 9/25 场可能被当作「下一场」
+  错误顶替。(3) 时间窗「明天早上」若按字面 6-9 点理解，会漏掉 07:30 这场（07:30 在
+  6-9 点窗内，但若实现按 08:00 之后才算「早上」则漏；更危险的是按日历日 6/28 00:00
+  起算却未覆盖 00:00-06:00 凌晨场）。(4) 多轮上下文继承是历史失败点——turn 2 未继承
+  turn 1 的世界杯语境导致漏查。Agent 2 应优先用 SQL 直查 football_match（home/away
+  team_id=13152 + competition_id=1 + match_time 窗）建立基准，再用工具对照。

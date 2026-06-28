@@ -1,0 +1,60 @@
+type_id: "A02"
+case_id: "TC-A02-001"
+classification: "⚠️"
+classification_reason: |
+  A02 路径存在但有隐患。step 2 SQL 查出 4.15-4.16 共 15 场竞彩足球含 4 场欧冠,数据完整。
+  step 6/7 4 场欧冠 match_id 全部拿到(4517582/4517583/4517188/4517581)。
+  step 8/9 get_match_result 返回完整赛果(阿森纳 0-0、拜仁 4-3 含红黄牌角球)。
+  路径技术上可行,但存在两个隐患:
+  (1) step 4 resolve_match('里斯本竞技')返回 ENTITY_NOT_FOUND,数据库客队叫"葡萄牙体育",
+      冷门队名/同义词别名映射缺失,若 LLM 层不补全别名或不用 SQL 模糊查,会得到假阴性;
+  (2) step 3 resolve_lottery_match 虽返回赔率但 match_id=null,未自动 resolve 到 football_match
+      (与 A01 的 6071 自动 resolve 行为不一致),编排层需额外 SQL 步骤。
+  故归 ⚠️:路径存在但依赖 LLM 层补丁(别名映射+额外 SQL),脆弱。
+path_assessment: |
+  找到的路径能回答用户需求,但需 LLM 层做额外补丁:
+  1) 158场→实际 15 场:LLM 需诚实告知用户实际可分析场次为 15 场(数据库快照),不应附和"158场"。
+  2) 欧冠 4 场深度分析:resolve_lottery_match 拿赔率 + SQL 直查 football_match 拿 match_id
+     (因 resolve_match 对"里斯本竞技"失效) + get_match_result/get_odds_snapshot/football_odds_europe 拿深度数据。
+  3) 串关方案:用 15 场的 spf/rq 赔率组合 2 串一/3 串一,必须含风险声明。
+  数据正确性:拜仁vs皇马 4-3、阿森纳 0-0 赛果与 spf 赔率对照可做机构意图分析,数据可信。
+  路径稳健性:依赖 LLM 层补全"里斯本竞技→葡萄牙体育"别名,若别名表不全则其他冷门队也会失败。
+  不依赖编造数据,但 workaround 脆弱。
+exploration_sufficiency: |
+  探索充分。覆盖了:全 15 场场次拉取(SQL lottery_jczq_odds)、4 场欧冠 match_id 定位(resolve_match+SQL 双路径)、
+  赛果验证(get_match_result 两场)、赔率验证(resolve_lottery_match)。未深挖 get_h2h/get_recent_form
+  (因 4 场欧冠已是淘汰赛阶段,h2h 样本天然少,且用户核心需求是"分析+串关"而非 h2h),
+  但 db_schema_map.md 已标注这些工具可用,非缺口。唯一未验证:bf/bqc 赔率字段解析格式(同 A01,LLM 层可解析)。
+gaps:
+  - gap_type: "routing_gap"
+    detail: "resolve_match 不识别'里斯本竞技'别名(数据库用'葡萄牙体育'),返回 ENTITY_NOT_FOUND"
+    evidence_ref: "exploration_log step 4 vs step 5"
+    priority: "P1"
+    recommended_action: "在 resolve_match 的别名表增加同义词映射(里斯本竞技=葡萄牙体育=Sporting CP),或 LLM 层先 resolve_team 拿候选再用候选名查 match"
+  - gap_type: "tool_logic_gap"
+    detail: "resolve_lottery_match 对部分场次返回 match_id=null 且未自动 resolve_match(行为不一致:6071 自动 resolve,3005 未自动)"
+    evidence_ref: "exploration_log step 3 vs A01 step 4"
+    priority: "P2"
+    recommended_action: "排查 resolve_lottery_match 429-437 行的自动 resolve_match 触发条件,确保所有竞彩足球场次都尝试 resolve"
+  - gap_type: "context_gap"
+    detail: "用户口语'158场'与数据库实际 15 场不符,LLM 层若附和会误导"
+    evidence_ref: "exploration_log step 1-2"
+    priority: "P2"
+    recommended_action: "LLM 编排层应基于 get_lottery_schedule 实际返回数量诚实告知用户,不附和夸大数字"
+  - gap_type: "tool_logic_gap"
+    detail: "get_odds_trend/get_kelly/get_betfair/get_intel_tags 是 stub(同 A01)"
+    evidence_ref: "db_schema_map.md 第四章"
+    priority: "P3"
+    recommended_action: "Phase 2 补实现,SQL 替代路径已验证(football_odds_europe)"
+recommended_answer_path: |
+  生产实现推荐路径:
+  - turn 1(158场综合+欧冠单独): get_lottery_schedule(date=2026-04-15) + get_lottery_schedule(date=2026-04-16)
+    → 合并 15 场,诚实告知"实际 15 场非 158 场"。欧冠 4 场用 comp='欧洲冠军联赛' 过滤单独展示。
+  - 欧冠深度分析(每场): SQL 直查 football_match 拿 match_id(因 resolve_match 别名不全)→
+    get_match_result(若已结束) + get_odds_snapshot(欧赔+亚盘) + SQL football_odds_europe(初盘→即时→最新走势) +
+    get_h2h(样本少时诚实说明) + get_recent_form(近期战绩)。
+  - 串关方案: 用 15 场 spf/rq 赔率,按置信度分层组合 2 串一/3 串一/4 串一/5 串一,标注风险声明。
+  - turn 3(阿森纳不敌里斯本?): get_match_result(4517188) 已返回 0-0 平局,诚实复盘"阿森纳未输,平局"。
+  - turn 5-9(两场欧冠预言+低成本玩法): 用 4-16 两场欧冠的 bf/bqc 赔率推荐比分+半全场,
+    用 spf/rq 组合低赔串关,必须含"不承诺盈利"声明。
+  全程:不暴露 match_id/issue_num,购彩建议含风险声明,数据不足时诚实说明(如 h2h 样本少)。

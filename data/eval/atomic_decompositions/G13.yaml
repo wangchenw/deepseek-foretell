@@ -1,0 +1,20 @@
+type_id: G13
+type_name: 进球数追问
+scenario: G
+entity_entry: context
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: "智利联杯\t07:30\t帕莱斯蒂诺\t维尼亚德马埃弗顿根据亚盘各种数据，泊松分布和GX预期进球数深度分析这场比赛的大小球方向，并按照SABC级别依次排列大小球"
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: {}
+  - id: T1-a1
+    category: maintain_context
+    target: {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

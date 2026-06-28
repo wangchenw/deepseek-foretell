@@ -1,0 +1,96 @@
+type_id: "A04"
+case_id: "TC-A04-001"
+user_intent_analysis: |
+  用户意图是查询特定球队的近期（最近5轮）赛程和攻防数据，并结合赔率变化、
+  XG数据、伤病等多维度进行比赛分析。核心信息需求是"近N场"的历史战绩
+  （recent_form）与当前赛事的盘口快照，用于赛前综合分析。
+  多轮对话中涉及英超、西甲、意甲、K联赛、日职、德丙、法国杯等多联赛场次，
+  用户期望系统能逐一处理每对阵容的近期数据查询。
+turns:
+  - turn: 1
+    user_text: "赔率变化，球队预期进球，防守漏洞指数，主客场差异，球队真实战意，近五轮攻防数据，核查核心球员伤病，XG数据分析英超利物浦VS切尔西"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {teams: ["利物浦", "切尔西"], league: "英超"}
+        success_criteria: "解析出两队的 team_id，无歧义"
+      - id: aq_2
+        category: fetch_intel
+        target: {team_ids: "resolved", data_type: "recent_form", n_matches: 5}
+        success_criteria: "返回近5场比赛结果、进失球数据（至少包含本赛季数据）"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_odds_deep
+        target: {match: "利物浦vs切尔西", fields: ["欧赔走势", "亚盘", "凯利"]}
+        success_criteria: "返回赔率变化数据，区分开盘赔率与即时赔率"
+        depends_on: [aq_1]
+      - id: aq_4
+        category: fetch_intel
+        target: {data_type: "injury_report", teams: "resolved"}
+        success_criteria: "返回核心球员伤病名单（或诚实说明数据暂缺）"
+        depends_on: [aq_1]
+      - id: aq_5
+        category: synthesize_answer
+        target: {dimensions: ["赔率变化", "xG", "防守漏洞", "主客场差异", "战意", "近5轮", "伤病"]}
+        success_criteria: "7个维度均有对应数据或诚实说明缺口，不虚构"
+        depends_on: [aq_2, aq_3, aq_4]
+  - turn: 2
+    user_text: "赔率变化...XG数据分析西甲埃尔切VS阿拉维斯"
+    atomics:
+      - id: aq_6
+        category: resolve_entity
+        target: {teams: ["埃尔切", "阿拉维斯"], league: "西甲"}
+        success_criteria: "解析两队 team_id，注意冷门队名"
+      - id: aq_7
+        category: fetch_intel
+        target: {team_ids: "resolved", data_type: "recent_form", n_matches: 5}
+        success_criteria: "近5场数据（注意埃尔切可能已降级，确认赛季正确）"
+        depends_on: [aq_6]
+      - id: aq_8
+        category: fetch_odds_snapshot
+        target: {match: "埃尔切vs阿拉维斯"}
+        success_criteria: "获取盘口快照（可能数据缺口，需诚实说明）"
+        depends_on: [aq_6]
+  - turn: 8
+    user_text: "全北现代 VS 金泉尚武 富川FC VS 浦项制铁 根据最近5轮可以出场比赛进入轮换人员进行一系列分析"
+    atomics:
+      - id: aq_9
+        category: resolve_entity
+        target: {teams: ["全北现代", "金泉尚武", "富川FC", "浦项制铁"], league: "K联赛"}
+        success_criteria: "解析4支K联赛球队的 team_id"
+      - id: aq_10
+        category: fetch_intel
+        target: {team_ids: "resolved", data_type: "recent_form+lineup", n_matches: 5}
+        success_criteria: "近5场数据+轮换球员名单（可能是 stub，需标注）"
+        depends_on: [aq_9]
+  - turn: 16
+    user_text: "周五001-006场次（日职、芬超、瑞超、德丙、意甲、法国杯）"
+    atomics:
+      - id: aq_11
+        category: fetch_schedule
+        target: {lottery_codes: ["001","002","003","004","005","006"], date: "周五"}
+        success_criteria: "通过竞彩编号定位所有场次，返回主客队和开赛时间"
+      - id: aq_12
+        category: fetch_intel
+        target: {matches: "resolved_6_matches", data_type: "recent_form"}
+        success_criteria: "每场均有近期数据，冷门联赛（芬超/瑞超）可能 data_gap"
+        depends_on: [aq_11]
+
+hard_constraints:
+  - "未穷尽 DB 检索前不得断言无比赛"
+  - "主客场信息必须正确，不得颠倒"
+  - "XG数据可能是 stub 或 data_gap，必须诚实说明"
+  - "冷门联赛（芬超、瑞超等）数据可能缺失，不得编造"
+  - "不得承诺盈利"
+  - "伤病数据缺失时需明确说明'数据暂缺'而非跳过"
+
+risk_notes: |
+  最高风险点：XG（预期进球）数据——Foretell DB 中可能并未存储 xG
+  字段，工具 get_recent_form 可能只返回实际进失球而非 xG，
+  系统可能被迫编造或静默忽略此字段。
+
+  第二风险点：冷门联赛（K联赛全北现代/芬超/瑞超/德丙）的数据覆盖——
+  DB 可能只覆盖主流五大联赛和NBA，冷门联赛场次可能 data_gap。
+
+  第三风险点：批量场次（6场）的并发查询效率——如工具是串行调用，
+  可能超时，导致部分场次数据缺失。

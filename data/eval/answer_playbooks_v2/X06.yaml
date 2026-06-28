@@ -1,0 +1,56 @@
+type_id: "X06"
+case_id: "TC-X06-REG-009"
+review_summary: |
+  本 case 的评估过程精准命中反馈 #002 的纠正结论：2026-06-27 03:00 世界杯 挪威(主) vs 法国(客) id=4460928。
+  探索智能体真正写了 SQL 基准（查到男足 3 场历史），并通过双向 resolve_match 对照发现「正向查询 0 命中、反向查询 top-1 命中」，
+  准确定位为 routing_gap（skill 层缺双向规则）。最终输出模板严守输出纪律，未暴露中间态与内部 ID。case pass。
+requirement_analysis_review:
+  completeness: "原子拆分完整：双向 resolve_match（aq_3 正向 + aq_4 反向）是本 case 的核心判断点，hard_constraints 精准覆盖了 #002 的所有 P0/P1 教训（中间态外露、match_id 外露、年份误锚定、主客反转）"
+  missed_needs:
+    - "轻微遗漏：未单独拆一个 aq 用 get_team_schedule(法国, direction=all) + get_team_schedule(挪威, direction=all) 做第三路径交叉验证；但 SQL 基准已覆盖此信息，不影响结论"
+path_exploration_review:
+  reasoning_quality: "推理清晰。aq_3 round 1 先 SQL 基准了解全貌，round 2 正向工具对照发现 0 命中，自然引出 aq_4 反向尝试。每轮有明确假设，不是机械重试。aq_4 round 2 用 date pin 收敛 ambiguous→single 是漂亮的收尾"
+  sql_baseline_quality: "优秀。aq_1/aq_2 查 football_team、aq_3 查 football_match 男足全部对阵、aq_5 查未来场次，每条 SQL 基准都与工具对照。aq_3 round 2 的对照「SQL 证明 DB 有 3 场男足，工具正向 0 命中」是经典的 SQL 优先于工具信任的范例"
+  unexplored_alternatives:
+    - "未尝试 get_team_schedule(team_id=10234, direction=all) + 手动筛选 away_team_id=13820 的场次作为第三路径；可作为补充但 SQL 基准已等价覆盖"
+    - "未尝试 resolve_lottery_match（竞彩编号定位）——本 case 用户未给编号，不适用"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "「A vs B 具体哪场」类单场定位题：必须双向 resolve_match + SQL 基准对照，正向无男足国家队命中时立即反向重试，最终仅输出唯一选定的场次"
+  steps:
+    - "1. resolve_team 双方都定位（team_id + national=true 确认男足国家队）"
+    - "2. SQL 基准：SELECT * FROM football_match WHERE ((home=A AND away=B) OR (home=B AND away=A))，了解 DB 里两队男足全部对阵历史"
+    - "3. resolve_match(home=A, away=B) 正向；若返回 ambiguous 或无男足国家队候选 → 立即 resolve_match(home=B, away=A) 反向"
+    - "4. 反向仍 ambiguous → 加 date pin（最近/即将进行的日期）收敛到 single"
+    - "5. 多候选时按「最近 + 顶级赛事优先」选定唯一场；含对阵、北京时间、主客、赛事、轮次、状态"
+    - "6. 输出前剥离 match_id/team_id/competition_id/工具名/查询过程；禁止「未找到」「换名重试」「正在查询」等中间态"
+  forbidden:
+    - "禁止仅正向 resolve_match 一次就放弃（已验证正向会漏掉主客反转的世界杯场）"
+    - "禁止把「正向未找到 → 反向重试 → 命中」的探索过程呈现给用户（#002 P0 中间态外露）"
+    - "禁止暴露 match_id / team_id / competition_id / 工具名"
+    - "禁止按用户表述「法国 vs 挪威」臆测主客——必须以工具/SQL 返回的 home_name vs away_name 为准"
+    - "禁止默认 2024 等错误年份锚定（#002 P0），无年份时按最近原则"
+  output_template: |
+    单一明确场次：
+    「2026 世界杯小组赛第 3 轮：挪威 vs 法国，6/27 凌晨 03:00 开球（中立场，已完场）。」
+scores:
+  correctness: {score: 5, reason: "SQL 基准 + 反向 resolve_match + date pin 三重确认 match_id=4460928，对阵/日期/北京时间/主客/赛事/轮次/状态全部与 DB 一致，与反馈 #002 纠正结论吻合"}
+  completeness: {score: 5, reason: "对阵（挪威主 vs 法国客）、日期 2026-06-27、北京时间 03:00、赛事 世界杯、轮次 小组赛第 3 轮、中立场、状态 已完场，字段齐全"}
+  no_false_negative: {score: 5, reason: "正向 0 命中后未断言「无此场」，立即反向重试命中；SQL 基准也证明 DB 有 3 场男足历史。穷尽前未否定"}
+  path_efficiency: {score: 4, reason: "6 个 aq 共 7 轮解决，路径紧凑；aq_3 round 1 SQL 基准 + round 2 正向对照、aq_4 round 1 反向 + round 2 date pin 收敛，逻辑链清晰；扣 1 分因未尝试 get_team_schedule 第三路径做冗余交叉"}
+  output_discipline: {score: 5, reason: "Agent 2 综合答案模板严守：未暴露 match_id/team_id/工具名/中间态；output_template 示范了干净的用户可见回答，正是 #002 P0 要修复的"}
+  context_handling: {score: 3, reason: "本 case 单轮、无多轮继承需求；处理无年份锚定时按「最近 + 顶级赛事」选定，合理但因 case 单轮无法验证多轮能力，给中位分"}
+  scenario_compliance: {score: 5, reason: "high complexity + output_discipline regression 场景，双向验证 + 输出纪律严守符合回归测试目的；未因「单场定位」标签而偷懒"}
+overall_score: 4.6
+pass: true
+gaps:
+  - gap_type: routing_gap
+    detail: "entity resolution skill 未强制要求 resolve_match 双向查询。当用户表述「A vs B」时，agent 自然倾向正向 resolve_match(home=A, away=B)，但 DB 中该场可能是 B 主场，正向查询会返回 0 男足命中或被女足/青年队占满 top-10。反馈 #002 的「2024 误锚定 → 多次失败」正是缺此规则导致"
+    evidence_ref: "path_attempts_v2/X06.yaml aq_3 round 2：resolve_match(home=法国, away=挪威) 返回 10 候选全为女足/青年队，0 男足命中；aq_4 round 1：resolve_match(home=挪威, away=法国) top-1 = 4460928 2026 世界杯"
+    priority: P2
+    recommended_action: "在 entity resolution skill / resolve_match 工具 docstring 中加规则：当 home/away 是用户表述顺序而非确定主客时，必须同时尝试 (home=A,away=B) 与 (home=B,away=A)，合并候选去重后让 LLM 按赛事等级+最近日期选定。或考虑给 resolve_match 增加一个 strict=false 参数自动双向"
+  - gap_type: implementation_gap
+    detail: "resolve_match top-10 排序把 2014 法国主场 vs 挪威的国际友谊赛挤出，且正向查询时 2026 挪威主场的世界杯场因 home 不匹配无法命中。工具排序未明显优先男足国家队 + 顶级赛事，导致用户表述方向反时连历史同向场次都看不到"
+    evidence_ref: "path_attempts_v2/X06.yaml aq_3 round 2：正向 10 候选均为女足/U17/U19/U21/U23/室内，2014 男足友谊赛未出现"
+    priority: P3
+    recommended_action: "探索 resolve_match 排序策略：是否应优先 men's national team + 顶级赛事（世界杯/欧洲杯/欧冠）+ 最近日期；或增加 sport_filter/national_only 参数让 agent 显式过滤"

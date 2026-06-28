@@ -1,0 +1,74 @@
+type_id: "A07"
+case_id: "TC-A07-001"
+exploration_log:
+  - step: 1
+    action: "foretell get_lottery_schedule(play_type=101, period=260402) 验证竞彩期号 20260402→260402 转换 + 跨日 3 场"
+    query: "uv run python scripts/foretell_eval_helper.py tool get_lottery_schedule {play_type:101, period:260402}"
+    result: "返回 3 场(atomic aq_12 期望完全一致):周四001 麦克阿瑟vs纽喷气机 澳超 4/2 spf=2.02,3.88,2.66;周四002 布里斯班vs悉尼FC 澳超 4/2 spf=2.53,3.45,2.25;周四003 维冈vs莱顿东方 英甲 4/3 spf=2.20,3.05,2.88(跨日 4/3 验证)。每场含 spf/rq/bf(31值)/jq(8值)/bqc(9值)五玩法完整赔率,lottery_id/issue=260402,match_id=null。"
+    reasoning: "atomic aq_12/13 担心「20260402 须转 260402」「date 单日漏跨日场」,foretell 原生 get_lottery_schedule(period=260402) 一次返回全部 3 场跨日,无需 SQL workaround,无需 date 单日查询。"
+    next: "验证北单 6/28 全表 + 044 定位"
+  - step: 2
+    action: "foretell get_lottery_schedule(play_type=301, date=2026-06-28) 取北单 6/28"
+    query: "uv run python scripts/foretell_eval_helper.py tool get_lottery_schedule {play_type:301, date:2026-06-28}"
+    result: "返回 15 条北单 entries,含 code=044 克罗地亚vs加纳 世界杯 6/28(atomic aq_6 期望一致)、code=043 巴拿马vs英格兰、code=045 哥伦比亚vs葡萄牙、code=046 刚果(金)vs乌兹别克斯坦、code=047 阿尔及利亚vs奥地利、code=048 约旦vs阿根廷等。北单 odds 为 JSON 字符串 {sf3,goal,sf0,sf1} 等,与竞彩逗号分隔格式不同(atomic 已识别)。"
+    reasoning: "北单 6/28 全表可得,code=044 克罗地亚vs加纳 与 atomic aq_6 期望一致,验证 turn5「北单今晚044场次」可定位。"
+    next: "resolve 北单 044 + 验证 match"
+  - step: 3
+    action: "foretell resolve_lottery_match(301, 044, 2026-06-28) + SQL 验证 match_id=4460978"
+    query: "uv run python scripts/foretell_eval_helper.py tool resolve_lottery_match {play_type:301, code:044, date:2026-06-28} + SQL football_match WHERE id=4460978"
+    result: "resolve_lottery_match 返回 home_name=克罗地亚 away_name=加纳 league=世界杯 date=2026-06-28 match_id=null(无 match_candidates 字段);SQL 验证 4460978 home=11606(克罗地亚) away=11017(加纳) competition=1 世界杯 6/28 05:00 status=8 home_scores[2,1,0,1,3,0,0] away[1,0,0,1,2,0,0] → 2-1 克罗地亚胜。"
+    reasoning: "北单 resolve 不返回 match_candidates,须 SQL 按 home_name+away_name+date 对齐(克罗地亚→11606,加纳→11017,6/28→4460978)。atomic aq_7 期望 match_id=4460978 完全一致。"
+    next: "resolve 北单 055(6/29)"
+  - step: 4
+    action: "foretell resolve_lottery_match(301, 055, 2026-06-29)"
+    query: "uv run python scripts/foretell_eval_helper.py tool resolve_lottery_match {play_type:301, code:055, date:2026-06-29}"
+    result: "返回 home_name=托尔 away_name=瓦路尔 league=冰岛超 date=2026-06-29 spf={sf3:2.75,goal:1,sf0:2.88,sf1:3.44} sell_status=1,1,1,1,1(注意 sell_status=1 与 044 的 sell_status=3 区别,atomic aq_8 已识别)。"
+    reasoning: "atomic aq_8 期望「北单055=托尔vs瓦路尔 冰岛超 6/29」完全一致,turn6「北单055已经开赛」可定位。"
+    next: "resolve 周一001(6/2 保加利亚vs黑山)"
+  - step: 5
+    action: "foretell resolve_lottery_match(101, 周一001, 2026-06-02) + SQL 验证 match_id=4544830"
+    query: "uv run python scripts/foretell_eval_helper.py tool resolve_lottery_match {play_type:101, code:周一001, date:2026-06-02} + SQL football_match WHERE id=4544830"
+    result: "resolve_lottery_match 返回 home_name=保加利亚 away_name=黑山 league=国际赛 date=2026-06-02 lottery_code=周一001 issue=260601 + match_candidates 列表(含 match_id=4544830 home_team_id=10452 away_team_id=20462 status=finished match_time_beijing=2026-06-02 00:00:00 + 环境数据 temperature=20°C humidity=84% wind=1.1m/s)。SQL 验证 4544830 home=10452(保加利亚) away=20462(黑山) competition=34 国际赛 6/2 status=8 home 0-1 away(保加利亚负黑山)。"
+    reasoning: "atomic aq_21 期望 match_id=4544830 完全一致。竞彩 resolve_lottery_match 返回 match_candidates 字段(含 match_id 对齐),比北单 resolve 多一层对齐能力,lottery↔match 链接对竞彩原生可用。turn16「周一001已经开赛」可定位且已完场。"
+    next: "验证团队名 + 总结"
+  - step: 6
+    action: "SQL 验证 4 队名"
+    query: "SELECT id, name_zh, short_name_zh, national, competition_id FROM football_team WHERE id IN (10452,20462,11606,11017)"
+    result: "10452 保加利亚 national=1、20462 黑山 national=1、11606 克罗地亚 national=1、11017 加纳 national=1,均为国家队。"
+    reasoning: "确认实体消歧正确,北单 044/周一001 涉及 4 队全部国家队。"
+    next: "审查结论"
+  - step: 7
+    action: "foretell resolve_lottery_match(301, 044) 无 date 测试默认行为"
+    query: "uv run python scripts/foretell_eval_helper.py tool resolve_lottery_match {play_type:301, code:044}"
+    result: "返回 26069 期 code=44 克罗地亚vs加纳 6/28,与传 date=2026-06-28 结果一致,证明无 date 时默认取最近期。"
+    reasoning: "atomic aq_21 提到「resolve_lottery_match 无 date 默认取最近期」,验证通过;但生产层建议显式传 date 避免期号漂移。"
+    next: "审查结论"
+final_finding: |
+  A07 全部彩票场次定位路径完整存在,foretell resolve_lottery_match + get_lottery_schedule 原生可用,无需 SQL workaround(仅北单 match 对齐需 SQL 补充):
+  (1) 竞彩期号 20260402→260402 转换:get_lottery_schedule(101, period=260402) 一次返回 3 场跨日(周四001 4/2 麦克阿瑟vs纽喷气机、周四002 4/2 布里斯班vs悉尼FC、周四003 4/3 维冈vs莱顿东方),atomic aq_12 期望完全一致;
+  (2) 北单 044(6/28 今晚):resolve_lottery_match(301, 044, 2026-06-28) → 克罗地亚vs加纳 世界杯 6/28,atomic aq_6 期望一致;match_id=null 须 SQL 按 name+date 对齐到 4460978(已完场 2-1 克罗地亚胜);
+  (3) 北单 055(6/29 已开赛):resolve_lottery_match(301, 055, 2026-06-29) → 托尔vs瓦路尔 冰岛超 6/29,atomic aq_8 期望一致;sell_status=1 与 044 的 sell_status=3 区别已识别;
+  (4) 周一001(6/2 已开赛):resolve_lottery_match(101, 周一001, 2026-06-02) → 保加利亚vs黑山 国际赛 + match_candidates 含 match_id=4544830(已完场 0-1 保加利亚负),atomic aq_21 期望完全一致;竞彩 resolve 返回 match_candidates 字段(含 match_id 对齐 + 环境数据),比北单 resolve 多一层对齐能力;
+  (5) 期号格式转换:20260402(YYYYMMDD)→260402(YYMMDD) foretell 原生 period 参数接受 YYMMDD,无需 LLM 转换(但 LLM 层须知道传 260402 而非 20260402);
+  (6) 玩法区分:竞彩 101(odds 逗号分隔字符串 spf=1.13,5.86,13.50)vs 北单 301(odds JSON 字符串 {sf3,goal,sf0,sf1}),格式不同 foretell 原生返回已正确序列化,LLM 须按格式分别解析;
+  (7) lottery match_id=null:竞彩 resolve 提供 match_candidates 对齐(周一001 验证);北单 resolve 不提供,须 SQL 按 home_name+away_name+date 对齐(044 验证可对齐到 4460978);
+  (8) 真不可得:官方发布会/俱乐部官方/联赛官方信息无 internet_search 路径(Tavily 不在评估范围),turn2/9 用户明确要求,须按 expected_behaviors 诚实说明,不编造。
+gaps_encountered:
+  - gap_type: "data_gap"
+    detail: "北单 resolve_lottery_match 不返回 match_candidates 字段,须 SQL 按 home_name+away_name+date 对齐 football_match;竞彩 resolve 返回 match_candidates(周一001 验证含 match_id=4544830 + 环境数据)。"
+    location: "foretell resolve_lottery_match 北单 vs 竞彩返回差异"
+  - gap_type: "routing_gap"
+    detail: "期号格式转换:用户「20260402」(YYYYMMDD) 须 LLM 转「260402」(YYMMDD) 传入 period 参数;foretell period 不接受 YYYYMMDD。"
+    location: "LLM 层期号格式转换"
+  - gap_type: "routing_gap"
+    detail: "竞彩场次编号「001」无周前缀须 LLM 推断「周X001」(周X 由日期 weekday 决定);atomic aq_1 担心 ENTITY_NOT_FOUND,实测 resolve_lottery_match(101, 周一001, 2026-06-02) 可解析。"
+    location: "LLM 层周前缀推断"
+  - gap_type: "data_gap"
+    detail: "北单 odds 为 JSON 字符串 {sf3,goal,sf0,sf1} 等,竞彩 odds 为逗号分隔字符串,格式不同须 LLM 分别解析。"
+    location: "lottery_jczq_odds vs lottery_bd_odds 字段格式差异"
+  - gap_type: "discover_via_search_gap"
+    detail: "官方发布会/俱乐部官方/联赛官方信息无 internet_search 路径(Tavily 不在评估范围),turn2/9 用户明确要求,须诚实说明缺失,不编造。"
+    location: "foretell tools 无可用搜索入口"
+  - gap_type: "context_gap"
+    detail: "16 轮多场次上下文(竞彩001→北单044→北单055→期号260402 三场→周一001)无原生 checkpointer,依赖 LLM 层显式串接。"
+    location: "foretell 无多轮 checkpointer"

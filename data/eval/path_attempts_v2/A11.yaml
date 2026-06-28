@@ -1,0 +1,36 @@
+type_id: "A11"
+case_id: "TC-A11-SYN"
+exploration_log:
+  - step: 1
+    action: "读取 db_schema_map.md 与用户问题(合成单轮射手榜示例);atomic 复用 atomic_decompositions_v2/A11.yaml"
+    query: "n/a"
+    result: "用户文本为占位符『[射手榜示例问法]』,按 taxonomy patterns(射手榜|进球榜|金靴)与 2026 世界杯进行期语境规范化为『2026 世界杯射手榜前 10 是谁』。隐含:competition_id=1, season_id=13776, 按 goals 降序, 前 10, 不暴露内部编号"
+    reasoning: "射手榜核心表=football_competition_shooters(无原生工具) 或 football_competition_players_stats(含 goals/penalty/assists/matches)。先 SQL 验证 season_id 与数据完整性"
+    next: "SQL 验证世界杯积分榜 season_id 确认 13776"
+  - step: 2
+    action: "SQL 验证世界杯 competition_id=1 最新 season_id"
+    query: "SELECT pt.id, pt.season_id FROM football_points_table pt WHERE pt.competition_id=1 ORDER BY pt.season_id DESC LIMIT 3"
+    result: "3 行均 season_id=13776。基准 season_id=13776"
+    reasoning: "确认世界杯最新赛季 season_id=13776,后续射手榜查询须以此过滤,避免跨赛季混杂"
+    next: "SQL 直查射手榜前 10"
+  - step: 3
+    action: "SQL 直查 football_competition_players_stats JOIN football_player JOIN football_team 取射手榜前 10"
+    query: "SELECT ps.goals, ps.penalty, ps.assists, ps.matches, p.name_zh AS player, t.name_zh AS team FROM football_competition_players_stats ps JOIN football_player p ON p.id=ps.player_id JOIN football_team t ON t.id=ps.team_id WHERE ps.season_id=13776 AND ps.goals>0 ORDER BY ps.goals DESC, ps.assists DESC, ps.penalty ASC LIMIT 10"
+    result: "前 10 完整:1.梅西(阿根廷)6球0点0助3场;2.姆巴佩(法国)4球0点2助3场;3.登贝莱(法国)4球0点1助3场;4.维尼修斯(巴西)4球0点1助3场;5.哈兰德(挪威)4球0点0助3场;6.翁达夫(德国)3球0点2助3场;7.曼赞比(瑞士)3球0点1助3场;8.萨尔(塞内加尔)3球0点1助3场;9.库尼亚(巴西)3球0点0助3场;10.布罗比(荷兰)3球0点0助3场"
+    reasoning: "SQL 基准完整且字段齐全(球员/所属队/进球/点球/助攻/出场),同进球按助攻降序→点球升序(点球含金量低)排序。梅西 6 球居首,与 atomic 已记录的 DB 基准完全一致。射手榜路径清晰可答用户问题"
+    next: "验证 foretell 工具链是否有原生射手榜工具"
+  - step: 4
+    action: "复用 atomic aq_2 已记录:查阅 list-tools 22 个工具,确认无原生射手榜工具"
+    query: "uv run python scripts/foretell_eval_helper.py list-tools(已记录于旧 path_attempts_v2/A11.yaml aq_2)"
+    result: "22 个工具中无 get_top_scorers/get_scorer_table/get_player_stats 类射手榜工具;get_team_season_stats 是 stub(return None→DATA_MISSING);get_standings 是球队积分榜非球员进球榜"
+    reasoning: "foretell 工具链无原生射手榜工具,唯一路径=SQL 直查 football_competition_players_stats。这是 implementation_gap(缺工具)但数据在库可 SQL 取得,workaround 清晰稳健"
+    next: "落盘 A11 路径结论"
+final_finding: |
+  A11 是合成单轮射手榜示例(规范化为『2026 世界杯射手榜前 10 是谁』)。SQL 直查 football_competition_players_stats JOIN football_player JOIN football_team WHERE season_id=13776 AND goals>0 ORDER BY goals DESC, assists DESC, penalty ASC LIMIT 10 返回完整前 10:1.梅西(阿根廷)6球3场;2.姆巴佩(法国)4球2助;3.登贝莱(法国)4球1助;4.维尼修斯(巴西)4球1助;5.哈兰德(挪威)4球;6.翁达夫(德国)3球2助;7.曼赞比(瑞士)3球1助;8.萨尔(塞内加尔)3球1助;9.库尼亚(巴西)3球;10.布罗比(荷兰)3球。
+  本轮 SQL 真实复跑,结果与 atomic 已记录的 DB 基准完全一致。字段齐全(球员/所属队/进球/点球/助攻/出场),排序口径清晰(进球降序→助攻降序→点球升序),剥离 player_id/team_id/season_id 即可合规输出。
+  路径清晰且数据正确:SQL 直查是稳健可重复的查询,无脆弱性。foretell 工具链无原生射手榜工具(get_top_scorers 缺失,get_team_season_stats stub,get_standings 是球队榜),属 implementation_gap,但数据在 football_competition_players_stats 表中完整可取,SQL 兜底路径清晰。
+  结论:✅ 找到可行路径,数据正确,路径清晰。SQL 直查即可完整回答用户『2026 世界杯射手榜前 10 是谁』。
+gaps_encountered:
+  - gap_type: "implementation_gap"
+    detail: "foretell 工具链无原生射手榜工具(get_top_scorers/get_scorer_table/get_player_stats 缺失);get_team_season_stats 是 stub(return None);get_standings 是球队积分榜非球员进球榜。数据在 football_competition_players_stats 表可 SQL 直查取得,但无工具暴露"
+    location: "foretell 工具链 22 工具无射手榜类;mysql_client.py:724-725 get_team_season_stats stub"

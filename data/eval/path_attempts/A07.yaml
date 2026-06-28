@@ -1,0 +1,25 @@
+type_id: A07
+case_id: TC-A07-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: A07-probe-1
+  tool: resolve_team
+  params:
+    name: 葡萄牙
+  code: OK
+  stub: false
+- round: 2
+  atomic_id: A07-probe-2
+  tool: get_team_schedule
+  params:
+    team_id: 11331
+    direction: all
+    limit: 5
+  code: OK
+  count: 5
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

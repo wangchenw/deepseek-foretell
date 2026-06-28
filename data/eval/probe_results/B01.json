@@ -1,0 +1,16 @@
+{
+  "type_id": "B01",
+  "case_id": "TC-B01-001",
+  "steps": [
+    {
+      "tool": "resolve_lottery_match",
+      "params": {
+        "play_type": "101",
+        "code": "009",
+        "date": "2026-06-15"
+      },
+      "code": "ENTITY_NOT_FOUND",
+      "stub": false
+    }
+  ]
+}

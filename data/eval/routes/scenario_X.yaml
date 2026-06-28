@@ -1,0 +1,345 @@
+scenario: X
+explored: 16
+entries:
+- type_id: X01
+  type_name: 非体育拒答
+  scenario: X
+  probe_case_id: TC-X01-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X01.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X02
+  type_name: 英文提问
+  scenario: X
+  probe_case_id: TC-X02-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X02.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X03
+  type_name: 粤语意图
+  scenario: X
+  probe_case_id: TC-X03-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X03.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X04
+  type_name: 定位失败
+  scenario: X
+  probe_case_id: TC-X04-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X04.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X05
+  type_name: 假阴性风险
+  scenario: X
+  probe_case_id: TC-X05-REG-008
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X05.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+- type_id: X06
+  type_name: 中间态外露
+  scenario: X
+  probe_case_id: TC-X06-REG-009
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+- type_id: X07
+  type_name: 内部ID外露
+  scenario: X
+  probe_case_id: TC-X07-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X07.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X08
+  type_name: 用户辱骂
+  scenario: X
+  probe_case_id: TC-X08-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X08.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X09
+  type_name: 冷门赛事
+  scenario: X
+  probe_case_id: TC-X09-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X09.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X10
+  type_name: 无分隔符对阵
+  scenario: X
+  probe_case_id: TC-X10-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X10.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X11
+  type_name: 年份误锚
+  scenario: X
+  probe_case_id: TC-X11-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X11.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X12
+  type_name: 主客颠倒
+  scenario: X
+  probe_case_id: TC-X12-REG-002
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+        date: '2024-06-27'
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X12.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X13
+  type_name: 数据诚实
+  scenario: X
+  probe_case_id: TC-X13-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X13.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X14
+  type_name: 矛盾推荐
+  scenario: X
+  probe_case_id: TC-X14-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X14.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X15
+  type_name: 盈利承诺
+  scenario: X
+  probe_case_id: TC-X15-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X15.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X16
+  type_name: 网络兜底
+  scenario: X
+  probe_case_id: TC-X16-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X16.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false

@@ -15,16 +15,11 @@ dependencies = [
     "pymysql>=1.2.0",
     "python-dotenv>=1.0.0",
     "tzdata>=2024.1; sys_platform == 'win32'",
-]
-
-[project.optional-dependencies]
-prod = [
     "langgraph-checkpoint-postgres>=2.0.0",
     "psycopg[binary,pool]>=3.2.0",
-]
-dev = [
     "ruff>=0.6.0",
     "mypy>=1.11.0",
+    "langgraph-cli[inmem]>=0.4.30",
 ]
 
 [build-system]
@@ -63,8 +58,3 @@ strict = false
 ignore_missing_imports = true
 warn_unused_configs = true
 warn_redundant_casts = true
-
-[dependency-groups]
-dev = [
-    "langgraph-cli[inmem]>=0.4.30",
-]

@@ -75,3 +75,42 @@ def test_get_schedule_by_date_merges_football_and_basketball() -> None:
     sports = {match["sport"] for match in result["data"]["matches"]}
     assert "football" in sports
     assert "basketball" in sports
+
+
+def test_get_schedule_by_date_tier_top_returns_world_cup() -> None:
+    """6/28 tier=top 必须含 6 场世界杯（competition_id=1），且 meta.tier_count>=6。"""
+    result = _parse(
+        get_schedule_by_date.invoke({"date": "2026-06-28", "tier": "top"})
+    )
+    assert result["code"] == "OK"
+    matches = result["data"]["matches"]
+    wc = [m for m in matches if m["league_name"] == "世界杯"]
+    assert len(wc) == 6
+    assert result["meta"]["tier_count"] >= 6
+    assert result["meta"]["truncated"] is False
+    # 哥伦比亚 vs 葡萄牙 必须在结果中
+    assert any(
+        "哥伦比亚" in m["home_name"] and "葡萄牙" in m["away_name"] for m in wc
+    )
+
+
+def test_get_schedule_by_date_default_prioritizes_top_tier() -> None:
+    """6/28 默认模式（无 tier/league_preset）必须含 6 场世界杯，且 truncated=true。"""
+    result = _parse(get_schedule_by_date.invoke({"date": "2026-06-28"}))
+    assert result["code"] == "OK"
+    assert result["meta"]["truncated"] is True
+    assert result["meta"]["total_count"] == 574
+    assert result["meta"]["tier_count"] >= 6
+    wc = [m for m in result["data"]["matches"] if m["league_name"] == "世界杯"]
+    assert len(wc) == 6
+    assert result["meta"]["warning"] is not None
+    assert "顶级赛事" in result["meta"]["warning"]
+
+
+def test_get_schedule_by_date_league_preset_no_warning() -> None:
+    """league_preset 过滤时 meta.warning 应为 None（即便 truncated）。"""
+    result = _parse(
+        get_schedule_by_date.invoke({"date": "2026-06-28", "league_preset": "世界杯"})
+    )
+    assert result["code"] == "OK"
+    assert result["meta"].get("warning") is None

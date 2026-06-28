@@ -1,0 +1,62 @@
+type_id: G07
+case_id: TC-G07-001
+diagnosed_at: '2026-06-28'
+rounds:
+- round: 1
+  name: get_lottery_schedule (beidan 301)
+  tools_attempted: 1
+  attempts:
+  - tool: get_lottery_schedule
+    params:
+      play_type: '301'
+    code: OK
+    count: 19
+  result: OK
+- round: 2
+  name: get_schedule_by_date (today's context)
+  tools_attempted: 1
+  attempts:
+  - tool: get_schedule_by_date
+    params:
+      date: '2026-06-28'
+      tier: top
+    code: OK
+    count: 8
+  result: OK
+- round: 3
+  name: get_odds_snapshot (criteria 2/4/5)
+  tools_attempted: 1
+  attempts:
+  - tool: get_odds_snapshot
+    params:
+      match_id: 4460937
+    code: OK
+    match_id: 4460937
+  result: OK
+- round: 4
+  name: get_injury_report (criteria 4)
+  tools_attempted: 1
+  attempts:
+  - tool: get_injury_report
+    params:
+      match_id: 4460937
+    code: DATA_MISSING
+    match_id: 4460937
+  result: IMPLEMENTATION_GAP
+- round: 5
+  name: follow-up optimization (cross-session checkpointer)
+  tools_attempted: 0
+  attempts: []
+  recommendation: need_checkpointer
+  result: no_tool_available
+summary:
+  ok_rounds: 3
+  blocked_rounds: 2
+  implementation_gap_rounds: 1
+  no_tool_rounds: 1
+  total_rounds: 5
+root_cause: context_gap
+recommended_fix: wire_checkpointer_for_multi_turn; see phase2a_checkpointer_demo.yaml
+sample_ids:
+  match_id: 4460937
+  home_team_id: 12064

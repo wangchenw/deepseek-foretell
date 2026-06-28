@@ -1,0 +1,22 @@
+type_id: X10
+type_name: 无分隔符对阵
+scenario: X
+entity_entry: match_pair
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 乌拉圭甲级联赛，塞罗拉尔戈VS塞罗竞技，结合泊松分布纳什均衡天气对阵情况，精确给出最高概率比分。不用展示计算过程和任何说明，直接给出结果
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-x1
+    category: apply_guardrails
+    target: {}
+hard_constraints:
+- 不输出中间态

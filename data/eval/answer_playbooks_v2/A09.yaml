@@ -1,0 +1,56 @@
+type_id: "A09"
+case_id: "TC-A09-001"
+classification: "⚠️"
+classification_reason: |
+  A09 找到了能回答用户问题的数据路径,但有隐患需 workaround 兜底。SQL 直查 football_match WHERE status_id∈{2,3,4,5,7} 证明 DB 快照内有 20+ 条在玩场且含当前比分(本轮验证:阿格尔皇室杜马 0-2、FC瞪羚 0-2、EB斯特雷穆尔 2-1 等),turn1-2『接下来哪几场适合买大球』『现在进行中的比赛』路径清晰;get_odds_snapshot 在玩+完场均可用,turn3/turn8 邓多克盘口可满足。
+  但 turn3/turn6/turn7 实时比分有隐患:邓多克(10484)在快照内无在玩场(最近 6/27 02:45 已完场 2-3),尤文图斯(10467)6/28 前无在玩/已完场。用户『都进球了』对尤文图斯无法用库数据验证,须按 expected_behaviors『数据不足时诚实说明』兜底,不得编造实时比分。
+  foretell 工具链两个 implementation_gap 阻塞生产直答(无原生在玩列表工具+无实时比分工具),叠加 P0 bug 复现(upcoming 语义反转)。生产 Foretell 若不 SQL 兜底会漏在玩/编造比分。故判 ⚠️ 而非 ✅:路径存在但需 SQL workaround,且 workaround 在生产工具链下脆弱(依赖 Skill 层强制 SQL 直查路由)。
+path_assessment: |
+  路径核心是 SQL 直查 status_id∈{2,3,4,5,7} 建立在玩基准,这是清晰且数据正确的可行路径。本轮验证 10 条在玩场含完整当前比分,足以归纳大球倾向 3-5 场(如 EB斯特雷穆尔 2-1 当前 3 球+大球水位倾向、普鲁士明斯特B队 0-1 等)。
+  邓多克/尤文图斯两个具体实体跟踪是路径隐患点:邓多克 6/27 已完场 2-3,尤文图斯 5/25 后无在玩——用户『现在进行中』『都进球了』在快照内对这两队无法对应在玩数据。这不是路径缺陷而是数据事实,须诚实说明。
+  get_odds_snapshot 路径稳健:对完场 4469061 与在玩 4477279 均返回完整欧赔/亚盘/大小球,turn3/turn8 可满足,仅需剥离 company_id 内部编号。
+  开球时间冲突(用户 16 点 vs 库 02:45)是 data_gap,须以库为准向用户澄清,不附和。
+  路径不可绕过的短板:生产 Foretell 工具链(get_schedule_by_date 默认漏在玩+get_match_result NOT_APPLICABLE+get_team_schedule 无比分字段+upcoming P0 bug)无法直接作答,必须 SQL 兜底+Skill 层路由固化。
+exploration_sufficiency: |
+  探索充分。覆盖:(1) SQL 在玩基准(10+ 条含比分);(2) foretell 工具对照(get_schedule_by_date 漏在玩、get_team_schedule upcoming P0 复现、direction=all 不含比分);(3) 邓多克/尤文图斯实体消歧与最近场定位;(4) get_odds_snapshot 在玩+完场双重验证;(5) 开球时间冲突核对。关键 SQL 均本轮真实复跑(在玩列表、邓多克最近场、尤文图斯在玩/完场)。无机械重试,根因清晰定位到两层 implementation_gap + P0 bug + data_gap。
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "无『按 status 过滤的在玩比赛列表』工具。get_schedule_by_date(date) 默认 cap 100 按时间排序,22:00 在玩场被截断且无 status_filter 参数。SQL 基准 20+ 在玩 vs 工具 0"
+    evidence_ref: "path_attempts_v2/A09.yaml step 2-3(SQL 10 条在玩含比分 vs get_schedule_by_date 100 条全 finished/postponed)"
+    priority: "P1"
+    recommended_action: "新增 get_live_matches(sport, status_filter=in_progress) 直查 status_id∈{2,3,4,5,7} 返回当前比分+阶段+分钟;或为 get_schedule_by_date 增加 status_filter 参数并提高 cap。Skill 层强制『现在进行中』路由到 SQL 直查"
+  - gap_type: "implementation_gap"
+    detail: "无『实时比分』工具。get_match_result 对在玩场 NOT_APPLICABLE;get_team_schedule 不返回比分字段"
+    evidence_ref: "path_attempts_v2/A09.yaml step 6-7(邓多克 6/27 完场 2-3、尤文图斯 5/25 后无在玩);已验证 get_match_result(4477279 在玩)→NOT_APPLICABLE"
+    priority: "P1"
+    recommended_action: "新增 get_live_score(match_id) 直查 football_match.home_scores/away_scores+status_id 返回当前比分+阶段+分钟;或扩展 get_match_result 支持在玩场返回 current_score"
+  - gap_type: "tool_logic_gap"
+    detail: "get_team_schedule(direction=upcoming) 语义反转 P0 bug 在 A09 复现:邓多克(10484) 返回 2005 历史升序"
+    evidence_ref: "path_attempts_v2/A09.yaml step 4(已记录:upcoming 10484→5 条 2005 历史)"
+    priority: "P1"
+    recommended_action: "修复 foretell/tools/schedule.py direction=upcoming 时过滤 status_id IN (1,2,3,4,5,9) 且 match_time>=NOW() 升序返回未来/在玩"
+  - gap_type: "data_gap"
+    detail: "开球时间口径冲突:用户 16 点 vs 库 02:45 北京 status=finished"
+    evidence_ref: "path_attempts_v2/A09.yaml step 9(4469061 match_time_str='2026-06-27 02:45:00' status_id=8)"
+    priority: "P2"
+    recommended_action: "Skill 层固化:用户口述时间与库冲突时,以库 match_time_beijing+status 为准澄清,不附和"
+  - gap_type: "context_gap"
+    detail: "多轮 live 跟踪无原生 checkpointer,turn2/turn5/turn6/turn8 上下文继承依赖 LLM 显式串接"
+    evidence_ref: "atomic aq_4/aq_10/aq_11/aq_17 maintain_context 类别"
+    priority: "P2"
+    recommended_action: "引入 LangGraph MemorySaver/StoreBackend 持久化会话级 {intent=买大球, filter=in_progress, tracked_teams=[10484,10467]}"
+  - gap_type: "routing_gap"
+    detail: "Skill 层未固化『滚球盘/现在进行中』路由规则"
+    evidence_ref: "path_attempts_v2/A09.yaml step 3(get_schedule_by_date 默认口径不适合在玩)"
+    priority: "P2"
+    recommended_action: "在 foretell-light-query Skill 增加『滚球盘/现在进行中』路由:强制 SQL 直查在玩 status + 逐场盘口 + 诚实说明兜底"
+recommended_answer_path: |
+  1. 识别滚球盘=走地语境,时间窗=在玩(status_id∈{2,3,4,5,7})+临近开赛(now~now+2h)
+  2. SQL 直查 football_match WHERE status_id IN (2,3,4,5,7) 建立在玩基准(含当前比分),禁用 get_schedule_by_date 默认结果充当在玩列表
+  3. 逐场 get_odds_snapshot(match_id) 补欧赔/亚盘/大小球水位(在玩+完场均可用),输出剥离 company_id
+  4. 归纳筛 3-5 场大球倾向高的,按『当前比分+大小球水位+剩余时间』给依据,禁止全量罗列
+  5. 『现在几比几』:SQL 查 team_id 在玩场,有则报当前比分+阶段;无则诚实说明『当前无在玩,最近一场[日期 比分]已完场』(邓多克=6/27 2-3 完场),禁用 get_match_result 对在玩场(NOT_APPLICABLE)、禁用 get_team_schedule(无比分字段)
+  6. 多轮上下文:继承大球意图+在玩过滤+team_id(邓多克 10484/尤文图斯 10467),同时追踪两场;尤文图斯无在玩时诚实说明
+  7. 开球时间冲突:以库 match_time_beijing+status 为准向用户澄清,不附和用户口述时间
+  8. 投注建议:基于比分+盘口走势给倾向+『赛果不可预测,仅供参考』风险提示,禁止包赚/必中承诺
+  9. 守门:剥离 match_id/team_id/league_id/company_id/lottery_code/工具名/中间态

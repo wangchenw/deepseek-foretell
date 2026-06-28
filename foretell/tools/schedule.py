@@ -22,6 +22,7 @@ def get_schedule_by_date(
     date: str,
     sport: Literal["football", "basketball"] | None = None,
     league_preset: str | None = None,
+    tier: Literal["top", "all"] | None = None,
 ) -> str:
     """按日期查询赛程列表。
 
@@ -29,20 +30,28 @@ def get_schedule_by_date(
         date: 日期，格式 YYYY-MM-DD。
         sport: 运动类型过滤，football 或 basketball（可选）。
         league_preset: 联赛名称过滤，如「欧冠」「NBA」（可选）。
+        tier: 赛事层级过滤，top=仅顶级赛事（世界杯/欧冠/五大联赛/NBA 等），
+            all 或 None=默认策略（大赛日顶级赛事优先占位，余量按时间填低级别）。
     """
     client = get_crazy_sports_client()
-    result = client.get_schedule_by_date(date, sport=sport, league_preset=league_preset)
+    result = client.get_schedule_by_date(
+        date, sport=sport, league_preset=league_preset, tier=tier
+    )
     matches = result["matches"]
 
     meta = _default_meta(client)
     meta["limit"] = result["limit"]
     meta["truncated"] = result["truncated"]
+    meta["total_count"] = result["total_count"]
+    meta["tier_count"] = result["tier_count"]
+    if result.get("warning"):
+        meta["warning"] = result["warning"]
 
     if not matches:
         return make_envelope(
             StatusCode.DATA_MISSING,
             "schedule_by_date",
-            {"date": date, "sport": sport, "league_preset": league_preset, "matches": []},
+            {"date": date, "sport": sport, "league_preset": league_preset, "tier": tier, "matches": []},
             meta=meta,
         )
 
@@ -52,6 +61,7 @@ def get_schedule_by_date(
         {
             "date": date,
             "league_preset": league_preset,
+            "tier": tier,
             "matches": matches,
             "count": result["count"],
         },

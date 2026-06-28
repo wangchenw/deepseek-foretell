@@ -1,0 +1,44 @@
+type_id: G02
+type_name: 率先进球追问
+scenario: G
+entity_entry: context
+priority: P0
+generated: true
+turns:
+- turn: 1
+  user: 分析竞彩足球周二004 巴黎 VS 拜仁胜平负、比分
+  atomics:
+  - id: T1-g0
+    category: maintain_context
+    target: &id001 {}
+  - id: T1-a1
+    category: maintain_context
+    target: &id002 {}
+  - id: T1-a2
+    category: synthesize_answer
+    target: &id003 {}
+- turn: 2
+  user: 比分预测
+  atomics:
+  - id: T2-g0
+    category: maintain_context
+    target: *id001
+  - id: T2-a1
+    category: maintain_context
+    target: *id002
+  - id: T2-a2
+    category: synthesize_answer
+    target: *id003
+- turn: 3
+  user: 哪一队率先进球
+  atomics:
+  - id: T3-g0
+    category: maintain_context
+    target: *id001
+  - id: T3-a1
+    category: maintain_context
+    target: *id002
+  - id: T3-a2
+    category: synthesize_answer
+    target: *id003
+hard_constraints: []

@@ -1,0 +1,56 @@
+type_id: "X05"
+case_id: "TC-X05-REG-008"
+review_summary: |
+  本 case 的评估过程扎实：探索智能体真正写了 SQL 基准并多路径交叉验证，发现 get_team_schedule(direction=upcoming)
+  存在严重 tool_logic_gap（返回 2004-2006 历史赛事、league_id 过滤失效），并准确定位这是反馈 #003 假阴性的工具层根因。
+  最终结论与 DB 事实一致，护栏满足——未在穷尽前断言无比赛。case pass。
+requirement_analysis_review:
+  completeness: "原子拆分覆盖了实体解析(球队+赛事)、时间窗细化（双解释）、赛程获取、交叉验证、护栏、综合答案 8 个 aq，结构完整。aq_3 明确区分「明天=6/28」与「明天=6/29」两种解释，是本 case 的关键判断点"
+  missed_needs:
+    - "轻微遗漏：未单独拆一个 aq 用 resolve_match 做对阵反查（虽然 aq_7 在路径探索里补上了），需求分析阶段可更显式地把 resolve_match 列为交叉验证路径之一"
+path_exploration_review:
+  reasoning_quality: "推理合理。aq_4 第 3-4 轮从「怀疑 direction 失效」到「怀疑 league_id 也失效」逐步钉死，每一轮都有明确假设和对照证据，不是机械重试。aq_5/aq_6/aq_7 三条独立路径交叉验证 6/28 07:30 场次，证据链完整"
+  sql_baseline_quality: "优秀。每个原子查询都先写了独立 SQL 基准再调工具对照：aq_1 查 football_team、aq_2 查 football_competition、aq_4 查 football_match 葡萄牙 WC 场次、aq_5/aq_6 查 6/28 与 6/29 全天赛程。SQL 基准与工具背离时（aq_4），明确标记 tool_logic_gap 而非采信工具，正是 v2 评估要解决的信任问题"
+  unexplored_alternatives:
+    - "未尝试 get_lottery_schedule(play_type=101, date=2026-06-28) 作为第四条交叉路径——反馈 #003 第三轮正是靠竞彩接口兜底命中周六 069，可作为补充验证；但不影响本 case 结论的成立"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "「某队明天早上某赛事有比赛吗」类护栏题：必须并行 SQL 基准 + get_schedule_by_date（双日期解释）+ resolve_match/resolve_team 多路径交叉，禁止仅凭 get_team_schedule 断言"
+  steps:
+    - "1. resolve_team 定位球队 team_id；resolve_league 定位赛事 competition_id（双确认，不靠工具单源）"
+    - "2. SQL 基准：SELECT * FROM football_match WHERE (home_team_id=? OR away_team_id=?) AND competition_id=? AND match_time_str LIKE 'YYYY-MM-DD%'，覆盖「明天」的两种可能日期解释"
+    - "3. 工具对照：get_schedule_by_date(date=..., league_preset=赛事名, tier=all) 对每个候选日期分别查"
+    - "4. 若 get_team_schedule(direction=upcoming) 返回与 SQL 基准不一致 → 标记 tool_logic_gap，以 SQL/get_schedule_by_date 为准"
+    - "5. 至少 2 条独立路径都返回空 + SQL 基准也为空，才允许输出「无比赛」；任一非空则给出对阵+北京时间+主客场+赛事名+轮次"
+    - "6. 输出前剥离 match_id/team_id/competition_id/竞彩编号/工具名/查询过程"
+  forbidden:
+    - "禁止仅凭 get_team_schedule 一源断言有无比赛（已验证 direction=upcoming 失效）"
+    - "禁止未穷尽 SQL 基准 + 至少一条 get_schedule_by_date 交叉就下「无比赛」结论"
+    - "禁止暴露 match_id / team_id / 竞彩编号 / 工具名 / 「正在查询」「接口延迟」等中间态"
+    - "禁止按用户表述「葡萄牙 vs X」臆测主客，必须以工具/SQL 返回的 home_name vs away_name 为准"
+  output_template: |
+    有比赛：
+    「有。明早 07:30 世界杯 哥伦比亚 vs 葡萄牙（哥伦比亚主场，小组赛第 3 轮）。」
+    无比赛（穷尽后）：
+    「明早（6/29）没有葡萄牙的世界杯比赛。葡萄牙最近一场世界杯是今天 07:30 哥伦比亚 vs 葡萄牙（已完场），下一场是 7/3 07:00 葡萄牙 vs 克罗地亚。」
+scores:
+  correctness: {score: 5, reason: "SQL 基准与 3 条工具路径（get_schedule_by_date×2、resolve_match）交叉验证一致，结论与 DB 完全吻合，无编造"}
+  completeness: {score: 5, reason: "对阵、北京时间、主客场、赛事名、轮次（round_group=11 round_num=3）、状态（已完场）齐全；6/28 与 6/29 双解释都覆盖"}
+  no_false_negative: {score: 5, reason: "穷尽 4+ 条独立路径才下结论，正是 expected_behaviors「禁止未穷尽前断言无比赛」+「交叉验证赛程」的正面范例；并发现了工具失效这一隐藏假阴性风险"}
+  path_efficiency: {score: 4, reason: "aq_1/aq_2/aq_5/aq_6/aq_7 各 1 轮解决；aq_4 用 4 轮钉死 tool_logic_gap 的双重 bug，每轮有新假设，非机械重试；扣 1 分因未尝试 get_lottery_schedule 第四路径"}
+  output_discipline: {score: 5, reason: "Agent 2 综合答案模板未暴露 match_id/team_id/工具名/中间态；输出模板示范了干净的用户可见回答"}
+  context_handling: {score: 3, reason: "本 case 为单轮，无多轮继承；Agent 拆「明天」为 6/28/6/29 两种解释已属合理，但因 case 本身单轮无法验证多轮上下文能力，给中位分"}
+  scenario_compliance: {score: 5, reason: "high complexity + guardrail regression 场景，深度穷尽验证符合该 case 的回归测试目的；未因「轻量查询」标签而偷懒"}
+overall_score: 4.6
+pass: true
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "foretell/tools/crazy_sports/client.get_team_schedule 的 direction=upcoming 实际返回历史已完场赛事（2004-2006），未做 match_time>NOW() 与 status_id 未赛过滤；同时 league_id 参数被忽略（传 1 仍返回 league_id=45 欧洲杯场次）。生产环境现就在用这个有问题的工具，是反馈 #003 假阴性的直接根因"
+    evidence_ref: "path_attempts_v2/X05.yaml aq_4 round 3-4：SQL 基准返回 2026-07-03 07:00 葡萄牙 vs 克罗地亚（status=1 未赛）+ 2026-06-28 07:30 哥伦比亚 vs 葡萄牙（status=8），工具 direction=upcoming league_id=1 返回 2004-2006 历史"
+    priority: P1
+    recommended_action: "修复 client.get_team_schedule：(1) direction=upcoming → WHERE match_time > UNIX_TIMESTAMP(NOW()) AND status_id IN (1,9,13) ORDER BY match_time ASC；(2) league_id 参数加入 WHERE competition_id=%s；(3) 加单元测试覆盖「未赛场优先」+「联赛过滤生效」。修复前在 Skill 层禁止把 get_team_schedule 当作「下一场」唯一依据"
+  - gap_type: implementation_gap
+    detail: "get_team_schedule 返回的 neutral 字段为 null，但 SQL 查 football_match.neutral=1（中立场）。client 字段映射可能漏了 neutral 字段，影响「是否中立场」的呈现准确性"
+    evidence_ref: "path_attempts_v2/X05.yaml aq_5：工具返回 neutral=null，SQL 基准 neutral=1"
+    priority: P3
+    recommended_action: "核对 client.get_schedule_by_date 的字段映射，补 neutral 字段；不影响主客判断但影响中立场标注"

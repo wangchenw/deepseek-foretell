@@ -1,0 +1,20 @@
+type_id: E05
+case_id: TC-E05-REG-007
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: E05-T0-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '401'
+  code: OK
+  stub: false
+  count: 14
+satisfied:
+- E05-T0-a1
+blocking_gap:
+  type: implementation_gap
+  description: 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot
+    等为 stub
+  failed_atomic: E05-T0-a3
+route_complete: false

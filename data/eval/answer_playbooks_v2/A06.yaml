@@ -1,0 +1,53 @@
+type_id: "A06"
+case_id: "TC-A06-001"
+classification: "⚠️"
+classification_reason: |
+  数据库层面路径完整且数据正确:4 场世界杯赛果(葡1-1/英4-2/加1-0/乌1-3)+ 6 队实体消歧(葡萄牙13152/民主刚果11142 排除葡萄牙体育10206/刚果共和国11762)+ 中国体彩五玩法赔率(spf/rq/bf/jq/bqc)全部 SQL/foretell 工具可查,与 atomic expected_behaviors 完全一致(exploration_log step 1-7)。
+  但标记 ⚠️ 而非 ✅ 的原因:用户 turn1-4 核心诉求是「庄家盘口走向 + 资金流动 + 庄家收割方式分析」,这三个维度依赖赔率走势(get_odds_trend stub)、必发成交(get_betfair stub)、凯利指数(get_kelly stub),三个工具全部 stub,而 SQL 替代需 football_odds_europe_change_* 历史分区表(本次未深入验证可用性),庄家视角分析的「资金流动」维度数据库可能无对应表。
+  此外 lottery match_id=null,体彩↔match 对齐须靠 home_name+away_name+date 模糊匹配,且命名差异(刚果金↔民主刚果、乌兹别克↔乌兹别克斯坦)是脆弱点。
+  真不可得:赔率走势历史(需验证 football_odds_europe_change_*)、必发成交(football_bf 表存在但 get_betfair stub)、凯利指数(无独立表);这三项须按 expected_behaviors 诚实说明,不编造。
+path_assessment: |
+  找到的路径分两层:
+  (A) foretell 原生工具层(主路径):get_lottery_schedule(101,2026-06-18) 返回 4 场世界杯完整五玩法赔率;get_match_result(4460932 等) 返回赛果;get_odds_snapshot 返回欧赔/亚盘(但完场后为结算赔率)。覆盖 aq_1~aq_15 全部 atomic 之核心(赛果复盘 + 体彩赔率 + 让球胜平负预测)。
+  (B) SQL 直查层(补充):football_match 验证赛果;football_team 验证实体消歧;football_odds_europe.first_odd 取赛前初盘;football_odds_europe_change_* 取赔率走势(待验证)。
+  数据正确性已交叉验证:4 场赛果 home_scores/away_scores 解读与 get_match_result 返回一致;体彩葡萄牙vs刚果金 spf=1.13,5.86,13.50 rq=-2,2.47,3.92,2.13 与 atomic expected_behaviors 完全一致;6 队 national=1 与世界杯语境一致。
+exploration_sufficiency: |
+  探索较充分。7 步覆盖 atomic 全部类别(resolve_entity/fetch_schedule/fetch_result/fetch_odds_deep/cross_validation/apply_guardrails):4 场赛果交叉验证(SQL + get_match_result)、6 队实体消歧验证(含葡萄牙/刚果风险点)、中国体彩赔率原生工具验证(4 场五玩法完整)、欧赔快照与初盘对比验证。
+  未深入项:赔率走势历史分区表 football_odds_europe_change_* 未单独验证,导致庄家盘口走向分析路径未完全确认;必发指数 football_bf 表未单独验证;这三项是 turn1-4 庄家视角分析的关键缺口。
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "get_odds_trend stub 返回 [](854-855行),赔率走势不可得,限制 turn1-4 庄家盘口走向分析;SQL 替代 football_odds_europe_change_* 历史分区表未验证。"
+    evidence_ref: "exploration_log step 6-7"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:854-855 实现 get_odds_trend,或生产层暴露 football_odds_europe_change_* SQL 路径;本次评估需诚实说明走势不可得。"
+  - gap_type: "implementation_gap"
+    detail: "get_betfair/get_kelly stub(860-864行),资金流动/必发成交/凯利指数不可得,限制 turn1-4 资金流动分析。"
+    evidence_ref: "exploration_log final_finding"
+    priority: "P1"
+    recommended_action: "修复 stub 或 SQL 直查 football_bf 表(必发);凯利指数无独立表,可由 football_odds_europe 反推,诚实说明非原生凯利。"
+  - gap_type: "data_gap"
+    detail: "lottery match_id=null,体彩 entry 与 football_match 对齐须靠 name+date 模糊匹配;命名差异:刚果金↔民主刚果、乌兹别克↔乌兹别克斯坦。"
+    evidence_ref: "exploration_log step 4"
+    priority: "P2"
+    recommended_action: "LLM 层建命名映射表(刚果金=民主刚果=刚果民主共和国;乌兹别克=乌兹别克斯坦),按 home_name+away_name+date 对齐 match_id。"
+  - gap_type: "routing_gap"
+    detail: "葡萄牙 resolve_team 首位返回葡萄牙体育(10206),LLM 须按 national=1 + 世界杯语境消歧选 13152;刚果须选民主刚果(11142)排除刚果共和国(11762)。"
+    evidence_ref: "exploration_log step 2"
+    priority: "P2"
+    recommended_action: "resolve_team 增加 national + 语境权重(世界杯语境优先国家队);LLM 层在世界杯场景默认 national=1。"
+  - gap_type: "data_gap"
+    detail: "get_odds_snapshot 对已完场返回赛后结算赔率(odd1=9.88 等),非赛前初盘;赛前初盘须 SQL football_odds_europe.first_odd1/2/3。"
+    evidence_ref: "exploration_log step 6"
+    priority: "P2"
+    recommended_action: "get_odds_snapshot 区分 pre-match/post-match,完场后返回 first_odd 初盘字段;或 LLM 层对完赛场改用 SQL first_odd。"
+recommended_answer_path: |
+  生产层推荐路径(foretell 原生 + SQL 补充):
+  1. 实体解析:用 team_id 直查(13152/11142/11079/11606/11017/12064/10582/10476)绕过 resolve_team 消歧,或 LLM 层在世界杯语境默认 national=1;
+  2. 比赛定位:SQL 直查 football_match WHERE id IN (4460932,4460935,4460976,4460973) + competition_id=1,或 resolve_match(home=葡萄牙, away=刚果金/民主刚果, date=2026-06-18);
+  3. 赛果:调 get_match_result(原生可用),返回 full_time/half_time/corner;4 场分别是 葡1-1刚果(爆冷平)、英4-2克(正路主胜)、加1-0巴(正路主胜)、乌1-3哥(正路客胜);
+  4. 中国体彩赔率:调 get_lottery_schedule(play_type=101, date=2026-06-18) 取 4 场世界杯 spf/rq/bf/jq/bqc;按 home_name+away_name+date 对齐 match_id(命名映射:刚果金=民主刚果,乌兹别克=乌兹别克斯坦);
+  5. 欧赔初盘:SQL football_odds_europe.first_odd1/2/3(赛前初盘);get_odds_snapshot 对完场不适用;
+  6. 赔率走势/必发/凯利:三工具 stub,须诚实说明「赔率走势/资金流动数据未采集」,不编造;可用初盘→即时→最新(first_odd/odd/real_odd)三时点对比做静态走势替代;
+  7. 庄家收割分析:基于 4 场赛果(1爆冷+3正路)+ 体彩 spf 赔率对照(葡萄牙 spf=1.13 大热打平=爆冷;英/加/乌正路)+ 欧赔初盘,分析「强队大热是否打出」「爆冷与正路分布」;不因一场爆冷推断全部爆冷(turn6 意图对齐);
+  8. 让球胜平负预测:用体彩 rq 赔率 + 已完赛果对照,给出明天四场让球胜平负预判;不双向推荐;
+  9. 输出:归纳优先于罗列,庄家视角连贯篇章;不暴露 lottery_code(周三021等)/lottery_id/match_id/team_id/工具名;数据缺失(走势/必发/凯利)逐项诚实说明。

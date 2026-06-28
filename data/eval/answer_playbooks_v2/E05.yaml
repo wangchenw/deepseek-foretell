@@ -1,0 +1,139 @@
+type_id: "E05"
+case_id: "TC-E05-REG-007"
+review_summary: |
+  本 case 是足球彩票十四场（玩法 401）批量方案请求。探索智能体诊断扎实：SQL 基准独立证明
+  本期 issue=26089 共 14 场全有（世界杯赛事），并发现关键 tool_logic_gap——lottery_zc_match.
+  match_id 是合成 ID（issue*10+entry_num），JOIN football_match ON match_id=fm.id 是假命中
+  （全部 status_id=8 历史比赛），工具 get_lottery_schedule/resolve_lottery_match 返回的 match_id
+  字段是合成 ID 且不含 status_id，下游工具误用会拿无关历史数据。探索智能体改用 home/away
+  名称 + 时间窗 + neutral=1 关联，找到 14 场真实 football_match.id（4459718~4459732 等），
+  全部 status_id=1 未开赛可投注。两阶段初筛 + 风险提示完整，符合 expected_behaviors 两条。
+requirement_analysis_review:
+  completeness: "原子拆分完整：本期定位(aq_1)、14场记录(aq_2)、status_id 获取(aq_3)、两阶段
+    初筛(aq_4)、方案+风险提示(aq_5)、guardrail(aq_6) 六个环节。hard_constraints 显式引用
+    expected_behaviors 两条 + 不暴露 ID + 已完场不得纳入方案 + 区分十四场/任九。risk_notes
+    预判『match_id 关联可能假命中』『工具可能不返回 status_id』全部命中实际探索结果。"
+  missed_needs: []
+path_exploration_review:
+  reasoning_quality: "每轮假设清晰。aq_3 round 1 发现合成 ID 假命中后，round 2 立即换策略
+    （名称+时间窗+neutral=1）找到真实 ID，round 3 补查墨西哥+验证 resolve_lottery_match 工具，
+    是高质量诊断闭环。无机械重试。"
+  sql_baseline_quality: "优秀。aq_1/aq_2/aq_3 三个核心原子全部独立写 SQL 基准：
+    ①MAX(issue) 聚合确认本期；②lottery_zc_match 14 场全量；③JOIN football_match 假命中发现 +
+    改用名称+时间窗+neutral 找真实 ID+status_id。SQL 设计合理（用 neutral=1 过滤世界杯中立场、
+    用 IN 列表批量匹配 14 场主客队名）。工具对照明确指出双重 tool_logic_gap。"
+  unexplored_alternatives:
+    - "未尝试调 get_odds_snapshot(真实 match_id=4459720) 验证下游工具是否能用真实 ID 拿到赔率。
+      若调通可进一步证明合成 ID 是工具链断点。但本 case 重点是初筛+方案，赔率维度已诚实标注
+      缺失，非必要。"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "十四场（401）方案类问题：先 get_lottery_schedule(401) 拿本期 14 场，再用
+    home/away 名称 + 时间窗 + neutral=1 关联 football_match 拿 status_id 做两阶段初筛，
+    最后给胜平负倾向 + 风险提示。禁止用 lottery_zc_match.match_id 直接调下游工具。"
+  steps:
+    - "1. get_lottery_schedule(play_type=401) 拿本期（默认 MAX(issue)）14 场记录
+       （home_name/away_name/league_name/date）"
+    - "2. 对 14 场每场，用 home/away 名称 + date 日期 + neutral=1 关联 football_match +
+       football_team，拿真实 football_match.id 和 status_id"
+    - "3. 第一阶段初筛：全量列出 14 场 + status_id（未开赛/进行中/已完场/延期/取消）"
+    - "4. 第二阶段筛选：保留 status_id=1（未开赛）可投注子集，剔除已完场(8)/取消(12)/延期(9)"
+    - "5. 对可投注场次给胜平负倾向（基于对阵实力差 + 中立场世界杯语境）"
+    - "6. 末尾必附风险提示（冷门防范、置信度低场次双选、任九玩法差异、未含赔率/伤停维度
+       诚实告知、理性购彩）"
+  forbidden:
+    - "禁止用 lottery_zc_match.match_id（合成 ID）直接调 get_odds_snapshot / get_match_result
+      等下游工具——会拿到无关历史比赛数据"
+    - "禁止跳过第一阶段全量列表直接给方案（违反两阶段初筛）"
+    - "禁止已完场/取消/延期场次纳入投注方案"
+    - "禁止无风险提示段落（违反 expected_behaviors）"
+    - "禁止暴露 match_id / team_id / lottery_id / issue 内部形态给用户"
+  output_template: |
+    【本期十四场方案 · 第26089期世界杯】
+
+    第一阶段 · 全量 14 场（开赛时间均为北京时间，中立场）：
+    第1场 6/30 01:00 巴西 vs 日本 — 未开赛
+    第2场 6/30 04:30 德国 vs 巴拉圭 — 未开赛
+    ...(共14场，标注未开赛/已完赛状态)
+
+    第二阶段 · 可投注场次筛选：
+    本期 14 场全部未开赛，均可投注。
+
+    方案建议（胜平负方向）：
+    第1场 巴西胜 | 第2场 德国胜 | 第3场 荷兰胜 | 第4场 平 | 第5场 法国胜
+    第6场 墨西哥胜 | 第7场 英格兰胜 | 第8场 美国胜 | 第9场 西班牙胜
+    第10场 葡萄牙胜 | 第11场 瑞士胜 | 第12场 平 | 第13场 阿根廷胜 | 第14场 哥伦比亚胜
+
+    风险提示：
+    1. 世界杯中立场冷门概率高，建议 2-3 场防冷双选
+    2. 第4场、第12场势均力敌，置信度低建议双选（3/1）
+    3. 第10场、第6场有黑马潜力，建议防平
+    4. 本方案未含赔率/盘口/伤停/阵容数据，纯基于对阵实力差，置信度中等
+    5. 十四场必选 14 场全对才中奖，建议搭配任九（任选 9 场）降低难度
+    6. 投注有风险，请理性购彩，本方案仅供参考不构成投注建议
+
+scores:
+  correctness:
+    score: 5
+    reason: "SQL 基准与 DB 实际数据完全一致：MAX(issue)=26089、14 场全有、合成 ID 假命中
+      诊断准确（lottery_zc_match.match_id=issue*10+entry_num）、真实 ID 通过名称+时间窗+
+      neutral=1 关联找到（4459718~4459732 区间）、全部 status_id=1 未开赛。无任何编造。"
+  completeness:
+    score: 4
+    reason: "必需字段齐全：14 场主客队/联赛/开赛时间北京时间/status_id/中立场标识、两阶段
+      初筛完整、胜平负倾向 + 风险提示 6 条。扣 1 分因方案未含赔率/盘口/伤停维度
+      （foretell 合成 ID bug 导致下游工具误用，已诚实标注）。"
+  no_false_negative:
+    score: 5
+    reason: "工具返回不含 status_id 时未断言『无法判断』，立即用 SQL JOIN football_match
+      交叉验证。发现合成 ID 假命中后未放弃，换策略（名称+时间窗+neutral=1）找到真实 ID
+      并确认 14 场全部 status_id=1。expected_behaviors『两阶段初筛』完整执行。"
+  path_efficiency:
+    score: 4
+    reason: "8 轮覆盖 6 个原子查询，aq_1/aq_2 合并高效。aq_3 用 3 轮诊断合成 ID 假命中是
+      必要探索（非机械重试，每轮换策略）。扣 1 分因 aq_3 round 2 名称 IN 列表漏了
+      墨西哥那场（『厄瓜多』vs『厄瓜多尔』简称差异），需 round 3 补查——可在 round 2
+      用 LIKE 匹配避免。"
+  output_discipline:
+    score: 4
+    reason: "output_template 用『第N场 + 主队vs客队』表达，未暴露 match_id/team_id/lottery_id/
+      issue 内部形态。风险提示含 6 条完整。扣 1 分因 aq_3/aq_4 分析中保留内部 ID 供工程团队
+      诊断，最终用户面回答需主动过滤（已在 playbook forbidden 标注）。"
+  context_handling:
+    score: 5
+    reason: "单轮对话，无多轮上下文继承需求。aq_4/aq_5/aq_6 综合分析正确依赖 aq_1/aq_2/aq_3
+      结果，依赖链清晰。"
+  scenario_compliance:
+    score: 5
+    reason: "批量筛选场景规范：两阶段初筛（第一阶段全量 14 场+状态，第二阶段筛选可投注）
+      完整执行，符合 expected_behaviors。风险提示 6 条覆盖冷门防范/置信度/玩法差异/
+      数据局限/理性购彩，符合『含风险提示』。"
+overall_score: 4.6
+pass: true
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "get_lottery_schedule / resolve_lottery_match 返回的 match_id 字段是
+      lottery_zc_match.match_id（合成 ID = issue*10 + entry_num，如 260891），不是
+      football_match.id 的真实外键。Agent 拿这个 match_id 调 get_odds_snapshot /
+      get_match_result 等下游工具，会 JOIN 到 football_match 里恰好有 id=260891 的历史
+      比赛（2009/2019 年，status_id=8 已完场），拿到完全无关的数据。这是生产环境现在
+      就在用的有问题的工具，优先级最高。"
+    evidence_ref: "path_attempts_v2/E05.yaml aq_3 round 1：JOIN 假命中 14/14 status_id=8
+      + fm_time_str=2009/2019；aq_3 round 2/3：用名称+时间窗找到真实 id=4459718~4459732
+      全部 status_id=1"
+    priority: P1
+    recommended_action: "修复 mysql_client._row_lottery_entry / get_lottery_schedule /
+      resolve_lottery_match：① match_id 字段应解析为真实 football_match.id——用 home/away
+      名称 + match_time 日期 JOIN football_match + football_team 反查真实 ID；或在
+      lottery_zc_match 表新增 real_match_id 字段由上游数据管道填充；② 返回字段补充
+      status_id（JOIN football_match 取），让上层可直接做两阶段初筛；③ resolve_lottery_match
+      的 code='第N场' 返回多期候选时，应优先按 issue=MAX(issue) 或支持 issue 参数过滤本期。"
+  - gap_type: implementation_gap
+    detail: "get_lottery_schedule 返回不含 status_id 字段，无法直接做两阶段初筛第二阶段
+      （区分未开赛/已完场）。需 Agent 额外用 home/away 名称 + 时间窗 + neutral 关联
+      football_match 取 status_id，增加链路复杂度且易出错。"
+    evidence_ref: "path_attempts_v2/E05.yaml aq_1 round 1：_row_lottery_entry 返回字段
+      无 status_id；aq_3 round 2：必须 JOIN football_match 才能拿状态"
+    priority: P2
+    recommended_action: "在 _row_lottery_entry 增补 status_id 字段（LEFT JOIN football_match
+      ON 真实 match_id）。与 P1 修复可合并。"

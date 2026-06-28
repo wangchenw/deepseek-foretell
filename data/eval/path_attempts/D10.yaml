@@ -1,0 +1,17 @@
+type_id: D10
+case_id: TC-D10-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: D10-probe-1
+  tool: resolve_match
+  params:
+    home: 皇马
+    away: 巴萨
+  code: OK
+  count: 10
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

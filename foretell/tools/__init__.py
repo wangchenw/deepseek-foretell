@@ -1,4 +1,16 @@
-from foretell.tools.deep import get_injury_report, get_intel_tags, get_match_lineup
+from foretell.tools.deep import (
+    get_basketball_standings,
+    get_injury_report,
+    get_intel_tags,
+    get_match_incidents,
+    get_match_lineup,
+    get_match_player_stats,
+    get_match_team_stats,
+    get_match_tlive,
+    get_series_matchup,
+    get_team_squad,
+    get_top_scorers,
+)
 from foretell.tools.entity import (
     resolve_league,
     resolve_lottery_match,
@@ -53,6 +65,14 @@ DEEP_TOOLS = [
     get_match_lineup,
     get_injury_report,
     get_intel_tags,
+    get_top_scorers,
+    get_team_squad,
+    get_series_matchup,
+    get_basketball_standings,
+    get_match_tlive,
+    get_match_incidents,
+    get_match_team_stats,
+    get_match_player_stats,
 ]
 
 REVIEW_TOOLS = [

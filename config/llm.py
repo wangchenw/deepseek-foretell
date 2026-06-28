@@ -3,7 +3,7 @@ import os
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from config.settings import DEFAULT_BASE_URL, DEFAULT_MODEL
+from config.settings import DEFAULT_BASE_URL, DEFAULT_MODEL, MINIMAX_THINKING_ENABLED
 
 
 def get_chat_model(
@@ -19,8 +19,11 @@ def get_chat_model(
             "或在调用 get_chat_model(api_key=...) 时传入。"
         )
 
+    thinking_type = "adaptive" if MINIMAX_THINKING_ENABLED else "disabled"
+
     return ChatOpenAI(
         model=model or DEFAULT_MODEL,
         api_key=SecretStr(resolved_api_key),
         base_url=base_url or DEFAULT_BASE_URL,
+        extra_body={"thinking": {"type": thinking_type}},
     )

@@ -18,7 +18,7 @@ def test_subagent_names() -> None:
 def test_subagents_have_tools_and_skills() -> None:
     subs = get_subagents()
     entity = next(s for s in subs if s["name"] == "entity-resolver")
-    assert len(entity["tools"]) == 5
+    assert len(entity["tools"]) == 6  # resolve_match/lottery/team/league + get_team_schedule + internet_search
     for sub in subs:
         assert sub["tools"], f"{sub['name']} missing tools"
         assert sub["skills"], f"{sub['name']} missing skills"

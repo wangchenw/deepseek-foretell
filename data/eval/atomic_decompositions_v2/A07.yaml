@@ -1,0 +1,213 @@
+type_id: "A07"
+case_id: "TC-A07-001"
+user_intent_analysis: |
+  本案 taxonomy 标注「时间窗_今晚」，16 轮对话围绕竞彩足球（play_type=101）与北单胜负（play_type=301）
+  的场次定位、赛事走向分析、十五维度全面分析展开，核心痛点是「时间窗 + 彩票场次编号」的双重定位。
+  关键实体与时间窗：
+  - turn1/4「今天竞彩001」「明天的001场次」：竞彩 001 = 当期 issue 的第 001 场，lottery_code 格式为「周X001」
+    （周X 由日期 weekday 决定），用户只给「001」须 LLM 推断周X 前缀；
+  - turn5「北单今晚044场次」：北单 play_type=301 code=044（无周前缀，bare number），= 克罗地亚vs加纳 世界杯 6/28；
+  - turn6「北单055已经开赛」：北单 055 = 托尔vs瓦路尔 冰岛超 6/29；
+  - turn9/10「今天竞彩期号20260402的三场足球比赛，十五维度全面分析」：期号 20260402（YYYYMMDD）须转为
+    period=260402（YYMMDD）才能查到 3 场（周四001 麦克阿瑟vs纽喷气机、周四002 布里斯班vs悉尼FC、
+    周四003 维冈vs莱顿东方），用 date=2026-04-02 单日查询会漏掉 4/3 的周四003；
+  - turn16「周一001已经开赛」：周一001 = 保加利亚vs黑山 国际赛 6/2（resolve_lottery_match 无 date 默认取最近期）。
+  隐含需求：
+  (1) 场次编号容错——竞彩「001」无周前缀须推断「周X001」；期号「20260402」(YYYYMMDD) 须转「260402」(YYMMDD)；
+  (2) 时间窗映射——「今晚/今天/明天/已经开赛」是相对时间，须映射到绝对日期 + 对应彩票期号；
+      竞彩期号跨日（期号 260402 含 4/2 与 4/3 场次），用 date 单日查询会漏场，须用 period 拿全期号；
+  (3) 玩法区分——竞彩 101（lottery_code=周XNNN，odds 为逗号分隔字符串）vs 北单 301（lottery_code=NN，
+      odds 为 JSON 字符串 {sf3,goal,sf0,sf1} 等），格式不同须分别解析；
+  (4) lottery match_id=null——体彩 entry 与 football_match 对齐须靠 home_name+away_name+date 模糊匹配；
+  (5) 十五维度全面分析须基于真实可查数据（赛果/赔率/近况/交锋/情报），数据不足诚实说明，不编造发布会/伤停/首发；
+  (6) 不暴露内部 lottery_code/lottery_id/match_id/team_id/工具名；
+  (7) 多轮上下文：turn8/9/10 十五维度分析框架须继承，turn14「查询第二场数据」须继承期号 260402 的 3 场列表。
+  对话发生时点跨多日（6/2 周一001、4/2 期号 260402、6/28 北单044 今晚），评估 DB 中相关场均已完场。
+turns:
+  - turn: 1
+    user_text: "分析今天竞彩001为什么会赢球，为什么赢了两个球"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {play_type: "101", code: 竞彩001, infer: 周X001 前缀, time: 今天}
+        success_criteria: "返回竞彩001对应比赛；用户只给「001」须推断周X 前缀（如周四001/周一001），不得 ENTITY_NOT_FOUND 后放弃"
+        depends_on: [aq_3]
+      - id: aq_2
+        category: refine_time_window
+        target: {phrase: 今天, infer: 绝对日期 + 对应竞彩期号}
+        success_criteria: "「今天」映射到绝对日期 + 当期竞彩 issue（YYMMDD）；竞彩期号跨日须用 period 拿全"
+        depends_on: []
+  - turn: 2
+    user_text: "收集对阵双方赛前官方信息源（俱乐部/联赛/发布会/权威媒体）"
+    atomics:
+      - id: aq_3
+        category: discover_via_search
+        target: {need: 官方发布会/俱乐部官方/联赛官方信息}
+        success_criteria: "标记 skipped+note：foretell 无 internet_search 路径（除 Tavily），官方发布会信息不可得，须诚实说明缺失，不编造"
+        depends_on: [aq_1]
+  - turn: 3
+    user_text: "如果让你详细分析一场足球比赛走向，你会从哪些角度做专业分析"
+    atomics:
+      - id: aq_4
+        category: synthesize_answer
+        target: {present: 分析维度框架, base: 可查数据维度}
+        success_criteria: "列出基于可查数据（赛果/赔率/近况/交锋/情报）的分析维度；诚实说明发布会/伤停/首发等不可得维度"
+        depends_on: []
+  - turn: 4
+    user_text: "用这方法分析明天的001场次"
+    atomics:
+      - id: aq_5
+        category: maintain_context
+        target: {inherit_from_turn: 1, shift: 明天的001}
+        success_criteria: "继承 turn1 的竞彩001解析方法，时间窗从「今天」推进到「明天」的001场次"
+        depends_on: [aq_1, aq_4]
+  - turn: 5
+    user_text: "用这方法分析北单今晚044场次的赛事走向"
+    atomics:
+      - id: aq_6
+        category: resolve_entity
+        target: {play_type: "301", code: "044", time: 今晚}
+        success_criteria: "返回北单044=克罗地亚vs加纳 世界杯 6/28；北单 code 为 bare number 无周前缀"
+        depends_on: [aq_4]
+      - id: aq_7
+        category: fetch_result
+        target: {match: 克罗地亚vs加纳 6/28, method: get_schedule_by_date + name 对齐 or SQL}
+        success_criteria: "定位 match_id=4460978（克罗地亚vs加纳 世界杯 6/28 05:00），lottery match_id=null 须靠 name 对齐"
+        depends_on: [aq_6]
+  - turn: 6
+    user_text: "北单055已经开赛，按昨天方法详细分析哪队会赢"
+    atomics:
+      - id: aq_8
+        category: resolve_entity
+        target: {play_type: "301", code: "055", status: 已经开赛}
+        success_criteria: "返回北单055=托尔vs瓦路尔 冰岛超 6/29；注意 sell_status=1 与 044 的 sell_status=3 区别"
+        depends_on: [aq_6]
+      - id: aq_9
+        category: maintain_context
+        target: {inherit_from_turn: 5, shift: 北单055, method: 昨天方法}
+        success_criteria: "继承 turn5 的分析方法，应用到北单055"
+        depends_on: [aq_6, aq_4]
+  - turn: 7
+    user_text: "按照你的分析维度，我感觉还不够全面"
+    atomics:
+      - id: aq_10
+        category: synthesize_answer
+        target: {refine: 扩展分析维度}
+        success_criteria: "扩展分析维度但须基于可查数据；不可查维度诚实说明，不编造"
+        depends_on: [aq_4]
+  - turn: 8
+    user_text: "有没有更好更全面的分析方法？别人怎么用你分析比赛"
+    atomics:
+      - id: aq_11
+        category: synthesize_answer
+        target: {present: 更全面方法 + 使用建议}
+        success_criteria: "给更全面的分析方法建议；诚实说明 foretell 数据边界"
+        depends_on: [aq_10]
+  - turn: 9
+    user_text: "今天竞彩期号20260402的三场足球比赛，十五维度全面分析，收集官方信息源"
+    atomics:
+      - id: aq_12
+        category: resolve_entity
+        target: {play_type: "101", period: "20260402", infer: 转 260402 (YYMMDD)}
+        success_criteria: "期号 20260402 (YYYYMMDD) 须转 260402 (YYMMDD)；返回 3 场：周四001 麦克阿瑟vs纽喷气机、周四002 布里斯班vs悉尼FC、周四003 维冈vs莱顿东方"
+        depends_on: []
+      - id: aq_13
+        category: fetch_odds_deep
+        target: {3 matches, source: get_lottery_schedule period=260402, fields: spf/rq/bf/jq/bqc}
+        success_criteria: "返回 3 场完整体彩赔率；禁止用 date=2026-04-02 单日查询（会漏周四003 4/3 场）"
+        depends_on: [aq_12]
+      - id: aq_14
+        category: synthesize_answer
+        target: {present: 十五维度全面分析 3 场, base: 可查数据}
+        success_criteria: "基于赛果/赔率/近况/交锋/情报做十五维度分析；官方发布会/伤停/首发不可得诚实说明，不编造"
+        depends_on: [aq_13, aq_3]
+  - turn: 10
+    user_text: "今天竞彩期号20260402的三场足球比赛，十五维度全面分析（重复 turn9）"
+    atomics:
+      - id: aq_15
+        category: maintain_context
+        target: {inherit_from_turn: 9, retry: 十五维度分析}
+        success_criteria: "继承 turn9 的 3 场与十五维度框架；可能因 turn9 输出中断而重发"
+        depends_on: [aq_14]
+  - turn: 11
+    user_text: "为什么输出会中断"
+    atomics:
+      - id: aq_16
+        category: apply_guardrails
+        target: {explain: 输出中断原因}
+        success_criteria: "诚实说明输出长度/流式中断原因，不编造；建议分段发送"
+        depends_on: [aq_14]
+  - turn: 12
+    user_text: "分段发送"
+    atomics:
+      - id: aq_17
+        category: synthesize_answer
+        target: {mode: 分段输出 3 场分析}
+        success_criteria: "按场次分段输出十五维度分析，每段独立完整"
+        depends_on: [aq_15]
+  - turn: 13
+    user_text: "继续"
+    atomics:
+      - id: aq_18
+        category: maintain_context
+        target: {inherit_from_turn: 12, continue: 下一场分析}
+        success_criteria: "继承分段进度，输出下一场分析"
+        depends_on: [aq_17]
+  - turn: 14
+    user_text: "查询第二场数据"
+    atomics:
+      - id: aq_19
+        category: fetch_stats
+        target: {match: 周四002 布里斯班vs悉尼FC, data: 赔率/近况/交锋/赛果}
+        success_criteria: "继承期号 260402 的 3 场列表，定位第 2 场=周四002 布里斯班vs悉尼FC，取其赔率/近况/交锋/赛果"
+        depends_on: [aq_13]
+  - turn: 15
+    user_text: "继续"
+    atomics:
+      - id: aq_20
+        category: maintain_context
+        target: {inherit_from_turn: 14, continue: 第三场分析}
+        success_criteria: "继承分段进度，输出第 3 场（周四003 维冈vs莱顿东方）分析"
+        depends_on: [aq_19]
+  - turn: 16
+    user_text: "周一001已经开赛，还未结束，分析最终比赛走向"
+    atomics:
+      - id: aq_21
+        category: resolve_entity
+        target: {play_type: "101", code: 周一001, status: 已经开赛未结束}
+        success_criteria: "返回周一001=保加利亚vs黑山 国际赛 6/2（resolve_lottery_match 无 date 默认取最近期）；match_id=4544830"
+        depends_on: []
+      - id: aq_22
+        category: fetch_result
+        target: {match_id: 4544830, tool: get_match_result}
+        success_criteria: "返回保加利亚vs黑山赛果（评估时点已完场）；若用户语境为进行中须基于近况推演并标注不确定性"
+        depends_on: [aq_21]
+      - id: aq_23
+        category: apply_guardrails
+        target: {check: no_internal_code, no_fabrication, honest_about_missing, no_double_recommendation}
+        success_criteria: "终态守门：无 lottery_code/lottery_id/match_id/工具名；无编造发布会/伤停/首发；数据缺失诚实说明；无双向推荐"
+        depends_on: [aq_14, aq_17, aq_22]
+hard_constraints:
+  - "竞彩场次编号容错：用户「001」须推断「周X001」（周X 由日期 weekday 决定），不得 ENTITY_NOT_FOUND 后放弃"
+  - "期号格式转换：用户「20260402」(YYYYMMDD) 须转「260402」(YYMMDD) 才能查到；工具 period 参数用 YYMMDD"
+  - "竞彩期号跨日：期号 260402 含 4/2 与 4/3 场次，用 date=2026-04-02 单日查询会漏周四003，须用 period 拿全 3 场"
+  - "玩法区分：竞彩 101（code=周XNNN，odds 逗号分隔）vs 北单 301（code=NN bare number，odds JSON 字符串），格式不同须分别解析"
+  - "lottery match_id=null：体彩 entry 与 football_match 对齐须靠 home_name+away_name+date 模糊匹配"
+  - "时间窗映射：「今晚/今天/明天/已经开赛」是相对时间，须映射绝对日期 + 对应彩票期号"
+  - "十五维度分析须基于可查数据（赛果/赔率/近况/交锋/情报），官方发布会/伤停/首发不可得须诚实说明，不编造"
+  - "不暴露内部编号：lottery_code（周四001等）/lottery_id/match_id/team_id/competition_id/工具名不得出现在用户可见回答"
+  - "不调用 internet_search/Tavily（discover_via_search 标记 skipped）；不编造官方发布会信息"
+  - "多轮上下文继承：turn9/10 十五维度框架、turn12-15 分段进度、turn14 第 2 场查询须继承期号 260402 的 3 场列表"
+  - "不双向推荐；输出中断须诚实说明并支持分段发送"
+risk_notes: |
+  最可能在 aq_1（竞彩001 无周前缀）、aq_12（期号格式 YYYYMMDD vs YYMMDD）、aq_13（date 单日漏跨日场）
+  三个环节出问题。核心怀疑点：
+  (1) resolve_lottery_match(101, "001") → ENTITY_NOT_FOUND，须推断「周X001」前缀（routing_gap，P1）；
+  (2) get_lottery_schedule(period="20260402") → DATA_MISSING，须转 "260402"（routing_gap，P1）；
+  (3) get_lottery_schedule(date=2026-04-02) 只返回 2 场漏掉 4/3 的周四003（data_gap/时间窗，P1）；
+  (4) P0 bug 复现：get_team_schedule(direction=upcoming) 返回 2002-2004 历史升序（第三次复现，P1）；
+  (5) lottery match_id=null，体彩↔match 对齐靠 name 模糊匹配（data_gap，P2）；
+  (6) 16 轮多场次上下文继承无原生 checkpointer（context_gap，P2）；
+  (7) 北单 odds 为 JSON 字符串（{sf3,goal,sf0,sf1}），与竞彩逗号分隔格式不同，LLM 须分别解析（P2）。
+  Agent 2 应优先用 period=260402（YYMMDD）拿全 3 场基准，再用 resolve_lottery_match + get_schedule_by_date
+  对齐 match_id，避免 date 单日查询漏场。

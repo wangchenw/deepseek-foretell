@@ -1,0 +1,310 @@
+meta:
+  phase: phase1_supplement
+  diagnosed_cases:
+  - B01
+  - B09
+  - E05
+  - G01
+  - G07
+  supplement_date: '2026-06-28'
+  purpose: multi-round diagnosis for failed P0 cases
+  constraint: read-only foretell tool invocation; no path_attempts overwrite
+cases:
+- type_id: B01
+  case_id: TC-B01-001
+  diagnosed_at: '2026-06-28'
+  rounds:
+  - round: 1
+    name: resolve_lottery_match (weekday code)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_lottery_match
+      params:
+        play_type: '101'
+        code: 周日009
+        date: '2026-06-15'
+      code: OK
+    result: OK
+  - round: 2
+    name: resolve_lottery_match (numeric code)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_lottery_match
+      params:
+        play_type: '101'
+        code: 009
+        date: '2026-06-15'
+      code: ENTITY_NOT_FOUND
+    result: ENTITY_NOT_FOUND
+  - round: 3
+    name: resolve_lottery_match (date slash format)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_lottery_match
+      params:
+        play_type: '101'
+        code: 周日009
+        date: 2026/06/15
+      code: OK
+    result: OK
+  - round: 4
+    name: get_lottery_schedule (fall back)
+    tools_attempted: 1
+    attempts:
+    - tool: get_lottery_schedule
+      params:
+        play_type: '101'
+        date: '2026-06-15'
+      code: OK
+      count: 4
+    result: OK
+  - round: 5
+    name: get_schedule_by_date (cross-verify)
+    tools_attempted: 1
+    attempts:
+    - tool: get_schedule_by_date
+      params:
+        date: '2026-06-15'
+        tier: all
+      code: OK
+      count: 100
+    result: OK
+  summary:
+    ok_rounds: 4
+    blocked_rounds: 1
+    implementation_gap_rounds: 0
+    no_tool_rounds: 0
+    total_rounds: 5
+  root_cause: routing_or_parameter_gap
+  recommended_fix: adjust_params_or_fallback_path
+  sample_ids:
+    match_id: 4460914
+    home_team_id: 11746
+- type_id: B09
+  case_id: TC-B09-REG-006
+  diagnosed_at: '2026-06-28'
+  rounds:
+  - round: 1
+    name: resolve_match (G7)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_match
+      params:
+        home: 马刺
+        away: 雷霆
+        series_game: 7
+      code: NOT_APPLICABLE
+      reason: 未找到系列赛第7场，禁止降级分析其他场次
+    result: IMPLEMENTATION_GAP
+  - round: 2
+    name: resolve_match (without series_game)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_match
+      params:
+        home: 马刺
+        away: 雷霆
+      code: ENTITY_NOT_FOUND
+    result: ENTITY_NOT_FOUND
+  - round: 3
+    name: get_schedule_by_date (NBA finals)
+    tools_attempted: 1
+    attempts:
+    - tool: get_schedule_by_date
+      params:
+        date: '2026-06-15'
+        sport: basketball
+        league_preset: NBA
+      code: OK
+      count: 2
+    result: OK
+  - round: 4
+    name: resolve_match (city names fallback)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_match
+      params:
+        home: 圣安东尼奥
+        away: 俄克拉荷马
+      code: OK
+      count: 9
+    result: OK
+  - round: 5
+    name: honest decline (G7 not in DB)
+    tools_attempted: 0
+    attempts: []
+    recommendation: honest_decline
+    result: no_tool_available
+  summary:
+    ok_rounds: 2
+    blocked_rounds: 3
+    implementation_gap_rounds: 1
+    no_tool_rounds: 1
+    total_rounds: 5
+  root_cause: routing_or_parameter_gap
+  recommended_fix: adjust_params_or_fallback_path
+  sample_ids:
+    match_id: 3398245
+    home_team_id: 34336
+- type_id: E05
+  case_id: TC-E05-REG-007
+  diagnosed_at: '2026-06-28'
+  rounds:
+  - round: 1
+    name: get_lottery_schedule (14 games)
+    tools_attempted: 1
+    attempts:
+    - tool: get_lottery_schedule
+      params:
+        play_type: '401'
+      code: OK
+      count: 14
+    result: OK
+  - round: 2
+    name: get_recent_form (screening)
+    tools_attempted: 1
+    attempts:
+    - tool: get_recent_form
+      params:
+        team_id: 10477
+      code: OK
+      count: 5
+    result: OK
+  - round: 3
+    name: get_odds_snapshot (risk disclosure)
+    tools_attempted: 1
+    attempts:
+    - tool: get_odds_snapshot
+      params:
+        match_id: 260891
+      code: SKIP_MATCH
+      match_id: 260891
+      reason: 欧赔与亚盘均缺失
+    result: IMPLEMENTATION_GAP
+  - round: 4
+    name: screening fallback (textual criteria only)
+    tools_attempted: 0
+    attempts: []
+    recommendation: textual_screening_only
+    result: no_tool_available
+  summary:
+    ok_rounds: 2
+    blocked_rounds: 2
+    implementation_gap_rounds: 1
+    no_tool_rounds: 1
+    total_rounds: 4
+  root_cause: implementation_gap
+  recommended_fix: implement_or_backfill_odds_form_injury_for_screening
+  sample_ids:
+    match_id: 260891
+    home_team_id: 10477
+- type_id: G01
+  case_id: TC-G01-REG-004
+  diagnosed_at: '2026-06-28'
+  rounds:
+  - round: 1
+    name: resolve_lottery_match (turn 1 full analysis)
+    tools_attempted: 1
+    attempts:
+    - tool: resolve_lottery_match
+      params:
+        play_type: '101'
+        code: '004'
+        date: '2026-06-23'
+      code: ENTITY_NOT_FOUND
+    result: ENTITY_NOT_FOUND
+  - round: 2
+    name: get_lottery_schedule fallback
+    tools_attempted: 1
+    attempts:
+    - tool: get_lottery_schedule
+      params:
+        play_type: '101'
+      code: OK
+      count: 16
+    result: OK
+  - round: 3
+    name: 'turn 2: maintain_context (checkpointer needed)'
+    tools_attempted: 0
+    attempts: []
+    recommendation: need_checkpointer
+    result: no_tool_available
+  - round: 4
+    name: 'turn 2: synthetic score prediction (no new tool)'
+    tools_attempted: 0
+    attempts: []
+    recommendation: synthesize_from_turn1_context
+    result: no_tool_available
+  summary:
+    ok_rounds: 1
+    blocked_rounds: 3
+    implementation_gap_rounds: 0
+    no_tool_rounds: 2
+    total_rounds: 4
+  root_cause: context_gap
+  recommended_fix: wire_checkpointer_for_multi_turn; see phase2a_checkpointer_demo.yaml
+  sample_ids:
+    match_id: 4459720
+    home_team_id: 10477
+- type_id: G07
+  case_id: TC-G07-001
+  diagnosed_at: '2026-06-28'
+  rounds:
+  - round: 1
+    name: get_lottery_schedule (beidan 301)
+    tools_attempted: 1
+    attempts:
+    - tool: get_lottery_schedule
+      params:
+        play_type: '301'
+      code: OK
+      count: 19
+    result: OK
+  - round: 2
+    name: get_schedule_by_date (today's context)
+    tools_attempted: 1
+    attempts:
+    - tool: get_schedule_by_date
+      params:
+        date: '2026-06-28'
+        tier: top
+      code: OK
+      count: 8
+    result: OK
+  - round: 3
+    name: get_odds_snapshot (criteria 2/4/5)
+    tools_attempted: 1
+    attempts:
+    - tool: get_odds_snapshot
+      params:
+        match_id: 4460937
+      code: OK
+      match_id: 4460937
+    result: OK
+  - round: 4
+    name: get_injury_report (criteria 4)
+    tools_attempted: 1
+    attempts:
+    - tool: get_injury_report
+      params:
+        match_id: 4460937
+      code: DATA_MISSING
+      match_id: 4460937
+    result: IMPLEMENTATION_GAP
+  - round: 5
+    name: follow-up optimization (cross-session checkpointer)
+    tools_attempted: 0
+    attempts: []
+    recommendation: need_checkpointer
+    result: no_tool_available
+  summary:
+    ok_rounds: 3
+    blocked_rounds: 2
+    implementation_gap_rounds: 1
+    no_tool_rounds: 1
+    total_rounds: 5
+  root_cause: context_gap
+  recommended_fix: wire_checkpointer_for_multi_turn; see phase2a_checkpointer_demo.yaml
+  sample_ids:
+    match_id: 4460937
+    home_team_id: 12064

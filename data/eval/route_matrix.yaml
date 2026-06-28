@@ -1,0 +1,3232 @@
+version: '1.0'
+meta:
+  explored: 120
+  total: 120
+  last_wave: X
+  waves_merged:
+  - A
+  - B
+  - C
+  - D
+  - E
+  - F
+  - G
+  - H
+  - X
+  route_status_distribution:
+    verified: 75
+    blocked: 32
+    prompt_only: 13
+entries:
+- type_id: A01
+  type_name: 按日期热门赛程
+  scenario: A
+  probe_case_id: TC-A01-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: get_schedule_by_date
+      params: {}
+    - name: get_lottery_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A02
+  type_name: 指定联赛日期赛程
+  scenario: A
+  probe_case_id: TC-A02-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A03
+  type_name: 球队未来赛程
+  scenario: A
+  probe_case_id: TC-A03-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A03.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A04
+  type_name: 球队近期赛程
+  scenario: A
+  probe_case_id: TC-A04-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A04.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A05
+  type_name: 实时比分查询
+  scenario: A
+  probe_case_id: TC-A05-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A06
+  type_name: 完场赛果
+  scenario: A
+  probe_case_id: TC-A06-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A07
+  type_name: 时间窗_今晚
+  scenario: A
+  probe_case_id: TC-A07-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A07.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A08
+  type_name: 时间窗_明早
+  scenario: A
+  probe_case_id: TC-A08-REG-003
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    - name: get_schedule_by_date
+      params:
+        date: $today
+        tier: top
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A08.json
+    route_status: verified
+    db_status: ok
+    step_count: 3
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+- type_id: A09
+  type_name: 时间窗_几点开赛
+  scenario: A
+  probe_case_id: TC-A09-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    - name: get_schedule_by_date
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A09.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A10
+  type_name: 积分榜
+  scenario: A
+  probe_case_id: TC-A10-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A10.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A11
+  type_name: 射手榜
+  scenario: A
+  probe_case_id: TC-A11-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A11.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A12
+  type_name: 球队赛季统计
+  scenario: A
+  probe_case_id: TC-A12-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A12.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A13
+  type_name: 历史交锋
+  scenario: A
+  probe_case_id: TC-A13-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_h2h
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A13.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A14
+  type_name: 球队阵容
+  scenario: A
+  probe_case_id: TC-A14-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A14.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A15
+  type_name: 比赛首发
+  scenario: A
+  probe_case_id: TC-A15-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A15.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A16
+  type_name: NBA赛程
+  scenario: A
+  probe_case_id: TC-A16-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A16.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: A17
+  type_name: 实体消歧_国家队
+  scenario: A
+  probe_case_id: TC-A17-REG-001
+  priority: P0
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_team
+      params:
+        name: 法国
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 10
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A17.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+- type_id: A18
+  type_name: 语义精度_锁定排名
+  scenario: A
+  probe_case_id: TC-A18-001
+  priority: P2
+  expected_route:
+    skill: foretell-light-query
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/A18.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B01
+  type_name: 竞彩模板分析
+  scenario: B
+  probe_case_id: TC-B01-001
+  priority: P0
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_lottery_match
+      params:
+        lottery_code: 周日009
+        date: '2026-06-15'
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B01.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B02
+  type_name: 竞彩篮球模板
+  scenario: B
+  probe_case_id: TC-B02-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B02.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B03
+  type_name: 对阵加日期分析
+  scenario: B
+  probe_case_id: TC-B03-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B03.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B04
+  type_name: 对阵无日期分析
+  scenario: B
+  probe_case_id: TC-B04-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B05
+  type_name: 谁会赢
+  scenario: B
+  probe_case_id: TC-B05-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B06
+  type_name: 全面深度分析
+  scenario: B
+  probe_case_id: TC-B06-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B07
+  type_name: 自定义模板
+  scenario: B
+  probe_case_id: TC-B07-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B08
+  type_name: 篮球五段分析
+  scenario: B
+  probe_case_id: TC-B08-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B09
+  type_name: 系列赛G7
+  scenario: B
+  probe_case_id: TC-B09-REG-006
+  priority: P0
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params:
+        home: 马刺
+        away: 雷霆
+        series_game: 7
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B09.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B10
+  type_name: 淘汰赛排名不适用
+  scenario: B
+  probe_case_id: TC-B10-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B11
+  type_name: 盘口不足跳过
+  scenario: B
+  probe_case_id: TC-B11-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B11.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B12
+  type_name: 换线重定价
+  scenario: B
+  probe_case_id: TC-B12-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B12.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B13
+  type_name: 伤病结合分析
+  scenario: B
+  probe_case_id: TC-B13-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B13.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B14
+  type_name: 进球数深度
+  scenario: B
+  probe_case_id: TC-B14-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B14.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B15
+  type_name: 半全场分析
+  scenario: B
+  probe_case_id: TC-B15-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B15.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: B16
+  type_name: 实力对比
+  scenario: B
+  probe_case_id: TC-B16-001
+  priority: P2
+  expected_route:
+    skill: foretell-match-analysis
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_h2h
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_match_lineup
+      params: {}
+    - name: get_injury_report
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/B16.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C01
+  type_name: 昨天比赛复盘
+  scenario: C
+  probe_case_id: TC-C01-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C02
+  type_name: 上周比赛复盘
+  scenario: C
+  probe_case_id: TC-C02-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C03
+  type_name: 对阵复盘
+  scenario: C
+  probe_case_id: TC-C03-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C03.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C04
+  type_name: 竞彩编号复盘
+  scenario: C
+  probe_case_id: TC-C04-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C04.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C05
+  type_name: 篮球复盘
+  scenario: C
+  probe_case_id: TC-C05-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C06
+  type_name: 焦点战回顾
+  scenario: C
+  probe_case_id: TC-C06-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C06.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C07
+  type_name: 近期战绩复盘
+  scenario: C
+  probe_case_id: TC-C07-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C07.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: C08
+  type_name: 欧冠复盘
+  scenario: C
+  probe_case_id: TC-C08-001
+  priority: P2
+  expected_route:
+    skill: foretell-post-review
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/C08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D01
+  type_name: 这场怎么买
+  scenario: D
+  probe_case_id: TC-D01-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D02
+  type_name: 主不败推荐
+  scenario: D
+  probe_case_id: TC-D02-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D03
+  type_name: 让球推荐
+  scenario: D
+  probe_case_id: TC-D03-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D03.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D04
+  type_name: 大小球推荐
+  scenario: D
+  probe_case_id: TC-D04-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D05
+  type_name: 比分玩法
+  scenario: D
+  probe_case_id: TC-D05-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D06
+  type_name: 单场方案
+  scenario: D
+  probe_case_id: TC-D06-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D07
+  type_name: 篮球让分购彩
+  scenario: D
+  probe_case_id: TC-D07-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D08
+  type_name: 胜平负推荐
+  scenario: D
+  probe_case_id: TC-D08-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D09
+  type_name: 稳胆推荐
+  scenario: D
+  probe_case_id: TC-D09-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D09.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: D10
+  type_name: 购彩风险提示
+  scenario: D
+  probe_case_id: TC-D10-001
+  priority: P2
+  expected_route:
+    skill: foretell-betting-single
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_match_result
+      params: {}
+    subagents:
+    - entity-resolver
+    - fundamentals-analyst
+    - odds-analyst
+    - intel-analyst
+  actual_probe:
+    result_file: probe_results/D10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E01
+  type_name: 扫盘
+  scenario: E
+  probe_case_id: TC-E01-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E02
+  type_name: 四串一
+  scenario: E
+  probe_case_id: TC-E02-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E03
+  type_name: 三串一
+  scenario: E
+  probe_case_id: TC-E03-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E03.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E04
+  type_name: 二串一
+  scenario: E
+  probe_case_id: TC-E04-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E05
+  type_name: 十四场
+  scenario: E
+  probe_case_id: TC-E05-REG-007
+  priority: P0
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params:
+        play_type: '401'
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: true
+  reviewed: false
+- type_id: E06
+  type_name: 任九
+  scenario: E
+  probe_case_id: TC-E06-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E07
+  type_name: 北单
+  scenario: E
+  probe_case_id: TC-E07-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E08
+  type_name: 今日竞彩列表
+  scenario: E
+  probe_case_id: TC-E08-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E09
+  type_name: 批量世界杯
+  scenario: E
+  probe_case_id: TC-E09-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E09.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E10
+  type_name: 初筛vs深核
+  scenario: E
+  probe_case_id: TC-E10-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E11
+  type_name: 比分串方案
+  scenario: E
+  probe_case_id: TC-E11-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E11.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E12
+  type_name: 在售方案
+  scenario: E
+  probe_case_id: TC-E12-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E12.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E13
+  type_name: 推荐N场
+  scenario: E
+  probe_case_id: TC-E13-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E13.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: E14
+  type_name: 竞篮今日
+  scenario: E
+  probe_case_id: TC-E14-001
+  priority: P2
+  expected_route:
+    skill: foretell-batch-screening
+    tools:
+    - name: get_lottery_schedule
+      params: {}
+    - name: get_recent_form
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    subagents:
+    - screening-agent
+  actual_probe:
+    result_file: probe_results/E14.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F01
+  type_name: 赔率对比
+  scenario: F
+  probe_case_id: TC-F01-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F01.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F02
+  type_name: 赔率走势
+  scenario: F
+  probe_case_id: TC-F02-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F02.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F03
+  type_name: 变动最大
+  scenario: F
+  probe_case_id: TC-F03-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F03.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F04
+  type_name: 凯利指数
+  scenario: F
+  probe_case_id: TC-F04-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F04.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F05
+  type_name: 赔率时间线
+  scenario: F
+  probe_case_id: TC-F05-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F05.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F06
+  type_name: 盘口解读
+  scenario: F
+  probe_case_id: TC-F06-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F07
+  type_name: 临场盘口
+  scenario: F
+  probe_case_id: TC-F07-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F07.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F08
+  type_name: 现在盘口
+  scenario: F
+  probe_case_id: TC-F08-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F08.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F09
+  type_name: 水位方向
+  scenario: F
+  probe_case_id: TC-F09-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F09.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: F10
+  type_name: 欧赔亚盘
+  scenario: F
+  probe_case_id: TC-F10-001
+  priority: P2
+  expected_route:
+    skill: foretell-odds-query
+    tools:
+    - name: resolve_match
+      params: {}
+    - name: get_odds_snapshot
+      params: {}
+    - name: get_odds_trend
+      params: {}
+    - name: get_kelly
+      params: {}
+    - name: get_betfair
+      params: {}
+    subagents:
+    - odds-analyst
+  actual_probe:
+    result_file: probe_results/F10.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: implementation
+  nami_refs: []
+  fallback: internet_search
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G01
+  type_name: 比分预测追问
+  scenario: G
+  probe_case_id: TC-G01-REG-004
+  priority: P0
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G01.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G02
+  type_name: 率先进球追问
+  scenario: G
+  probe_case_id: TC-G02-REG-005
+  priority: P0
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G02.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G03
+  type_name: 各比分概率
+  scenario: G
+  probe_case_id: TC-G03-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G03.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G04
+  type_name: 上半场进球概率
+  scenario: G
+  probe_case_id: TC-G04-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G04.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G05
+  type_name: 继续
+  scenario: G
+  probe_case_id: TC-G05-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G05.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G06
+  type_name: 复述原文
+  scenario: G
+  probe_case_id: TC-G06-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G06.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G07
+  type_name: 优化方案
+  scenario: G
+  probe_case_id: TC-G07-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G07.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G08
+  type_name: 同样逻辑
+  scenario: G
+  probe_case_id: TC-G08-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G08.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G09
+  type_name: 换场追问
+  scenario: G
+  probe_case_id: TC-G09-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G09.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G10
+  type_name: 重新分析
+  scenario: G
+  probe_case_id: TC-G10-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G10.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G11
+  type_name: 用户纠正
+  scenario: G
+  probe_case_id: TC-G11-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G11.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G12
+  type_name: 时间窗纠正
+  scenario: G
+  probe_case_id: TC-G12-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G12.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G13
+  type_name: 进球数追问
+  scenario: G
+  probe_case_id: TC-G13-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G13.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G14
+  type_name: 半全场追问
+  scenario: G
+  probe_case_id: TC-G14-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G14.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G15
+  type_name: 综合分析追问
+  scenario: G
+  probe_case_id: TC-G15-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G15.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G16
+  type_name: 盘口变化追问
+  scenario: G
+  probe_case_id: TC-G16-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G16.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G17
+  type_name: 多场比赛追问
+  scenario: G
+  probe_case_id: TC-G17-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G17.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G18
+  type_name: 球员情况追问
+  scenario: G
+  probe_case_id: TC-G18-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G18.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G19
+  type_name: 短确认
+  scenario: G
+  probe_case_id: TC-G19-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G19.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: G20
+  type_name: 格式重写
+  scenario: G
+  probe_case_id: TC-G20-001
+  priority: P2
+  expected_route:
+    skill: foretell-follow-up
+    tools:
+    - name: resolve_lottery_match
+      params: {}
+    subagents: []
+  actual_probe:
+    result_file: probe_results/G20.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H01
+  type_name: 争冠悬念
+  scenario: H
+  probe_case_id: TC-H01-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H01.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H02
+  type_name: 降级确定
+  scenario: H
+  probe_case_id: TC-H02-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H02.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H03
+  type_name: 季后赛锁定
+  scenario: H
+  probe_case_id: TC-H03-REG-010
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H03.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H04
+  type_name: 冠军已锁定
+  scenario: H
+  probe_case_id: TC-H04-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H04.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H05
+  type_name: 保级形势
+  scenario: H
+  probe_case_id: TC-H05-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H05.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H06
+  type_name: 欧战席位
+  scenario: H
+  probe_case_id: TC-H06-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H06.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H07
+  type_name: 世界杯进程
+  scenario: H
+  probe_case_id: TC-H07-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H07.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H08
+  type_name: 数学出线
+  scenario: H
+  probe_case_id: TC-H08-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H08.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X01
+  type_name: 非体育拒答
+  scenario: X
+  probe_case_id: TC-X01-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X01.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X02
+  type_name: 英文提问
+  scenario: X
+  probe_case_id: TC-X02-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X02.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X03
+  type_name: 粤语意图
+  scenario: X
+  probe_case_id: TC-X03-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X03.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X04
+  type_name: 定位失败
+  scenario: X
+  probe_case_id: TC-X04-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X04.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X05
+  type_name: 假阴性风险
+  scenario: X
+  probe_case_id: TC-X05-REG-008
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_team
+      params:
+        name: 葡萄牙
+    - name: get_team_schedule
+      params:
+        team_id: $team_id
+        direction: all
+        limit: 5
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X05.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs:
+  - football_match.match_time
+  - football_team.national
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+- type_id: X06
+  type_name: 中间态外露
+  scenario: X
+  probe_case_id: TC-X06-REG-009
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X06.json
+    route_status: verified
+    db_status: ok
+    step_count: 1
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: true
+  reviewed: false
+- type_id: X07
+  type_name: 内部ID外露
+  scenario: X
+  probe_case_id: TC-X07-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X07.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X08
+  type_name: 用户辱骂
+  scenario: X
+  probe_case_id: TC-X08-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X08.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X09
+  type_name: 冷门赛事
+  scenario: X
+  probe_case_id: TC-X09-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X09.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X10
+  type_name: 无分隔符对阵
+  scenario: X
+  probe_case_id: TC-X10-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X10.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X11
+  type_name: 年份误锚
+  scenario: X
+  probe_case_id: TC-X11-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X11.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X12
+  type_name: 主客颠倒
+  scenario: X
+  probe_case_id: TC-X12-REG-002
+  priority: P0
+  expected_route:
+    skill: foretell-output-discipline
+    tools:
+    - name: resolve_match
+      params:
+        home: 法国
+        away: 挪威
+        date: '2024-06-27'
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/X12.json
+    route_status: blocked
+    db_status: partial
+    step_count: 1
+  gap: 工具链未返回 OK
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X13
+  type_name: 数据诚实
+  scenario: X
+  probe_case_id: TC-X13-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X13.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X14
+  type_name: 矛盾推荐
+  scenario: X
+  probe_case_id: TC-X14-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X14.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X15
+  type_name: 盈利承诺
+  scenario: X
+  probe_case_id: TC-X15-001
+  priority: P2
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X15.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false
+- type_id: X16
+  type_name: 网络兜底
+  scenario: X
+  probe_case_id: TC-X16-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-output-discipline
+    tools: []
+    subagents: []
+  actual_probe:
+    result_file: probe_results/X16.json
+    route_status: prompt_only
+    db_status: ok
+    step_count: 0
+  gap: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  gap_type: routing
+  nami_refs: []
+  fallback: honest_decline
+  skill_update_candidate: false
+  reviewed: false

@@ -1,0 +1,39 @@
+demo_at: '2026-06-28'
+scope: eval-only prototype in scripts/eval_checkpointer_demo.py
+does_not_modify:
+- foretell/tools
+- foretell/skills
+simulations:
+- type_id: G01
+  turn1_state:
+    match_id: null
+    lottery_code: '004'
+    analysis_done: true
+    segments: 6
+  turn2_context:
+    match_id: null
+    analysis_done: true
+    follow_up_only: true
+  required_atomics_turn2:
+  - maintain_context
+  - synthesize_answer
+  simulated_pass: true
+  production_gap: agent checkpointer 未接入；eval 仅证明 turn2 不应 re-resolve
+- type_id: G07
+  turn1_state:
+    criteria:
+    - 赔率<=1.5
+    - 近5场>=2球
+    - 伤停
+    - 媒体热度
+    - 跨窗口
+    lottery_play: '301'
+  turn2_context:
+    match_id: null
+    analysis_done: false
+    follow_up_only: true
+  simulated_pass: false
+  production_gap: 跨窗口引用需 thread_id + checkpointer；stub 工具限制深度筛选
+conclusion: checkpointer 逻辑可模拟；G01/G07 生产失败主因仍是 lottery/stub，context 层需 Phase3 接入
+  LangGraph checkpointer
+phase2b_action: 继续全量评估，G 类标 pipeline_gap

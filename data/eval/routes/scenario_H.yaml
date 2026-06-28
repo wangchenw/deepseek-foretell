@@ -1,0 +1,219 @@
+scenario: H
+explored: 8
+entries:
+- type_id: H01
+  type_name: 争冠悬念
+  scenario: H
+  probe_case_id: TC-H01-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H01.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H02
+  type_name: 降级确定
+  scenario: H
+  probe_case_id: TC-H02-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H02.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H03
+  type_name: 季后赛锁定
+  scenario: H
+  probe_case_id: TC-H03-REG-010
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H03.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H04
+  type_name: 冠军已锁定
+  scenario: H
+  probe_case_id: TC-H04-SYN
+  priority: P1
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H04.json
+    route_status: blocked
+    db_status: unverified_semantics
+    step_count: 0
+  gap: 探针问法为占位，需人工补 probe_turns
+  gap_type: field_unknown
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H05
+  type_name: 保级形势
+  scenario: H
+  probe_case_id: TC-H05-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H05.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H06
+  type_name: 欧战席位
+  scenario: H
+  probe_case_id: TC-H06-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H06.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H07
+  type_name: 世界杯进程
+  scenario: H
+  probe_case_id: TC-H07-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H07.json
+    route_status: blocked
+    db_status: missing_table
+    step_count: 0
+  gap: 无探针步骤或未注册 probe
+  gap_type: data_missing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false
+- type_id: H08
+  type_name: 数学出线
+  scenario: H
+  probe_case_id: TC-H08-001
+  priority: P2
+  expected_route:
+    skill: foretell-league-outlook
+    tools:
+    - name: resolve_league
+      params: {}
+    - name: get_standings
+      params: {}
+    - name: get_team_schedule
+      params: {}
+    subagents:
+    - entity-resolver
+  actual_probe:
+    result_file: probe_results/H08.json
+    route_status: verified
+    db_status: ok
+    step_count: 2
+  gap: null
+  gap_type: routing
+  nami_refs: []
+  fallback: none
+  skill_update_candidate: false
+  reviewed: false

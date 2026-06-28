@@ -1,0 +1,19 @@
+type_id: A16
+type_name: NBA赛程
+scenario: A
+entity_entry: team
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 清水鼓动对大阪钢巴
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: team
+  - id: T1-a2
+    category: fetch_schedule
+    target:
+      team_id: $a1
+hard_constraints: []

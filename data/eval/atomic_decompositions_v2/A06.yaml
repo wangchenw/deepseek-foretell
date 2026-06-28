@@ -1,0 +1,172 @@
+type_id: "A06"
+case_id: "TC-A06-001"
+user_intent_analysis: |
+  本案 taxonomy 标注「完场赛果」，11 轮对话围绕 2026 美加墨世界杯小组赛 6/18 四场比赛的
+  庄家收割方式分析与赛果复盘。核心诉求链：
+  turn1-4：从世界杯开赛以来分析庄家盘口走向/资金流动/收割方式，预测明天四场比分；
+  turn5-6：葡萄牙vs刚果 1-1 爆冷后，用户纠正「不要因一场爆冷就推断剩下三场都爆冷」；
+  turn7-10：搜索今天四场比分 + 中国体彩昨晚十点前这四个比分的赔率（比分赔率 bf）；
+  turn11：明天四场让球胜平负预测。
+  隐含需求：
+  (1) 实体消歧——「葡萄牙」默认男足国家队(13152, national=1)，非葡萄牙体育(10206)俱乐部；
+      「刚果」指民主刚果(11142)，非刚果共和国(11762)；三处命名「刚果金(lottery)/刚果民主共和国(match DB)/民主刚果(resolve_match)」须对齐；
+  (2) 四场定位——6/18 四场世界杯：葡萄牙vs刚果金(4460932, 01:00)、英格兰vs克罗地亚(4460935, 04:00)、
+      加纳vs巴拿马(4460976, 07:00)、乌兹别克斯坦vs哥伦比亚(4460973, 10:00)；
+  (3) 中国体彩赔率——用户明确要「中国体彩」的「比分赔率 bf」与「让球胜平负 rq」，
+      须用 get_lottery_schedule(play_type=101, date=2026-06-18) 取 entries[].odds.{spf,rq,bf,jq,bqc}，
+      而非 get_odds_snapshot（后者是欧赔/亚盘快照，非体彩）；
+  (4) 赛果复盘——四场均已完场：葡1-1刚果(爆冷平)、英4-2克(正路主胜)、加1-0巴(正路主胜)、乌1-3哥(正路客胜)；
+  (5) 庄家收割分析须基于真实赛果+赔率对照，不得因一场爆冷推断全部爆冷（turn6 意图对齐关键）；
+  (6) 不瞎说比分（turn8「葡萄牙对刚果你别瞎说比分」）——须用 get_match_result 取真实赛果，不得编造；
+  (7) 不暴露内部 lottery_code（周三021等）/lottery_id/match_id/工具名。
+  对话发生时点视为 6/18 四场已赛完后的复盘期（turn5 葡萄牙刚果1-1 已知），评估 DB 中四场 status_id=8。
+turns:
+  - turn: 1
+    user_text: "从世界杯开赛以来分析庄家盘口走向/资金流动/收割方式，预测明天四场最终比分"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {teams: ["葡萄牙→13152 national=1", "刚果→民主刚果11142 非刚果共和国11762", "英格兰/克罗地亚/加纳/巴拿马/乌兹别克斯坦/哥伦比亚"], league: "世界杯→1"}
+        success_criteria: "返回唯一 team_id，葡萄牙须按 national=1+精确名消歧排除葡萄牙体育(10206)；刚果须选民主刚果(11142)排除刚果共和国(11762)及梯队"
+        depends_on: []
+      - id: aq_2
+        category: resolve_entity
+        target: {league: 世界杯, expected_competition_id: 1, exclude: [世欧预(2),女世界杯(13),U20世界杯(14)]}
+        success_criteria: "返回世界杯 competition_id=1（2026 美加墨世界杯进行中），排除预选赛/女足/U20"
+        depends_on: []
+      - id: aq_3
+        category: refine_time_window
+        target: {phrase: 明天四场, base_date: 2026-06-17, window: "2026-06-18 00:00 ~ 2026-06-19 00:00 北京时间", matches: 4}
+        success_criteria: "时间窗覆盖 6/18 全天四场世界杯（01:00/04:00/07:00/10:00），含凌晨早场"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: fetch_schedule
+        target: {date: 2026-06-18, competition_id: 1, method: SQL or resolve_match, expected: 4 matches}
+        success_criteria: "定位 4 个 match_id（4460932/4460935/4460976/4460973），含主客/时间/状态"
+        depends_on: [aq_1, aq_2, aq_3]
+  - turn: 2
+    user_text: "从美加墨世界杯小组赛第一场比赛开始分析庄家收割方式"
+    atomics:
+      - id: aq_5
+        category: maintain_context
+        target: {inherit_from_turn: 1, refine: 美加墨世界杯小组赛第一场起}
+        success_criteria: "继承 turn1 四场与庄家收割框架，叠加「从小组赛第一场起」的历史复盘维度"
+        depends_on: [aq_4]
+  - turn: 3
+    user_text: "继续分析明天四场，估计两场正路两场爆冷"
+    atomics:
+      - id: aq_6
+        category: synthesize_answer
+        target: {present: 四场正路/爆冷预判, base: 赔率+赛果对照}
+        success_criteria: "基于赔率与赛果对照给出正路/爆冷分布预判；不编造比分；标注不确定性"
+        depends_on: [aq_4, aq_7, aq_8]
+  - turn: 4
+    user_text: "站在庄家角度去考虑，别光按我说的爆冷就爆冷"
+    atomics:
+      - id: aq_7
+        category: fetch_odds_snapshot
+        target: {match_ids: [4460932,4460935,4460976,4460973], tool: get_odds_snapshot}
+        success_criteria: "返回欧赔/亚盘快照支撑庄家视角分析；与体彩赔率交叉对照"
+        depends_on: [aq_4]
+  - turn: 5
+    user_text: "葡萄牙刚果1-1，呵呵"
+    atomics:
+      - id: aq_8
+        category: fetch_result
+        target: {match_id: 4460932, tool: get_match_result, expected: 葡1-1刚果}
+        success_criteria: "返回真实赛果 full_time=1-1 half_time=1-1 corner 5-4；确认爆冷（spf 主胜 1.13 大热打平）"
+        depends_on: [aq_4]
+  - turn: 6
+    user_text: "你就因为葡萄牙爆冷就认为剩下三场都爆冷吗？"
+    atomics:
+      - id: aq_9
+        category: fetch_result
+        target: {match_ids: [4460935,4460976,4460973], tool: get_match_result, expected: 英4-2克/加1-0巴/乌1-3哥}
+        success_criteria: "返回三场真实赛果：英4-2克(正路主胜)、加1-0巴(正路主胜)、乌1-3哥(正路客胜)；证明非全部爆冷"
+        depends_on: [aq_4]
+      - id: aq_10
+        category: synthesize_answer
+        target: {present: 纠正「一场爆冷推断全部爆冷」的过度泛化, base: 4场赛果分布}
+        success_criteria: "诚实承认仅葡萄牙爆冷，其余三场正路；不得因一场爆冷推断全部爆冷（expected_behaviors 意图对齐）"
+        depends_on: [aq_8, aq_9]
+  - turn: 7
+    user_text: "搜索今天这四场比赛的比分，然后中国体彩昨天晚上十点之前这四个比分的赔率"
+    atomics:
+      - id: aq_11
+        category: fetch_odds_deep
+        target: {play_type: "101", date: "2026-06-18", tool: get_lottery_schedule, fields: [spf, rq, bf, jq, bqc]}
+        success_criteria: "返回 4 场世界杯的中国体彩赔率：胜平负 spf / 让球胜平负 rq / 比分 bf(31值) / 进球数 jq / 半全场 bqc；葡萄牙vs刚果金 spf=1.13,5.86,13.50 rq=-2,2.47,3.92,2.13"
+        depends_on: [aq_3]
+      - id: aq_12
+        category: cross_validation
+        target: {lottery_entries: 4, match_ids: [4460932,4460935,4460976,4460973], link_by: home_name+away_name+date}
+        success_criteria: "lottery match_id=null，须按 home_name+away_name+date 将体彩 entry 对齐到 football_match（注意命名刚果金↔刚果民主共和国↔民主刚果）"
+        depends_on: [aq_4, aq_11]
+  - turn: 8
+    user_text: "葡萄牙对刚果你别瞎说比分"
+    atomics:
+      - id: aq_13
+        category: apply_guardrails
+        target: {check: no_fabricated_score, source: get_match_result only}
+        success_criteria: "比分须来自 get_match_result(4460932)=1-1，不得编造；用户已 catch 过瞎说比分，须严格以工具结果为准"
+        depends_on: [aq_8]
+  - turn: 9
+    user_text: "昨天开赛前这四场比分的赔率，中国体彩，晚上十点之前"
+    atomics:
+      - id: aq_14
+        category: maintain_context
+        target: {inherit_from_turn: 7, refine: 开赛前/晚上十点前的时间限定}
+        success_criteria: "继承 turn7 体彩赔率框架；时间限定为开赛前晚十点前的赔率快照（lottery_schedule issue=260617 周三期，含开赛前赔率）"
+        depends_on: [aq_11]
+  - turn: 10
+    user_text: "这四个比分的赔率"
+    atomics:
+      - id: aq_15
+        category: fetch_odds_deep
+        target: {field: bf, 4 matches, source: lottery_schedule odds.bf}
+        success_criteria: "返回 4 场比分赔率 bf（31 个比分对应的赔率值），按主客对齐"
+        depends_on: [aq_11]
+  - turn: 11
+    user_text: "明天四场球赛预测让球胜平负"
+    atomics:
+      - id: aq_16
+        category: fetch_odds_deep
+        target: {field: rq, source: lottery_schedule odds.rq}
+        success_criteria: "返回让球胜平负 rq 赔率（如葡萄牙vs刚果金 rq=-2,2.47,3.92,2.13），支撑让球胜平负预测"
+        depends_on: [aq_11]
+      - id: aq_17
+        category: synthesize_answer
+        target: {present: 让球胜平负预测, base: rq赔率+赛果+球队实力}
+        success_criteria: "基于 rq 赔率与已完赛果给出让球胜平负预测；不编造；不双向推荐"
+        depends_on: [aq_16, aq_8, aq_9]
+      - id: aq_18
+        category: apply_guardrails
+        target: {check: no_internal_code, no_fabrication, no_double_recommendation, honest_about_missing}
+        success_criteria: "终态守门：无 lottery_code（周三021等）/lottery_id/match_id/工具名；无编造比分/赔率；无双向推荐；数据缺失诚实说明"
+        depends_on: [aq_10, aq_13, aq_17]
+hard_constraints:
+  - "葡萄牙实体消歧：必须选 national=1 + 精确名「葡萄牙」=13152，排除葡萄牙体育(10206, national=0)俱乐部（A08 同款消歧）"
+  - "刚果实体消歧：必须选民主刚果(11142)，排除刚果共和国(11762)及各梯队；三处命名「刚果金/刚果民主共和国/民主刚果」须对齐"
+  - "中国体彩赔率必须用 get_lottery_schedule(play_type=101, date=2026-06-18)，取 odds.{spf,rq,bf,jq,bqc}；禁止用 get_odds_snapshot 欧赔/亚盘冒充体彩"
+  - "比分必须来自 get_match_result，不得编造（turn8 用户已 catch 瞎说比分）"
+  - "不得因一场爆冷推断全部爆冷（turn6 意图对齐）：葡萄牙平是爆冷，英/加/乌三场正路须分别说明"
+  - "四场定位必须覆盖 6/18 全天 4 场世界杯（01:00/04:00/07:00/10:00），含凌晨早场"
+  - "不暴露内部编号：lottery_code（周三021等）/lottery_id/match_id/team_id/competition_id/工具名不得出现在用户可见回答"
+  - "lottery match_id=null，须按 home_name+away_name+date 对齐到 football_match，注意命名差异"
+  - "不调用 internet_search/Tavily；discover_via_search 标记 skipped"
+  - "多轮上下文继承：turn7/9/10 体彩赔率框架须继承；turn11 让球胜平负须基于 turn7-10 已建立的赔率与赛果"
+risk_notes: |
+  最可能在 aq_8/aq_9（赛果编造）、aq_11（体彩赔率源选错）、aq_1（葡萄牙/刚果消歧）三个环节出问题。
+  核心怀疑点：(1) 葡萄牙 resolve_team 首位是葡萄牙体育(10206)，LLM 若默认排第一会选错俱乐部；
+  (2) 刚果 resolve_team 返回民主刚果(11142)首位，但含刚果共和国(11762)及多梯队，LLM 须按 national=1+
+      世界杯语境选民主刚果；
+  (3) P0 bug 复现：get_team_schedule(direction=upcoming, league_id=1) 返回 2004-2006 历史升序且
+      league_id=1 过滤失效（返回欧洲杯 league_id=45），与 A08 完全一致；若 Foretell 用 upcoming 查
+      「葡萄牙世界杯下一场」会得到 2004 历史冒充未来（tool_logic_gap，P1）；
+  (4) 用户明确要「中国体彩」赔率，若 Foretell 误用 get_odds_snapshot（欧赔/亚盘）会答非所问
+      （routing_gap，P1 — 赔率源选错）；
+  (5) turn8 用户已 catch「瞎说比分」，若 Foretell 不调 get_match_result 而编造比分会重蹈覆辙；
+  (6) lottery match_id=null，体彩 entry 与 football_match 对齐须靠 name+date，命名差异（刚果金↔
+      刚果民主共和国）是链接难点（data_gap，P2）。
+  Agent 2 应优先 SQL 直查 football_match（competition_id=1 + match_time_str LIKE '2026-06-18%'）
+  建立 4 场基准，再用 get_lottery_schedule(101, 2026-06-18) 取体彩赔率对照。

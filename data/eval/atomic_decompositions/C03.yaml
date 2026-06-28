@@ -1,0 +1,19 @@
+type_id: C03
+type_name: 对阵复盘
+scenario: C
+entity_entry: match_pair
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 推荐一下2026年6月18日）：  · 00:00 世界杯：捷克 VS 南非 · 03:00 世界杯：瑞士 VS 波黑 · 06:00 世界杯：加拿大
+    VS 卡塔尔 · 09:00 世界杯：墨西哥 VS 韩国这四场世界杯的四串一方案，亚盘
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

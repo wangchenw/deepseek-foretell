@@ -1,0 +1,18 @@
+type_id: H07
+type_name: 世界杯进程
+scenario: H
+entity_entry: competition
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 中乙
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

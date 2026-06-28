@@ -1,0 +1,18 @@
+type_id: E04
+type_name: 二串一
+scenario: E
+entity_entry: lottery_batch
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态，有无演戏等等，还有推荐2串一，3串一，最有把握啊
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

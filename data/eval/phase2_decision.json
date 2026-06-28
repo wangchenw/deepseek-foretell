@@ -1,0 +1,85 @@
+{
+  "phase1_complete": true,
+  "ax_all_pass": true,
+  "lottery_fail_count": 3,
+  "g_all_fail": true,
+  "selected_route": "Phase_2a_lottery",
+  "reason": "竞彩系列 3/3 失败且 B01 resolve_lottery_match data_gap",
+  "next_steps": [
+    "phase2a_lottery_diagnose.py",
+    "rerun B01/B09/E05 path if param found",
+    "Phase_2b run_llm_eval_full.py"
+  ],
+  "p0_results": {
+    "A08": {
+      "pass": true,
+      "overall": 4.4,
+      "gap_type": null,
+      "gap_detail": "",
+      "route_complete": true
+    },
+    "A17": {
+      "pass": true,
+      "overall": 4.43,
+      "gap_type": null,
+      "gap_detail": "",
+      "route_complete": true
+    },
+    "X05": {
+      "pass": true,
+      "overall": 4.45,
+      "gap_type": null,
+      "gap_detail": "prompt 层须强制穷尽检索顺序",
+      "route_complete": true
+    },
+    "X06": {
+      "pass": true,
+      "overall": 4.18,
+      "gap_type": null,
+      "gap_detail": "输出纪律依赖 prompt/output-discipline skill",
+      "route_complete": true
+    },
+    "X12": {
+      "pass": true,
+      "overall": 4.05,
+      "gap_type": null,
+      "gap_detail": "routing：法国主场参数 date=2026-06-27 失败，挪威 vs 法国 成功",
+      "route_complete": true
+    },
+    "B01": {
+      "pass": false,
+      "overall": 1.95,
+      "gap_type": "data_gap",
+      "gap_detail": "resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索 2026-06-15 不在 lottery 表",
+      "route_complete": false
+    },
+    "B09": {
+      "pass": false,
+      "overall": 2.35,
+      "gap_type": "data_gap",
+      "gap_detail": "resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game 维度未入库",
+      "route_complete": false
+    },
+    "E05": {
+      "pass": false,
+      "overall": 3.35,
+      "gap_type": "implementation_gap",
+      "gap_detail": "十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot 等为 stub",
+      "route_complete": false
+    },
+    "G01": {
+      "pass": false,
+      "overall": 2.45,
+      "gap_type": "data_gap",
+      "gap_detail": "周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context 依赖 checkpointer 未测",
+      "route_complete": false
+    },
+    "G07": {
+      "pass": false,
+      "overall": 2.95,
+      "gap_type": "implementation_gap",
+      "gap_detail": "5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足",
+      "route_complete": false
+    }
+  }
+}

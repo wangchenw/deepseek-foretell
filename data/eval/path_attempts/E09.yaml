@@ -1,0 +1,16 @@
+type_id: E09
+case_id: TC-E09-001
+explored_at: '2026-06-28'
+source: probe_results
+attempts:
+- round: 1
+  atomic_id: E09-probe-1
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  count: 16
+  stub: false
+satisfied: []
+blocking_gap: null
+route_complete: true

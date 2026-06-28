@@ -1,0 +1,51 @@
+type_id: "A12"
+case_id: "TC-A12-001"
+classification: "✅"
+classification_reason: |
+  找到可行路径且数据正确完整。SQL 直查 football_competition_teams_stats 按 season_id 聚合,
+  七联赛(英超/意甲/西甲/德甲/法甲/日职联/韩职)本季宏观数据(队数/场次/总进球/场均进球/最佳攻击/最佳防守)
+  全部命中且与 atomic 期望一致。路径清晰,仅依赖 SQL 聚合即可回答用户全部 turn 12-15 的需求。
+path_assessment: |
+  路径质量高。核心 SQL 一次性聚合即得七联赛宏观数据,JOIN football_team 取球队中文名,
+  JOIN football_season/football_competition 取联赛名与年份。数据完整无缺,字段语义清晰
+  (matches=球队已赛场次,goals=球队赛季总进球,goals_against=球队赛季总失球)。
+  最佳攻击=MAX(goals),最佳防守=MIN(goals_against>0),逻辑成立。
+  唯一隐患:season_id 须按对话时点手工锚定 2025/26(欧五)+2026(日韩),
+  不能跟随 DB 的 is_current(已滚到 2026/27),需 LLM 层时间推理。
+exploration_sufficiency: |
+  探索充分。覆盖了:(1) season_id 归属验证(七联赛当前/历史赛季列表);
+  (2) 七联赛宏观聚合(队数/场次/总进球/场均进球);(3) 最佳攻防球队(双向极值);
+  (4) foretell 工具 stub 复测(曼城 10181 DATA_MISSING 对照 SQL 实有 77 球)。
+  四个维度全部命中,数据真实可溯源,足以支撑用户泊松模型 λ 校准的建模需求。
+gaps:
+  - gap_type: "tool_implementation_gap"
+    detail: "get_team_season_stats 是 stub,对存在数据的 team_id 返回 DATA_MISSING"
+    evidence_ref: "step 5: tool get_team_season_stats(10181) → DATA_MISSING,SQL 同库同 team_id 有 77 球/35 失球/38 场"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:724-725 的 stub return None,改为查 football_competition_teams_stats;或文档明确该工具不可用,引导 SQL 路径"
+  - gap_type: "tool_implementation_gap"
+    detail: "无「联赛级赛季宏观数据」原生工具"
+    evidence_ref: "step 3-4: 须 SQL 聚合 football_competition_teams_stats,foretell 工具集无对应入口"
+    priority: "P2"
+    recommended_action: "新增 get_league_season_macro(competition_id, season_id) 工具,封装 SUM(matches)/SUM(goals)/MAX(goals)/MIN(goals_against) 聚合"
+  - gap_type: "season_id_pitfall"
+    detail: "DB is_current 已滚到 2026/27,对话时点「本季」须取 2025/26"
+    evidence_ref: "step 2: 英超 14320(is_current=1,2026/27)vs 13242(2025/26,对话时点本季)"
+    priority: "P2"
+    recommended_action: "在工具层增加「按对话时点推断 season_id」逻辑,或文档强调 is_current 不可直接用作「本季」"
+  - gap_type: "atomic_minor_inaccuracy"
+    detail: "atomic aq_6 法甲场次写 306,实际 610"
+    evidence_ref: "step 3: SQL 返回法甲 matches_sum=610"
+    priority: "P3"
+    recommended_action: "修订 atomic_decompositions_v2/A12.yaml aq_6 法甲场次为 610"
+recommended_answer_path: |
+  对话时点锚定 2026-05-06,「本季」=2025/26(欧五跨年赛季)+ 2026(日韩自然年赛季)。
+  对七联赛分别用 season_id(英超 13242/意甲 13238/西甲 13355/德甲 13295/法甲 13294/日职联 13870/韩职 13903)
+  SQL 聚合 football_competition_teams_stats:
+    SELECT c.name_zh AS 联赛, COUNT(DISTINCT t.team_id) AS 队数, SUM(t.matches) AS 场次,
+           SUM(t.goals) AS 总进球, ROUND(SUM(t.goals)/NULLIF(SUM(t.matches),0),3) AS 场均进球
+  最佳攻击球队:JOIN football_team,WHERE t.goals=(SELECT MAX(goals) FROM football_competition_teams_stats WHERE season_id=?)
+  最佳防守球队:WHERE t.goals_against=(SELECT MIN(goals_against) FROM football_competition_teams_stats WHERE season_id=? AND goals_against>0)
+  汇总七联赛为一张表呈现给用户,用于泊松模型 λ 校准。
+  不暴露 season_id/team_id/competition_id,用联赛名+球队名+年份呈现。
+  foretell get_team_season_stats 是 stub,须诚实声明「工具层无联赛级宏观数据工具,以下经数据库聚合计算」。

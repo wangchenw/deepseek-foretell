@@ -1,0 +1,29 @@
+type_id: B10
+type_name: 淘汰赛排名不适用
+scenario: B
+entity_entry: match
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 葡萄牙 乌兹别克 英格兰 加纳  巴拿马 克罗地亚  哥伦比亚 刚果金 双方打平都能出线吗 两队排名接近吗核心球员数量差不多吗
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-b1
+    category: delegate_subagent
+    target:
+      agents:
+      - fundamentals
+      - odds
+      - intel
+  - id: T1-b2
+    category: synthesize_answer
+    target:
+      format: six_segment
+hard_constraints: []

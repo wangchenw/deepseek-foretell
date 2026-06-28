@@ -1,0 +1,26 @@
+type_id: A09
+type_name: 时间窗_几点开赛
+scenario: A
+entity_entry: team+time
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 滚球盘中 想买大球 接下来哪几场比较好
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: team
+  - id: T1-a2
+    category: refine_time_window
+    target: {}
+  - id: T1-a3
+    category: fetch_schedule
+    target:
+      direction: all
+  - id: T1-a4
+    category: discover_via_search
+    target:
+      status: skipped
+hard_constraints: []

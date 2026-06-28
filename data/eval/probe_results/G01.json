@@ -1,0 +1,15 @@
+{
+  "type_id": "G01",
+  "case_id": "TC-G01-REG-004",
+  "steps": [
+    {
+      "tool": "resolve_lottery_match",
+      "params": {
+        "play_type": "101",
+        "code": "004"
+      },
+      "code": "ENTITY_NOT_FOUND",
+      "stub": false
+    }
+  ]
+}

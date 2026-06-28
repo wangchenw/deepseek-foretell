@@ -1,0 +1,39 @@
+type_id: G01
+type_name: 比分预测追问
+scenario: G
+case_id: TC-G01-REG-004
+turns:
+- turn_index: 0
+  text: 分析竞彩足球周二004 巴黎 VS 拜仁胜平负、比分
+  atomics:
+  - id: G01-T0-a1
+    category: resolve_entity
+    target: 竞彩足球 101 周二004 巴黎 vs 拜仁
+    hard_constraints:
+    - play_type=101 code=004
+  - id: G01-T0-a2
+    category: delegate_subagent
+    target: match-analysis 完整分析
+    hard_constraints:
+    - 胜平负+比分维度
+    - 不暴露工具名
+  - id: G01-T0-a3
+    category: synthesize_answer
+    target: 首轮六段式分析
+    hard_constraints:
+    - 建立 session 上下文（match 定位）
+- turn_index: 1
+  text: 比分预测
+  atomics:
+  - id: G01-T1-a1
+    category: maintain_context
+    target: 同场 巴黎 vs 拜仁
+    hard_constraints:
+    - 不得重新定位其他场次
+    - 不得重复完整六段
+  - id: G01-T1-a2
+    category: synthesize_answer
+    target: 比分区间预测
+    hard_constraints:
+    - 给出比分区间/推荐比分
+    - 简洁追问答复

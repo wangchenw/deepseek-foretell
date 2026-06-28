@@ -1,0 +1,85 @@
+type_id: "A01"
+case_id: "TC-A01-001"
+exploration_log:
+  - step: 1
+    action: "SQL 直查 lottery_jczq_odds 确认数据库快照日期与今日竞彩足球场次"
+    query: "SELECT match_time_str, issue, issue_num, comp, home, away, sell_status FROM lottery_jczq_odds ORDER BY match_time DESC LIMIT 15"
+    result: "数据库快照最新场次为 2026-07-04 世界杯;今日 2026-06-28(周日)有 issue 260627(周六销售期)的 12 场 + issue 260628 的 1 场次日凌晨"
+    reasoning: "需先确认数据库当前日期与用户'今晚'的对应关系。快照里 sell_status=3(停售)表示已结束或临近开赛"
+    next: "按 issue 260627 查全部场次确认编号映射"
+  - step: 2
+    action: "SQL 查 issue 260627 全部 12 场确认竞彩编号映射规则"
+    query: "SELECT issue_num, match_time_str, comp, home, away, spf, rq, bf, bqc, jq FROM lottery_jczq_odds WHERE issue=260627 ORDER BY issue_num"
+    result: "12 场:6 芬超(issue_num 6201-6206,6-27 19:00~6-28 02:00)+6 世界杯(6067-6072,6-28 05:00~10:00)。issue_num 编码=weekday*1000+序号(周六=6,周日=7)"
+    reasoning: "用户口语'001/002/003'是期号内相对序号,工具需'周六067'格式。这是 LLM 层需做的映射,非数据缺口"
+    next: "验证 resolve_lottery_match 与 get_lottery_schedule 工具"
+  - step: 3
+    action: "调 resolve_lottery_match(play_type=101, code='周日001', date='2026-06-28') 验证口语编号"
+    result: "ENTITY_NOT_FOUND。'周日001'→issue_num=7001,数据库无此号(issue 260628 仅有 7073)"
+    reasoning: "确认语义错配:用户'001'≠工具'周日001'。需先 get_lottery_schedule 取列表再映射"
+    next: "用正确编号'周六071'重试"
+  - step: 4
+    action: "调 resolve_lottery_match(code='周六071', date='2026-06-28')"
+    result: "OK,返回阿尔及利亚vs奥地利(世界杯,6-28 10:00),issue_num=6071,match_id=4460972,status=finished,含 spf/rq/bf/jq/bqc 全玩法赔率,并自动 resolve_match 给出 match_candidates(含 team_id 23383/13226、主客排名 29/22、环境温湿度)"
+    reasoning: "工具核心链路完全可用。编号映射正确后即可拿到 match_id 与所有赔率"
+    next: "验证 get_lottery_schedule 批量列表"
+  - step: 5
+    action: "调 get_lottery_schedule(play_type=101, date='2026-06-28')"
+    result: "OK,返回 9 场(6 世界杯 6067-6072 + 3 芬超 6204-6206),每场含完整 spf/rq/bf/jq/bqc 赔率。count=9"
+    reasoning: "9 场是按 match_time 在 6-28 当天过滤(6201-6203 在 6-27 晚被排除)。这 9 场足以回答'今晚竞彩足球'赛程+赔率需求"
+    next: "验证赛果/交锋/盘口深度工具"
+  - step: 6
+    action: "调 get_match_result(match_id=4460972) 取赛果"
+    result: "OK,3-3 全场,1-1 半场,角球 0-3,黄牌 0-1,无红牌。status=finished"
+    reasoning: "turn 3'已结束比赛结果+赔率'需求可满足:赛果从 get_match_result,赔率从 resolve_lottery_match 的 odds 字段"
+    next: "验证 h2h"
+  - step: 7
+    action: "调 get_h2h(team_a=23383, team_b=13226, n=5)"
+    result: "OK,但仅返回 1 场(本场本身)。阿尔及利亚vs奥地利历史交锋数据稀缺"
+    reasoning: "turn 2'历史交战各个纬度'部分可满足:有 h2h 数据但样本极少。LLM 层应诚实说明'历史交锋仅 1 场'而非编造"
+    next: "验证盘口深度"
+  - step: 8
+    action: "调 get_odds_snapshot(match_id=4460972)"
+    result: "OK,返回 5 家公司欧赔(odd1/2/3)+5 家亚盘(odd1/2/3 让球水位)"
+    reasoning: "turn 2'盘口各个纬度'可满足:欧赔+亚盘即时盘完整"
+    next: "验证 odds_trend(stub 预期)"
+  - step: 9
+    action: "调 get_odds_trend(match_id=4460972) 验证 stub"
+    result: "DATA_MISSING,points=[](确认是 stub,与 db_schema_map.md 第四章一致)"
+    reasoning: "工具层缺口。需 SQL 直查 football_odds_europe 替代"
+    next: "SQL 直查 football_odds_europe 推导赔率走势"
+  - step: 10
+    action: "SQL 查 football_odds_europe(match_id=4460972) 取初盘/即时/最新盘"
+    query: "SELECT company_id, first_odd1, first_odd2, first_odd3, odd1, odd2, odd3, real_odd1, real_odd2, real_odd3, is_zoudi, is_entertained FROM football_odds_europe WHERE match_id=4460972 ORDER BY company_id LIMIT 20"
+    result: "返回 20 家公司。例 company_id=5:初盘 3.50/3.20/2.15→即时 3.25/2.15/3.40→最新 26/1.01/34(走地中平局几乎确定)。实际赛果 3-3 平局,机构判断准确"
+    reasoning: "get_odds_trend 的 SQL workaround 路径成立:用 first_odd vs odd vs real_odd 对比即可推导走势。完全可回答 turn 2'盘口各个纬度'与 turn 15'结合最新盘口冷门场次'"
+    next: "A01 探索结束,落盘"
+final_finding: |
+  A01 路径完全成立。数据库快照(2026-06-28)含 issue 260627 共 12 场竞彩足球(6 芬超+6 世界杯),
+  get_lottery_schedule(date='2026-06-28') 返回 9 场含完整 spf/rq/bf/jq/bqc 全玩法赔率。
+  turn 1"最可能出平局":用 spf 平局赔率排序,最低=阿尔及利亚vs奥地利(1.94)、赫尔辛基火花vs瓦萨(2.93)、
+    克罗地亚vs加纳(3.00)——可给出有数据支撑的推荐。
+  turn 2"盘口+历史交战推荐比分":get_odds_snapshot 给欧赔+亚盘即时盘,football_odds_europe 给初盘→即时→最新走势,
+    get_h2h 给历史交锋(本场仅 1 场,需诚实说明样本少)。
+  turn 3"已结束比赛结果+赔率":get_match_result 给 3-3 比分+半场+红黄牌+角球,resolve_lottery_match 给全玩法赔率。
+  turn 4"昨天所有竞彩足球":SQL 按 issue+match_time 过滤昨日即可,路径同 turn 3。
+  turn 10-12"深度分析001/002/003":用户口语编号需先 get_lottery_schedule 取列表再映射到"周六067"格式,
+    然后 resolve_lottery_match 拿 match_id,再调 get_odds_snapshot/get_h2h/football_odds_europe 深度分析。
+  turn 13"001红卡怎么回事":get_match_result 返回 red_card 字段(本场 0-0),路径成立。
+  turn 15/16"结合最新盘口冷门场次":football_odds_europe 的 real_odd(最新盘)+is_zoudi(走地)可识别盘口异动,
+    配合 spf 找冷门。
+  唯一隐患:用户口语"001"与工具"周六067"的编号语义错配,需 LLM 层先 get_lottery_schedule 再映射,
+  若 LLM 直接传"周日001"会得 ENTITY_NOT_FOUND(假阴性风险)。
+gaps_encountered:
+  - gap_type: "tool_logic_gap"
+    detail: "get_odds_trend 是 stub 返回 DATA_MISSING,无法直接给赔率走势"
+    location: "foretell/tools/crazy_sports/mysql_client.py:854-855"
+  - gap_type: "tool_logic_gap"
+    detail: "get_kelly / get_betfair / get_intel_tags 是 stub(本次未深入验证,db_schema_map.md 已记录)"
+    location: "mysql_client.py:860-873"
+  - gap_type: "routing_gap"
+    detail: "用户口语竞彩编号'001'与工具'周六067'格式语义错配。resolve_lottery_match('周日001')返回 ENTITY_NOT_FOUND,需 LLM 层先 get_lottery_schedule 取列表再映射 issue_num→'周X+三位序号'"
+    location: "foretell/tools/lottery_code.py + LLM 编排层"
+  - gap_type: "data_gap"
+    detail: "部分国家队历史交锋样本极少(阿尔及利亚vs奥地利仅 1 场),get_h2h 仅返回本场。冷门国家队 h2h 数据稀缺"
+    location: "football_match 历史数据"

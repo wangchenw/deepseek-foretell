@@ -1,0 +1,15 @@
+{
+  "type_id": "E01",
+  "case_id": "TC-E01-001",
+  "steps": [
+    {
+      "tool": "get_lottery_schedule",
+      "params": {
+        "play_type": "101"
+      },
+      "code": "OK",
+      "count": 16,
+      "stub": false
+    }
+  ]
+}

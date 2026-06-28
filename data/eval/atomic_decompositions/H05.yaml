@@ -1,0 +1,23 @@
+type_id: H05
+type_name: 保级形势
+scenario: H
+entity_entry: league
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 请将下面各场比赛从基本面、战意、交战历史规律、核心球员伤停(着重分析本场及近3场新增加的核心伤停球员的影响)、两队教练的排兵布阵及对阵历史、本场裁判的执法风格等多方面进行全面分析，最终推荐最稳妥的3串1与2串1各一组，可以是胜负平、让球胜平负、半全场、总进球数及比分的单一组合或混合组合。
+    周四竞彩赛事 {WEEKDAY}{CODE}沙职欧奈宰纳伊马vs布赖代合作(主队受让1球){DATE} 00:10 {WEEKDAY}{CODE}荷甲前进之鹰vs阿尔克马(主队受让1球){DATE}
+    00:45 {WEEKDAY}{CODE}西甲莱万特vs塞维利亚(主队让1球){DATE} 01:00 {WEEKDAY}{CODE}瑞超马尔默vs天狼星(主队让1球){DATE}
+    01:00 {WEEKDAY}{CODE}西甲巴列卡诺vs西班牙人(主队让1球){DATE} 02:00 {WEEKDAY}{CODE}葡超卡萨皮亚vs布拉加(主队受让1球){DATE}
+    02:00 {WEEKDAY}{CODE}德国杯斯图加特vs弗赖堡(主队让1球){DATE} 02:45 {WEEKDAY}{CODE}西甲奥维耶多vs比利亚雷(主队受让1球){DATE}
+    03:30
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

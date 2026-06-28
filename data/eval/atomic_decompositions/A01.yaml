@@ -1,0 +1,15 @@
+type_id: A01
+type_name: 按日期热门赛程
+scenario: A
+entity_entry: date
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 今晚竞彩足球，从专业角度，深度思考，给我推荐最有可能出平局的场次，
+  atomics:
+  - id: T1-a1
+    category: fetch_schedule
+    target:
+      source: date
+hard_constraints: []

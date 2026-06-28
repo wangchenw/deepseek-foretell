@@ -1,0 +1,18 @@
+type_id: A02
+type_name: 指定联赛日期赛程
+scenario: A
+entity_entry: date+league
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 4.158场体彩综合分析，所有的都分析，欧冠单独分析，所有的分析都要符合足球精算公式和现实实际数据情况，必须考虑球队定位，利益，有没有可能演戏，最后用三项独立源交叉验证，还有就是严格反思昨天的，尤其欧冠，昨天除了欧冠之外，基本上预测对比分了…
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

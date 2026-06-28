@@ -1,0 +1,4385 @@
+version: '2.0'
+meta:
+  evaluated_at: '2026-06-28'
+  count: 120
+entries:
+- type_id: X01
+  case_id: TC-X01-001
+  playbook_id: PB-X01
+  summary: 非体育拒答：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X01.yaml
+    atomic_ref: atomic_decompositions/X01.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X05
+  case_id: TC-X05-REG-008
+  playbook_id: PB-X05
+  summary: 假阴性风险：路径探索 complete，预期 skill=foretell-output-discipline
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.16
+    pass: true
+    notes: 'expected: 禁止未穷尽前断言无比赛, 交叉验证赛程'
+    path_ref: path_attempts/X05.yaml
+    atomic_ref: atomic_decompositions/X05.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+    - direction=recent 查未来场
+    - 未穷尽前断言无比赛
+- type_id: X06
+  case_id: TC-X06-REG-009
+  playbook_id: PB-X06
+  summary: 中间态外露：路径探索 complete，预期 skill=foretell-output-discipline
+  atomic_tools_needed:
+  - resolve_match
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.5
+      path_efficiency: 4.0
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.26
+    pass: true
+    notes: 'expected: 不输出正在查询, 不输出未找到过程, 仅最终结论'
+    path_ref: path_attempts/X06.yaml
+    atomic_ref: atomic_decompositions/X06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X07
+  case_id: TC-X07-001
+  playbook_id: PB-X07
+  summary: 内部ID外露：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X07.yaml
+    atomic_ref: atomic_decompositions/X07.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X11
+  case_id: TC-X11-SYN
+  playbook_id: PB-X11
+  summary: 年份误锚：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.5
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X11.yaml
+    atomic_ref: atomic_decompositions/X11.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X12
+  case_id: TC-X12-REG-002
+  playbook_id: PB-X12
+  summary: 主客颠倒：路径探索 complete，预期 skill=foretell-output-discipline
+  atomic_tools_needed:
+  - resolve_match
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.5
+      path_efficiency: 4.0
+      output_discipline: 4.5
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.26
+    pass: true
+    notes: 'expected: 最终定位2026-06-27, 挪威主场, 不输出中间态'
+    path_ref: path_attempts/X12.yaml
+    atomic_ref: atomic_decompositions/X12.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A17
+  case_id: TC-A17-REG-001
+  playbook_id: PB-A17
+  summary: 实体消歧_国家队：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: 'expected: 含日期对手状态, 含北京时间, 含主客场'
+    path_ref: path_attempts/A17.yaml
+    atomic_ref: atomic_decompositions/A17.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X15
+  case_id: TC-X15-001
+  playbook_id: PB-X15
+  summary: 盈利承诺：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X15.yaml
+    atomic_ref: atomic_decompositions/X15.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A08
+  case_id: TC-A08-REG-003
+  playbook_id: PB-A08
+  summary: 时间窗_明早：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: 'expected: 不得假阴性, 6/28 07:30 哥伦比亚vs葡萄牙, 含主客场'
+    path_ref: path_attempts/A08.yaml
+    atomic_ref: atomic_decompositions/A08.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    - get_schedule_by_date
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - direction=recent 查未来场
+    - 未穷尽前断言无比赛
+- type_id: A07
+  case_id: TC-A07-001
+  playbook_id: PB-A07
+  summary: 时间窗_今晚：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A07.yaml
+    atomic_ref: atomic_decompositions/A07.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    - get_schedule_by_date
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A18
+  case_id: TC-A18-001
+  playbook_id: PB-A18
+  summary: 语义精度_锁定排名：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A18.yaml
+    atomic_ref: atomic_decompositions/A18.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X14
+  case_id: TC-X14-001
+  playbook_id: PB-X14
+  summary: 矛盾推荐：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X14.yaml
+    atomic_ref: atomic_decompositions/X14.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A09
+  case_id: TC-A09-001
+  playbook_id: PB-A09
+  summary: 时间窗_几点开赛：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A09.yaml
+    atomic_ref: atomic_decompositions/A09.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    - get_schedule_by_date
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A03
+  case_id: TC-A03-001
+  playbook_id: PB-A03
+  summary: 球队未来赛程：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A03.yaml
+    atomic_ref: atomic_decompositions/A03.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X04
+  case_id: TC-X04-001
+  playbook_id: PB-X04
+  summary: 定位失败：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X04.yaml
+    atomic_ref: atomic_decompositions/X04.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A16
+  case_id: TC-A16-001
+  playbook_id: PB-A16
+  summary: NBA赛程：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A16.yaml
+    atomic_ref: atomic_decompositions/A16.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X10
+  case_id: TC-X10-001
+  playbook_id: PB-X10
+  summary: 无分隔符对阵：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X10.yaml
+    atomic_ref: atomic_decompositions/X10.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A10
+  case_id: TC-A10-001
+  playbook_id: PB-A10
+  summary: 积分榜：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A10.yaml
+    atomic_ref: atomic_decompositions/A10.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A01
+  case_id: TC-A01-001
+  playbook_id: PB-A01
+  summary: 按日期热门赛程：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - get_schedule_by_date
+  - get_lottery_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A01.yaml
+    atomic_ref: atomic_decompositions/A01.yaml
+  answer_playbook:
+    steps:
+    - get_schedule_by_date
+    - get_lottery_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A11
+  case_id: TC-A11-SYN
+  playbook_id: PB-A11
+  summary: 射手榜：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/A11.yaml
+    atomic_ref: atomic_decompositions/A11.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A13
+  case_id: TC-A13-001
+  playbook_id: PB-A13
+  summary: 历史交锋：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_h2h
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A13.yaml
+    atomic_ref: atomic_decompositions/A13.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_h2h
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A02
+  case_id: TC-A02-001
+  playbook_id: PB-A02
+  summary: 指定联赛日期赛程：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - get_schedule_by_date
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A02.yaml
+    atomic_ref: atomic_decompositions/A02.yaml
+  answer_playbook:
+    steps:
+    - get_schedule_by_date
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A12
+  case_id: TC-A12-001
+  playbook_id: PB-A12
+  summary: 球队赛季统计：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A12.yaml
+    atomic_ref: atomic_decompositions/A12.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A14
+  case_id: TC-A14-001
+  playbook_id: PB-A14
+  summary: 球队阵容：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A14.yaml
+    atomic_ref: atomic_decompositions/A14.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A04
+  case_id: TC-A04-001
+  playbook_id: PB-A04
+  summary: 球队近期赛程：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_team
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A04.yaml
+    atomic_ref: atomic_decompositions/A04.yaml
+  answer_playbook:
+    steps:
+    - resolve_team
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X09
+  case_id: TC-X09-001
+  playbook_id: PB-X09
+  summary: 冷门赛事：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X09.yaml
+    atomic_ref: atomic_decompositions/X09.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A15
+  case_id: TC-A15-001
+  playbook_id: PB-A15
+  summary: 比赛首发：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A15.yaml
+    atomic_ref: atomic_decompositions/A15.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: A06
+  case_id: TC-A06-001
+  playbook_id: PB-A06
+  summary: 完场赛果：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A06.yaml
+    atomic_ref: atomic_decompositions/A06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X16
+  case_id: TC-X16-SYN
+  playbook_id: PB-X16
+  summary: 网络兜底：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.5
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X16.yaml
+    atomic_ref: atomic_decompositions/X16.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: A05
+  case_id: TC-A05-001
+  playbook_id: PB-A05
+  summary: 实时比分查询：路径探索 complete，预期 skill=foretell-light-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - schedule_fetch
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/A05.yaml
+    atomic_ref: atomic_decompositions/A05.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: X13
+  case_id: TC-X13-SYN
+  playbook_id: PB-X13
+  summary: 数据诚实：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.5
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X13.yaml
+    atomic_ref: atomic_decompositions/X13.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X02
+  case_id: TC-X02-001
+  playbook_id: PB-X02
+  summary: 英文提问：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X02.yaml
+    atomic_ref: atomic_decompositions/X02.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X03
+  case_id: TC-X03-001
+  playbook_id: PB-X03
+  summary: 粤语意图：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X03.yaml
+    atomic_ref: atomic_decompositions/X03.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: X08
+  case_id: TC-X08-001
+  playbook_id: PB-X08
+  summary: 用户辱骂：blocked — 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_tools_needed: []
+  pipeline_stages:
+  - entity_resolution
+  - cross_validation
+  - guardrails
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 4.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.9
+    pass: false
+    notes: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    path_ref: path_attempts/X08.yaml
+    atomic_ref: atomic_decompositions/X08.yaml
+  answer_playbook:
+    steps: []
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+    - 输出中间态查询过程
+- type_id: B01
+  case_id: TC-B01-001
+  playbook_id: PB-B01
+  summary: 竞彩模板分析：blocked — resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索
+    2026-06-15 不在 lottery 表
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索 2026-06-15 不在
+      lottery 表
+  llm_eval:
+    scores:
+      correctness: 2.5
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.65
+    pass: false
+    notes: 'expected: 多维度深度分析, 数据诚实规则, 不暴露工具名; resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009
+      德国VS库拉索 2026-06-15 不在 lottery 表'
+    path_ref: path_attempts/B01.yaml
+    atomic_ref: atomic_decompositions/B01.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B09
+  case_id: TC-B09-REG-006
+  playbook_id: PB-B09
+  summary: 系列赛G7：blocked — resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game
+    维度未入库
+  atomic_tools_needed:
+  - resolve_match
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game 维度未入库
+  llm_eval:
+    scores:
+      correctness: 2.5
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.65
+    pass: false
+    notes: 'expected: 保留G7约束, 找不到时不得降级G6; resolve_match 返回 NOT_APPLICABLE：NBA 季后赛
+      G7 series_game 维度未入库'
+    path_ref: path_attempts/B09.yaml
+    atomic_ref: atomic_decompositions/B09.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B02
+  case_id: TC-B02-001
+  playbook_id: PB-B02
+  summary: 竞彩篮球模板：blocked — 工具链未返回 OK
+  atomic_tools_needed:
+  - resolve_lottery_match
+  - get_lottery_schedule
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: implementation_gap
+    detail: 工具链未返回 OK
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 2.5
+    overall: 2.77
+    pass: false
+    notes: 工具链未返回 OK
+    path_ref: path_attempts/B02.yaml
+    atomic_ref: atomic_decompositions/B02.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    - get_lottery_schedule
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B13
+  case_id: TC-B13-001
+  playbook_id: PB-B13
+  summary: 伤病结合分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B13.yaml
+    atomic_ref: atomic_decompositions/B13.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B03
+  case_id: TC-B03-001
+  playbook_id: PB-B03
+  summary: 对阵加日期分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B03.yaml
+    atomic_ref: atomic_decompositions/B03.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B06
+  case_id: TC-B06-001
+  playbook_id: PB-B06
+  summary: 全面深度分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B06.yaml
+    atomic_ref: atomic_decompositions/B06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B04
+  case_id: TC-B04-001
+  playbook_id: PB-B04
+  summary: 对阵无日期分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B04.yaml
+    atomic_ref: atomic_decompositions/B04.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B08
+  case_id: TC-B08-001
+  playbook_id: PB-B08
+  summary: 篮球五段分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B08.yaml
+    atomic_ref: atomic_decompositions/B08.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B05
+  case_id: TC-B05-001
+  playbook_id: PB-B05
+  summary: 谁会赢：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B05.yaml
+    atomic_ref: atomic_decompositions/B05.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C04
+  case_id: TC-C04-001
+  playbook_id: PB-C04
+  summary: 竞彩编号复盘：blocked — 工具链未返回 OK
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 工具链未返回 OK
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.8
+    pass: false
+    notes: 工具链未返回 OK
+    path_ref: path_attempts/C04.yaml
+    atomic_ref: atomic_decompositions/C04.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B14
+  case_id: TC-B14-001
+  playbook_id: PB-B14
+  summary: 进球数深度：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B14.yaml
+    atomic_ref: atomic_decompositions/B14.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B10
+  case_id: TC-B10-001
+  playbook_id: PB-B10
+  summary: 淘汰赛排名不适用：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B10.yaml
+    atomic_ref: atomic_decompositions/B10.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C03
+  case_id: TC-C03-001
+  playbook_id: PB-C03
+  summary: 对阵复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C03.yaml
+    atomic_ref: atomic_decompositions/C03.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B15
+  case_id: TC-B15-001
+  playbook_id: PB-B15
+  summary: 半全场分析：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B15.yaml
+    atomic_ref: atomic_decompositions/B15.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B07
+  case_id: TC-B07-001
+  playbook_id: PB-B07
+  summary: 自定义模板：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B07.yaml
+    atomic_ref: atomic_decompositions/B07.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C01
+  case_id: TC-C01-001
+  playbook_id: PB-C01
+  summary: 昨天比赛复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C01.yaml
+    atomic_ref: atomic_decompositions/C01.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C05
+  case_id: TC-C05-001
+  playbook_id: PB-C05
+  summary: 篮球复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C05.yaml
+    atomic_ref: atomic_decompositions/C05.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B16
+  case_id: TC-B16-001
+  playbook_id: PB-B16
+  summary: 实力对比：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B16.yaml
+    atomic_ref: atomic_decompositions/B16.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B11
+  case_id: TC-B11-001
+  playbook_id: PB-B11
+  summary: 盘口不足跳过：路径探索 complete，预期 skill=foretell-match-analysis
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/B11.yaml
+    atomic_ref: atomic_decompositions/B11.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C02
+  case_id: TC-C02-001
+  playbook_id: PB-C02
+  summary: 上周比赛复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C02.yaml
+    atomic_ref: atomic_decompositions/C02.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C08
+  case_id: TC-C08-001
+  playbook_id: PB-C08
+  summary: 欧冠复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C08.yaml
+    atomic_ref: atomic_decompositions/C08.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: B12
+  case_id: TC-B12-SYN
+  playbook_id: PB-B12
+  summary: 换线重定价：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  - get_recent_form
+  - get_h2h
+  - get_odds_snapshot
+  - get_match_lineup
+  - get_injury_report
+  pipeline_stages:
+  - entity_resolution
+  - parallel_analysis
+  - answer_synthesis
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/B12.yaml
+    atomic_ref: atomic_decompositions/B12.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    - get_recent_form
+    - get_h2h
+    - get_odds_snapshot
+    - get_match_lineup
+    - get_injury_report
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C06
+  case_id: TC-C06-SYN
+  playbook_id: PB-C06
+  summary: 焦点战回顾：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/C06.yaml
+    atomic_ref: atomic_decompositions/C06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: C07
+  case_id: TC-C07-001
+  playbook_id: PB-C07
+  summary: 近期战绩复盘：路径探索 complete，预期 skill=foretell-post-review
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - result_fetch
+  - post_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/C07.yaml
+    atomic_ref: atomic_decompositions/C07.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E09
+  case_id: TC-E09-001
+  playbook_id: PB-E09
+  summary: 批量世界杯：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E09.yaml
+    atomic_ref: atomic_decompositions/E09.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E05
+  case_id: TC-E05-REG-007
+  playbook_id: PB-E05
+  summary: 十四场：blocked — 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot
+    等为 stub
+  atomic_tools_needed:
+  - get_lottery_schedule
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: implementation_gap
+    detail: 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot 等为
+      stub
+  llm_eval:
+    scores:
+      correctness: 3.3
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 3.3
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 2.5
+    overall: 2.99
+    pass: false
+    notes: 'expected: 两阶段初筛, 含风险提示; 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot
+      等为 stub'
+    path_ref: path_attempts/E05.yaml
+    atomic_ref: atomic_decompositions/E05.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E02
+  case_id: TC-E02-001
+  playbook_id: PB-E02
+  summary: 四串一：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E02.yaml
+    atomic_ref: atomic_decompositions/E02.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E06
+  case_id: TC-E06-001
+  playbook_id: PB-E06
+  summary: 任九：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E06.yaml
+    atomic_ref: atomic_decompositions/E06.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E03
+  case_id: TC-E03-001
+  playbook_id: PB-E03
+  summary: 三串一：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E03.yaml
+    atomic_ref: atomic_decompositions/E03.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E01
+  case_id: TC-E01-001
+  playbook_id: PB-E01
+  summary: 扫盘：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E01.yaml
+    atomic_ref: atomic_decompositions/E01.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E04
+  case_id: TC-E04-001
+  playbook_id: PB-E04
+  summary: 二串一：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E04.yaml
+    atomic_ref: atomic_decompositions/E04.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D01
+  case_id: TC-D01-001
+  playbook_id: PB-D01
+  summary: 这场怎么买：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D01.yaml
+    atomic_ref: atomic_decompositions/D01.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E07
+  case_id: TC-E07-001
+  playbook_id: PB-E07
+  summary: 北单：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E07.yaml
+    atomic_ref: atomic_decompositions/E07.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E10
+  case_id: TC-E10-001
+  playbook_id: PB-E10
+  summary: 初筛vs深核：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E10.yaml
+    atomic_ref: atomic_decompositions/E10.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E11
+  case_id: TC-E11-001
+  playbook_id: PB-E11
+  summary: 比分串方案：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E11.yaml
+    atomic_ref: atomic_decompositions/E11.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D02
+  case_id: TC-D02-001
+  playbook_id: PB-D02
+  summary: 主不败推荐：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D02.yaml
+    atomic_ref: atomic_decompositions/D02.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D07
+  case_id: TC-D07-001
+  playbook_id: PB-D07
+  summary: 篮球让分购彩：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D07.yaml
+    atomic_ref: atomic_decompositions/D07.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E08
+  case_id: TC-E08-001
+  playbook_id: PB-E08
+  summary: 今日竞彩列表：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E08.yaml
+    atomic_ref: atomic_decompositions/E08.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E14
+  case_id: TC-E14-001
+  playbook_id: PB-E14
+  summary: 竞篮今日：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E14.yaml
+    atomic_ref: atomic_decompositions/E14.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D06
+  case_id: TC-D06-001
+  playbook_id: PB-D06
+  summary: 单场方案：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D06.yaml
+    atomic_ref: atomic_decompositions/D06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E12
+  case_id: TC-E12-001
+  playbook_id: PB-E12
+  summary: 在售方案：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E12.yaml
+    atomic_ref: atomic_decompositions/E12.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D03
+  case_id: TC-D03-001
+  playbook_id: PB-D03
+  summary: 让球推荐：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D03.yaml
+    atomic_ref: atomic_decompositions/D03.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D04
+  case_id: TC-D04-001
+  playbook_id: PB-D04
+  summary: 大小球推荐：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D04.yaml
+    atomic_ref: atomic_decompositions/D04.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: E13
+  case_id: TC-E13-001
+  playbook_id: PB-E13
+  summary: 推荐N场：路径探索 complete，预期 skill=foretell-batch-screening
+  atomic_tools_needed:
+  - get_lottery_schedule
+  - get_recent_form
+  - get_odds_snapshot
+  pipeline_stages:
+  - lottery_list
+  - screening
+  - deep_review
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/E13.yaml
+    atomic_ref: atomic_decompositions/E13.yaml
+  answer_playbook:
+    steps:
+    - get_lottery_schedule
+    - get_recent_form
+    - get_odds_snapshot
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D08
+  case_id: TC-D08-001
+  playbook_id: PB-D08
+  summary: 胜平负推荐：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D08.yaml
+    atomic_ref: atomic_decompositions/D08.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D05
+  case_id: TC-D05-001
+  playbook_id: PB-D05
+  summary: 比分玩法：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D05.yaml
+    atomic_ref: atomic_decompositions/D05.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D09
+  case_id: TC-D09-001
+  playbook_id: PB-D09
+  summary: 稳胆推荐：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D09.yaml
+    atomic_ref: atomic_decompositions/D09.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: D10
+  case_id: TC-D10-001
+  playbook_id: PB-D10
+  summary: 购彩风险提示：路径探索 complete，预期 skill=foretell-betting-single
+  atomic_tools_needed:
+  - resolve_match
+  - get_match_result
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - betting_recommendation
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/D10.yaml
+    atomic_ref: atomic_decompositions/D10.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_match_result
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G01
+  case_id: TC-G01-REG-004
+  playbook_id: PB-G01
+  summary: 比分预测追问：blocked — 周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context 依赖 checkpointer
+    未测
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context 依赖 checkpointer 未测
+  llm_eval:
+    scores:
+      correctness: 2.8
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 3.3
+      output_discipline: 3.0
+      context_handling: 2.0
+      scenario_compliance: 3.0
+    overall: 2.82
+    pass: false
+    notes: 'expected: 保持同场定位, 给出比分区间, 不重复完整六段; 周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context
+      依赖 checkpointer 未测'
+    path_ref: path_attempts/G01.yaml
+    atomic_ref: atomic_decompositions/G01.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G02
+  case_id: TC-G02-REG-005
+  playbook_id: PB-G02
+  summary: 率先进球追问：blocked — 工具链未返回 OK
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: routing_gap
+    detail: 工具链未返回 OK
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 'expected: 保持同场定位, 先进球概率判断; 工具链未返回 OK'
+    path_ref: path_attempts/G02.yaml
+    atomic_ref: atomic_decompositions/G02.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G12
+  case_id: TC-G12-001
+  playbook_id: PB-G12
+  summary: 时间窗纠正：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G12.yaml
+    atomic_ref: atomic_decompositions/G12.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G03
+  case_id: TC-G03-001
+  playbook_id: PB-G03
+  summary: 各比分概率：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G03.yaml
+    atomic_ref: atomic_decompositions/G03.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G11
+  case_id: TC-G11-001
+  playbook_id: PB-G11
+  summary: 用户纠正：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G11.yaml
+    atomic_ref: atomic_decompositions/G11.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G04
+  case_id: TC-G04-001
+  playbook_id: PB-G04
+  summary: 上半场进球概率：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G04.yaml
+    atomic_ref: atomic_decompositions/G04.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G08
+  case_id: TC-G08-001
+  playbook_id: PB-G08
+  summary: 同样逻辑：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G08.yaml
+    atomic_ref: atomic_decompositions/G08.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G05
+  case_id: TC-G05-001
+  playbook_id: PB-G05
+  summary: 继续：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G05.yaml
+    atomic_ref: atomic_decompositions/G05.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G06
+  case_id: TC-G06-001
+  playbook_id: PB-G06
+  summary: 复述原文：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G06.yaml
+    atomic_ref: atomic_decompositions/G06.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G07
+  case_id: TC-G07-001
+  playbook_id: PB-G07
+  summary: 优化方案：blocked — 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: implementation_gap
+    detail: 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
+  llm_eval:
+    scores:
+      correctness: 3.3
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 3.3
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 2.5
+    overall: 2.97
+    pass: false
+    notes: 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
+    path_ref: path_attempts/G07.yaml
+    atomic_ref: atomic_decompositions/G07.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G10
+  case_id: TC-G10-001
+  playbook_id: PB-G10
+  summary: 重新分析：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G10.yaml
+    atomic_ref: atomic_decompositions/G10.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G16
+  case_id: TC-G16-001
+  playbook_id: PB-G16
+  summary: 盘口变化追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G16.yaml
+    atomic_ref: atomic_decompositions/G16.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F02
+  case_id: TC-F02-001
+  playbook_id: PB-F02
+  summary: 赔率走势：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F02.yaml
+    atomic_ref: atomic_decompositions/F02.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G13
+  case_id: TC-G13-001
+  playbook_id: PB-G13
+  summary: 进球数追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G13.yaml
+    atomic_ref: atomic_decompositions/G13.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G17
+  case_id: TC-G17-001
+  playbook_id: PB-G17
+  summary: 多场比赛追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G17.yaml
+    atomic_ref: atomic_decompositions/G17.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G14
+  case_id: TC-G14-001
+  playbook_id: PB-G14
+  summary: 半全场追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G14.yaml
+    atomic_ref: atomic_decompositions/G14.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F01
+  case_id: TC-F01-001
+  playbook_id: PB-F01
+  summary: 赔率对比：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F01.yaml
+    atomic_ref: atomic_decompositions/F01.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G15
+  case_id: TC-G15-001
+  playbook_id: PB-G15
+  summary: 综合分析追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G15.yaml
+    atomic_ref: atomic_decompositions/G15.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F08
+  case_id: TC-F08-001
+  playbook_id: PB-F08
+  summary: 现在盘口：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F08.yaml
+    atomic_ref: atomic_decompositions/F08.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G18
+  case_id: TC-G18-001
+  playbook_id: PB-G18
+  summary: 球员情况追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G18.yaml
+    atomic_ref: atomic_decompositions/G18.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F04
+  case_id: TC-F04-001
+  playbook_id: PB-F04
+  summary: 凯利指数：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F04.yaml
+    atomic_ref: atomic_decompositions/F04.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G20
+  case_id: TC-G20-001
+  playbook_id: PB-G20
+  summary: 格式重写：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G20.yaml
+    atomic_ref: atomic_decompositions/G20.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F06
+  case_id: TC-F06-001
+  playbook_id: PB-F06
+  summary: 盘口解读：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F06.yaml
+    atomic_ref: atomic_decompositions/F06.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G09
+  case_id: TC-G09-001
+  playbook_id: PB-G09
+  summary: 换场追问：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G09.yaml
+    atomic_ref: atomic_decompositions/G09.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F03
+  case_id: TC-F03-SYN
+  playbook_id: PB-F03
+  summary: 变动最大：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/F03.yaml
+    atomic_ref: atomic_decompositions/F03.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F07
+  case_id: TC-F07-001
+  playbook_id: PB-F07
+  summary: 临场盘口：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F07.yaml
+    atomic_ref: atomic_decompositions/F07.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F05
+  case_id: TC-F05-001
+  playbook_id: PB-F05
+  summary: 赔率时间线：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F05.yaml
+    atomic_ref: atomic_decompositions/F05.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F10
+  case_id: TC-F10-001
+  playbook_id: PB-F10
+  summary: 欧赔亚盘：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F10.yaml
+    atomic_ref: atomic_decompositions/F10.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: F09
+  case_id: TC-F09-001
+  playbook_id: PB-F09
+  summary: 水位方向：路径探索 complete，预期 skill=foretell-odds-query
+  atomic_tools_needed:
+  - resolve_match
+  - get_odds_snapshot
+  - get_odds_trend
+  - get_kelly
+  - get_betfair
+  pipeline_stages:
+  - entity_resolution
+  - odds_query
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 3.8
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.11
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/F09.yaml
+    atomic_ref: atomic_decompositions/F09.yaml
+  answer_playbook:
+    steps:
+    - resolve_match
+    - get_odds_snapshot
+    - get_odds_trend
+    - get_kelly
+    - get_betfair
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: G19
+  case_id: TC-G19-001
+  playbook_id: PB-G19
+  summary: 短确认：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_lottery_match
+  pipeline_stages:
+  - entity_resolution
+  - analysis
+  - checkpointer
+  - follow_up
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 2.5
+      scenario_compliance: 3.0
+    overall: 2.77
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/G19.yaml
+    atomic_ref: atomic_decompositions/G19.yaml
+  answer_playbook:
+    steps:
+    - resolve_lottery_match
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H03
+  case_id: TC-H03-REG-010
+  playbook_id: PB-H03
+  summary: 季后赛锁定：路径探索 complete，预期 skill=foretell-league-outlook
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/H03.yaml
+    atomic_ref: atomic_decompositions/H03.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H01
+  case_id: TC-H01-SYN
+  playbook_id: PB-H01
+  summary: 争冠悬念：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/H01.yaml
+    atomic_ref: atomic_decompositions/H01.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H04
+  case_id: TC-H04-SYN
+  playbook_id: PB-H04
+  summary: 冠军已锁定：blocked — 探针问法为占位，需人工补 probe_turns
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'false'
+  gaps:
+  - gap_type: data_gap
+    detail: 探针问法为占位，需人工补 probe_turns
+  llm_eval:
+    scores:
+      correctness: 2.0
+      completeness: 2.0
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.4
+    pass: false
+    notes: 探针问法为占位，需人工补 probe_turns
+    path_ref: path_attempts/H04.yaml
+    atomic_ref: atomic_decompositions/H04.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H02
+  case_id: TC-H02-001
+  playbook_id: PB-H02
+  summary: 降级确定：路径探索 complete，预期 skill=foretell-league-outlook
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/H02.yaml
+    atomic_ref: atomic_decompositions/H02.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H08
+  case_id: TC-H08-001
+  playbook_id: PB-H08
+  summary: 数学出线：路径探索 complete，预期 skill=foretell-league-outlook
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/H08.yaml
+    atomic_ref: atomic_decompositions/H08.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H05
+  case_id: TC-H05-001
+  playbook_id: PB-H05
+  summary: 保级形势：路径探索 complete，预期 skill=foretell-league-outlook
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/H05.yaml
+    atomic_ref: atomic_decompositions/H05.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H06
+  case_id: TC-H06-001
+  playbook_id: PB-H06
+  summary: 欧战席位：路径探索 complete，预期 skill=foretell-league-outlook
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: 'true'
+  gaps: []
+  llm_eval:
+    scores:
+      correctness: 4.5
+      completeness: 4.0
+      no_false_negative: 4.0
+      path_efficiency: 4.0
+      output_discipline: 4.0
+      context_handling: 4.0
+      scenario_compliance: 4.0
+    overall: 4.15
+    pass: true
+    notes: path route_complete=True
+    path_ref: path_attempts/H06.yaml
+    atomic_ref: atomic_decompositions/H06.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名
+- type_id: H07
+  case_id: TC-H07-001
+  playbook_id: PB-H07
+  summary: 世界杯进程：blocked — 无探针步骤或未注册 probe
+  atomic_tools_needed:
+  - resolve_league
+  - get_standings
+  - get_team_schedule
+  pipeline_stages:
+  - entity_resolution
+  - standings
+  - outlook_narrative
+  existing_tools_sufficient: partial
+  gaps:
+  - gap_type: data_missing_gap
+    detail: 无探针步骤或未注册 probe
+  llm_eval:
+    scores:
+      correctness: 3.0
+      completeness: 2.5
+      no_false_negative: 3.0
+      path_efficiency: 2.0
+      output_discipline: 3.0
+      context_handling: 3.0
+      scenario_compliance: 3.0
+    overall: 2.8
+    pass: false
+    notes: 无探针步骤或未注册 probe
+    path_ref: path_attempts/H07.yaml
+    atomic_ref: atomic_decompositions/H07.yaml
+  answer_playbook:
+    steps:
+    - resolve_league
+    - get_standings
+    - get_team_schedule
+    forbidden:
+    - 暴露 match_id
+    - 暴露工具名

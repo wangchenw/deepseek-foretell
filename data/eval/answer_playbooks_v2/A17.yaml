@@ -1,0 +1,96 @@
+type_id: "A17"
+case_id: "TC-A17-REG-001"
+review_summary: |
+  本案是反馈 #001 的回归验证，单轮对话「最近世界杯赛程法国队的比赛安排？」。Agent 2 严格按
+  SQL 优先策略，先用 football_match 直查建立基准（4 场法国 2026 世界杯赛事：6/17 vs 塞内加尔、
+  6/23 vs 伊拉克、6/27 vs 挪威、7/1 vs 瑞典），比反馈 #001 时点的 3 场多了 7/1 淘汰赛。复用 A08
+  已发现的 tool_logic_gap 结论，直接用 direction=all + LLM 手动按 league_name 过滤命中 4 场，
+  并交叉验证 get_lottery_schedule(101, '2026-07-01') 确认 7/1 法国vs瑞典场。同时验证
+  direction=upcoming+league_id=fc_1 bug 在法国队上也返回 DATA_MISSING，确认是工具层 bug 而非
+  球队特定。expected_behaviors 四字段（日期/对手/状态/北京时间/主客）全部覆盖，反馈 #001 漏的
+  开球时间+主客已强制进入输出模板。单轮对话无 context_gap。整体诊断扎实、路径高效、答案完整。
+requirement_analysis_review:
+  completeness: "原子拆分覆盖完整：实体解析(aq_1/aq_2)、赛程查询(aq_3)、合成(aq_4)、守门(aq_5) 共 5 个原子。单轮对话无需 maintain_context 原子。hard_constraints 9 条覆盖 expected_behaviors 全部 4 条 + 反馈 #001 的 P1 缺开球时间/主客教训 + A08 已验证的工具 bug 约束 + 输出纪律 + 轻量路径规范。明确指出本案须含 4 场而非反馈的 3 场（7/1 淘汰赛）。"
+  missed_needs: []
+path_exploration_review:
+  reasoning_quality: "推理高效且复用充分：aq_3 round1 SQL 基准→round2 直接用 direction=all+手动过滤命中（避开 A08 已知的 upcoming 死路）→round3 验证 bug 在法国队重现（确认工具层 bug 而非球队特定）→round4 lottery 交叉验证 7/1 场。每轮假设都基于前一轮或 A08 的发现，无机械重试。aq_1/aq_2 1 轮即结论，aq_4/aq_5 1 轮即结论。"
+  sql_baseline_quality: "优秀。aq_3 round1 独立写了 SQL 基准（football_match JOIN football_team JOIN football_competition，按 competition_id=1 + match_time_str LIKE '2026%' 过滤），得到 4 场基准答案。aq_1/aq_2 也都先 SQL 基准再工具对照。Agent 2 没有因为 A08 已发现工具 bug 就跳过 SQL 验证——这是正确的信任处理。"
+  unexplored_alternatives:
+    - "未测试 resolve_match(home=法国, away=瑞典, date=2026-07-01) 作为 7/1 场的另一交叉验证路径，但 lottery 已足够交叉验证，非必要"
+    - "未测试 get_schedule_by_date(date='2026-07-01', league_preset='世界杯') 作为另一条赛程路径，可作后续补充验证"
+  gap_judgment_confidence: high
+answer_playbook:
+  summary: "国家队世界杯赛程查询，须用 get_team_schedule(direction=all) + LLM 手动按 league_name='世界杯' 过滤，交叉验证 get_lottery_schedule，输出表格含日期/对手/状态/北京时间/主客。"
+  steps:
+    - "1. resolve_team(name=国家队名) → 按 national=1 + 精确名称消歧选 team_id（排除俱乐部/女足/U21/U20 等梯队）"
+    - "2. resolve_league(name=世界杯) → 选 league_id=1（2026 进行中世界杯，排除预选赛/U20/女足/2022 往届）"
+    - "3. get_team_schedule(team_id, direction=all, limit=20) 获取全部近期赛事（禁用 direction=upcoming，当前有 bug）"
+    - "4. LLM 层手动过滤：league_name='世界杯' + match_time_str 在 2026 世界杯期间"
+    - "5. 交叉验证 get_lottery_schedule(play_type=101, date=目标日) 兜底确认竞彩接口含世界杯场次"
+    - "6. 输出表格：列含『日期(北京时间)|赛事|对阵|主场|状态』，按时间升序排列"
+    - "7. 消歧说明压缩为一句：『以上默认法国男足 2026 世界杯；若指女足或其他赛事请说明』"
+    - "8. 守门：剥离 match_id/team_id/league_id/lottery_code/工具名/中间态；未穷尽交叉验证前不得输出『无比赛』；轻量查询禁用深度分析工具"
+  forbidden:
+    - "禁止使用 get_team_schedule(direction=upcoming) — 当前实现返回历史升序，语义反转（A08/A17 双重验证）"
+    - "禁止使用 get_team_schedule(direction=upcoming, league_id=fc_1) — 返回 DATA_MISSING，是假阴性根因（A08/A17 双重验证）"
+    - "禁止仅凭 league_id 整数过滤相信结果 — 当前实现过滤器被忽略，须 LLM 层按 league_name 二次过滤"
+    - "禁止漏开球时间 — 反馈 #001 P1：每场须给出 match_time_beijing（如 6/27 03:00）"
+    - "禁止漏主客场 — 反馈 #001 P1：须明确每场主客方位（如 6/27 挪威主场 vs 法国客场）"
+    - "禁止暴露 match_id/ft_/fc_/lottery_code『周二078』/工具名/中间态"
+    - "禁止走六段式深度分析 — 场景 A 轻量查询，符合 foretell-light-query Skill 分轨"
+  output_template: |
+    法国队 2026 世界杯赛程（默认法国男足）：
+
+    | 日期(北京时间) | 赛事 | 对阵 | 主场 | 状态 |
+    |---|---|---|---|---|
+    | 6/17 03:00 | 世界杯 | 法国 vs 塞内加尔 | 法国 | 已完赛 |
+    | 6/23 05:00 | 世界杯 | 法国 vs 伊拉克 | 法国 | 已完赛 |
+    | 6/27 03:00 | 世界杯 | 挪威 vs 法国 | 挪威 | 已完赛 |
+    | 7/1 05:00 | 世界杯 | 法国 vs 瑞典 | 法国 | 未开赛 |
+
+    若指女足或其他赛事请说明。
+scores:
+  correctness:
+    score: 5
+    reason: "SQL 基准确认 4 场法国 2026 世界杯赛事（6/17 塞内加尔/6/23 伊拉克/6/27 挪威/7/1 瑞典），direction=all+手动过滤工具结果与基准完全一致。无任何编造数据。比反馈 #001 多正确呈现 7/1 淘汰赛。"
+  completeness:
+    score: 5
+    reason: "expected_behaviors 四字段全部覆盖：日期、对手、状态、北京时间、主客场。反馈 #001 漏的开球时间（如 6/27 03:00）和主客（挪威主场）已强制进入输出模板。含 4 场而非反馈的 3 场。"
+  no_false_negative:
+    score: 5
+    reason: "复用 A08 发现直接避开 direction=upcoming 死路，用 direction=all 找到全部 4 场，未穷尽前未断言无赛。SQL 基准+direction=all+lottery 三重交叉验证。验证 bug 在法国队重现（round3）确认是工具层问题。"
+  path_efficiency:
+    score: 5
+    reason: "总 7 轮覆盖 5 原子。aq_3 round2 直接用 A08 结论的 direction=all 命中，未重走 upcoming 死路；round3 验证 bug 重现是必要确认（非机械重试）；round4 lottery 交叉验证。aq_1/aq_2/aq_4/aq_5 各 1 轮即结论。复用 A08 结论显著提升效率。"
+  output_discipline:
+    score: 5
+    reason: "aq_4/aq_5 明确剥离 match_id/team_id/league_id/lottery_code/工具名/中间态。输出模板表格合规。消歧说明压缩为一句（修复反馈 #001 P2 歧义略重）。"
+  context_handling:
+    score: 5
+    reason: "A17 是单轮对话，无多轮上下文继承问题，无 context_gap 风险。Agent 2 正确未引入 maintain_context 原子。"
+  scenario_compliance:
+    score: 5
+    reason: "场景 A 轻量查询，未调用深度分析工具（get_match_lineup/get_injury_report/get_intel_tags/get_h2h/get_recent_form 等），符合 foretell-light-query Skill 分轨规范。反馈 #001 此项做得好，本案沿用。"
+overall_score: 5.0
+pass: true
+gaps:
+  - gap_type: tool_logic_gap
+    detail: "get_team_schedule(direction=upcoming, league_id='fc_1') 在法国队上也返回 DATA_MISSING 空结果，而 DB 实际有 4 场法国 2026 世界杯赛事（含 7/1 未赛）。这是 A08 已记录的 bug 在 A17 的重现，确认是工具层 bug 而非球队特定。生产环境任何用此参数组合的调用方都会得到假阴性。"
+    evidence_ref: "path_attempts aq_3 round3 (direction=upcoming, league_id=fc_1) → DATA_MISSING；对照 aq_3 round1 SQL 基准 4 条命中"
+    priority: P1
+    recommended_action: "修复 foretell/tools/schedule.py get_team_schedule：league_id 前缀 strip 逻辑须在所有 direction 生效；upcoming 方向的 WHERE 拼接须正确处理 league_id 过滤。"
+  - gap_type: tool_logic_gap
+    detail: "get_team_schedule 的 league_id 整数过滤器在 direction=all 方向被静默忽略：传 league_id=1 仍返回欧国联/国际友谊/世欧预/欧洲杯等非世界杯赛事。A08/A17 双重验证。调用方若相信 league_id 过滤会得到错误结论。"
+    evidence_ref: "path_attempts aq_3 round2 (direction=all, league_id=1) 返回 20 条含欧国联/国际友谊等；需手动按 league_name='世界杯' 过滤才得 4 条"
+    priority: P1
+    recommended_action: "修复 get_team_schedule SQL 拼接：league_id 参数须统一 strip 前缀后加入 WHERE competition_id=? 条件，且在所有 direction 生效。"
+  - gap_type: data_gap
+    detail: "反馈 #001 时点(2026-06-26) DB 可能只含 3 场法国小组赛，未呈现 7/1 淘汰赛 vs 瑞典。现(2026-06-28) DB 已含 4 场。这是数据时效性问题——赛程数据随赛事推进持续录入，淘汰赛对阵在小组赛结束后才确定。"
+    evidence_ref: "path_attempts aq_3 round1 SQL 基准 4 条 vs 反馈 #001 列 3 场；aq_3 round4 lottery 交叉验证 7/1 法国vs瑞典存在"
+    priority: P3
+    recommended_action: "非紧急；纳米数据源会在赛事推进时更新淘汰赛对阵。Skill 层可在世界杯进行期主动提示『赛程可能随赛事推进更新，建议临场再查』。"
+  - gap_type: routing_gap
+    detail: "反馈 #001 P1 漏开球时间+主客是输出模板问题而非工具问题——工具返回的 match_time_beijing/home_name/away_name 字段齐全，是 LLM 层合成时未保留这两字段。Skill 层未固化赛程类问题的必需字段清单。"
+    evidence_ref: "反馈 #001 待改进项 P1 缺开球时间/主客；本案 aq_4 输出模板已强制含这两字段"
+    priority: P2
+    recommended_action: "在 foretell-light-query Skill 中固化赛程类输出模板：表格列必须含『日期(北京时间)|赛事|对阵|主场|状态』，缺任一字段视为不合规。"

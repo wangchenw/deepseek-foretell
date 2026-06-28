@@ -1,0 +1,51 @@
+type_id: "X06"
+case_id: "TC-X06-REG-009"
+user_intent_analysis: |
+  用户问「法国 vs 挪威具体哪场」——核心意图：在可能存在多场历史/未来对阵的情况下，定位到「具体哪一场」并给出明确身份
+  （对阵、日期、北京时间、主客场、赛事）。隐含需求：
+  (1) 「法国 vs 挪威」是用户表述顺序，不等于主客顺序——需以 DB 实际主客为准（反馈 #002 已纠正：2026 世界杯那场挪威主场）；
+  (2) 「具体哪场」隐含「在多候选中选定一场」——若 DB 里有多场法国 vs 挪威（不同年份/赛事），需结合上下文或最近原则选定；
+  (3) 本 case 关联反馈 #002：2024-06-27 误锚定 → 实为 2026-06-27 03:00 世界杯 挪威(主) vs 法国(客) id=4460928。
+  本 case 的护栏焦点：不输出正在查询/未找到过程，仅最终结论（expected_behaviors + #002 P0 中间过程外露）。
+turns:
+  - turn: 1
+    user_text: "法国 vs 挪威具体哪场"
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {team: 法国, expected: 法国男足国家队, national: true}
+        success_criteria: "返回唯一确定的 team_id，无俱乐部歧义"
+      - id: aq_2
+        category: resolve_entity
+        target: {team: 挪威, expected: 挪威男足国家队, national: true}
+        success_criteria: "返回唯一确定的 team_id，无俱乐部歧义"
+      - id: aq_3
+        category: fetch_schedule
+        target: {resolve_match: home=法国, away=挪威}
+        success_criteria: "通过 resolve_match 模糊查询返回候选场次；若返回多个，需按赛事等级/最近日期选定唯一场"
+        depends_on: []
+      - id: aq_4
+        category: fetch_schedule
+        target: {resolve_match_reverse: home=挪威, away=法国}
+        success_criteria: "反向查 resolve_match(home=挪威, away=法国)——因反馈 #002 指出 2026 世界杯那场挪威主场，正向查 home=法国可能漏掉。必须双向都试"
+        depends_on: []
+      - id: aq_5
+        category: apply_guardrails
+        target: "禁止中间态外露"
+        success_criteria: "探索过程所有「未找到」「换名重试」「正在查询」均不得出现在用户可见输出；仅最终结论呈现"
+        depends_on: [aq_3, aq_4]
+      - id: aq_6
+        category: synthesize_answer
+        target: "用户可见的最终回答"
+        success_criteria: "输出格式：赛事名 + 对阵（home vs away，主场在前）+ 日期 + 北京时间开球 + 状态；禁止暴露 match_id/team_id/competition_id/工具名/查询过程"
+        depends_on: [aq_5]
+hard_constraints:
+  - "不输出「正在查询」「未找到」「换英文名再试」「让我查一下」等中间态（expected_behaviors + 反馈 #002 P0）"
+  - "不暴露 match_id / team_id / competition_id / 工具名 / 内部 JSON 字段名（反馈 #002 P0）"
+  - "主客场必须以 DB 实际为准，不按用户表述「法国 vs 挪威」臆测——2026 世界杯那场是挪威主场（反馈 #002 数据核验）"
+  - "年份锚定：无用户指定年份时，应优先定位到最近/即将进行的赛事场次，不要默认 2024（反馈 #002 P0 年份误锚定）"
+  - "对阵双向查询：必须同时试 resolve_match(home=法国,away=挪威) 与 resolve_match(home=挪威,away=法国)，否则可能漏掉主客反转的那场"
+risk_notes: |
+  最可能在 aq_3 环节出问题：若 Agent 只正向 resolve_match(home=法国, away=挪威)，会漏掉挪威主场的那场（反馈 #002 已验证 2026-06-27 挪威主场 vs 法国）。
+  第二风险是 aq_5 输出纪律：探索过程多轮「未找到→换名→换年份」很容易被原样外露给用户，违反 #002 P0。
+  第三风险是年份锚定：若 Agent 默认查「最近」却落到 2024 欧洲杯（挪威未进正赛），会得到「无此场」的错误结论，需用 SQL 基准确认 DB 里法国 vs 挪威的所有历史+未来场次。

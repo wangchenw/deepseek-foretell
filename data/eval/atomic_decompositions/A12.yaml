@@ -1,0 +1,19 @@
+type_id: A12
+type_name: 球队赛季统计
+scenario: A
+entity_entry: team
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 我想建一个模型用你的数据在你这能行吗
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: team
+  - id: T1-a2
+    category: fetch_schedule
+    target:
+      team_id: $a1
+hard_constraints: []

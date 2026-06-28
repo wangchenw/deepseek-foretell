@@ -1,0 +1,19 @@
+type_id: E06
+type_name: 任九
+scenario: E
+entity_entry: lottery_period
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 最终全套打票总清单（无重复、稳冷穿插、直接照打） 所有场次统一选法： 稳胆场（001/012/013/018）：2球、3球 搏冷场（019/020）：3球、4球
+    一、原先组合（3注2串1 + 1注3串1） 2串1（3注） 001 × 019…
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

@@ -1,0 +1,16 @@
+{
+  "type_id": "E08",
+  "case_id": "TC-E08-001",
+  "steps": [
+    {
+      "tool": "get_schedule_by_date",
+      "params": {
+        "date": "2026-06-28",
+        "tier": "top"
+      },
+      "code": "OK",
+      "count": 8,
+      "stub": false
+    }
+  ]
+}

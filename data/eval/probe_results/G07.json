@@ -1,0 +1,28 @@
+{
+  "type_id": "G07",
+  "case_id": "TC-G07-001",
+  "probe_status": "ready",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "get_lottery_schedule",
+      "params": {
+        "play_type": "301"
+      },
+      "code": "OK",
+      "count": 19,
+      "stub": false
+    },
+    {
+      "tool": "get_schedule_by_date",
+      "params": {
+        "date": "2026-06-28",
+        "tier": "top"
+      },
+      "code": "OK",
+      "count": 8,
+      "stub": false
+    }
+  ],
+  "error": null
+}

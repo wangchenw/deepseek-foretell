@@ -1,0 +1,17 @@
+{
+  "type_id": "B09",
+  "case_id": "TC-B09-REG-006",
+  "steps": [
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "马刺",
+        "away": "雷霆",
+        "series_game": 7
+      },
+      "code": "NOT_APPLICABLE",
+      "count": null,
+      "stub": false
+    }
+  ]
+}

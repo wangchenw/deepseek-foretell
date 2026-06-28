@@ -1,0 +1,135 @@
+diagnosed_at: '2026-06-28'
+constraint: 未修改 foretell/tools；仅参数探测
+b01_target:
+  play_type: '101'
+  code: 009
+  date: '2026-06-15'
+  event: 德国 VS 库拉索
+parameter_sweep:
+- params:
+    play_type: '101'
+    code: 009
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 009
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 009
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- &id001
+  params:
+    play_type: '101'
+    code: 周日009
+    date: '2026-06-15'
+  code: OK
+  match_id: null
+- &id002
+  params:
+    play_type: '101'
+    code: 周日009
+  code: OK
+  match_id: null
+- params:
+    play_type: '101'
+    code: 周日009
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 周009
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 周009
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 周009
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 009
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 009
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 009
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 德国
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 德国
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: 德国
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: Sunday009
+    date: '2026-06-15'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: Sunday009
+  code: ENTITY_NOT_FOUND
+  match_id: null
+- params:
+    play_type: '101'
+    code: Sunday009
+    date: '2026-06-28'
+  code: ENTITY_NOT_FOUND
+  match_id: null
+ok_combinations:
+- *id001
+- *id002
+active_lottery_snapshot:
+  '101':
+    code: OK
+    count: 0
+    sample_codes: []
+  '201':
+    code: OK
+    count: 0
+    sample_codes: []
+  '401':
+    code: OK
+    count: 0
+    sample_codes: []
+  '301':
+    code: OK
+    count: 0
+    sample_codes: []
+conclusion: 发现 2 组可用参数
+gap_type: routing_gap
+recommendation: 在 eval explore_b01 中采用 ok_combinations[0] 重跑

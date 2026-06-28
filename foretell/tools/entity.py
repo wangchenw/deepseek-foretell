@@ -65,7 +65,13 @@ def resolve_match(
             "date": date,
             "candidates": candidates,
             "count": len(candidates),
+            "match_status": candidates[0].get("status") if len(candidates) == 1 else "ambiguous",
+            "match_time_beijing": candidates[0].get("match_time_beijing") if len(candidates) == 1 else None,
+            "neutral": candidates[0].get("neutral") if len(candidates) == 1 else None,
+            "round_group": candidates[0].get("round_group") if len(candidates) == 1 else None,
+            "round_num": candidates[0].get("round_num") if len(candidates) == 1 else None,
         },
+        match_id=candidates[0].get("match_id") if len(candidates) == 1 else None,
         meta=_default_meta(client),
     )
 

@@ -1,0 +1,36 @@
+type_id: X05
+type_name: 假阴性风险
+scenario: X
+case_id: TC-X05-REG-008
+turns:
+- turn_index: 0
+  text: 葡萄牙明天早上世界杯有比赛吗
+  atomics:
+  - id: X05-T0-a1
+    category: resolve_entity
+    target: 葡萄牙国家队
+    hard_constraints:
+    - national=1 优先
+  - id: X05-T0-a2
+    category: fetch_schedule
+    target: 葡萄牙赛程（明早窗口）
+    hard_constraints:
+    - direction upcoming→all fallback
+    - 穷尽前禁止断言「无比赛」
+  - id: X05-T0-a3
+    category: cross_validation
+    target: 按明日日期 top 赛程二次验证
+    hard_constraints:
+    - team_schedule 与 schedule_by_date 交叉比对
+    - 若任一路径有赛则必须回答「有」
+  - id: X05-T0-a4
+    category: discover_via_search
+    target: 外部补证
+    hard_constraints:
+    - Eval 约束 skipped
+  - id: X05-T0-a5
+    category: apply_guardrails
+    target: 假阴性护栏
+    hard_constraints:
+    - 禁止未穷尽前断言无赛
+    - 仅输出最终结论，不含查询过程

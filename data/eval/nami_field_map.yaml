@@ -1,0 +1,47 @@
+sources:
+  nami_docs: https://www.nami.com/en/docs?id=2002
+  nami_openapi_local: data/eval/nami_docs/
+  last_updated: "2026-06-29"
+  notes: OpenAPI 已通过 /api/v2/doc/get 抓取；状态码见 nami_docs/status_codes_2002.md
+mappings:
+  - id: football_match.status
+    table: football_match
+    column: status_id
+    nami_field: 比赛状态
+    description: 纳米同步至 data_center；语义见 mysql_client._STATUS_MAP
+    enum:
+      0: abnormal
+      1: not_started
+      2: in_play
+      3: in_play
+      4: in_play
+      5: overtime
+      7: penalty_shootout
+      8: finished
+      9: postponed
+      10: interrupted
+      11: abandoned
+      12: cancelled
+      13: tbd
+    used_by_tools:
+      - resolve_match
+      - get_schedule_by_date
+      - get_team_schedule
+    confirmed: true
+  - id: football_match.match_time
+    table: football_match
+    column: match_time
+    nami_field: 开赛时间
+    description: Unix 时间戳或 datetime，用于时间窗查询
+    used_by_tools:
+      - get_schedule_by_date
+      - get_team_schedule
+    confirmed: false
+  - id: football_team.national
+    table: football_team
+    column: national
+    nami_field: 是否国家队
+    description: 实体消歧（如葡萄牙男足 vs 俱乐部）
+    used_by_tools:
+      - resolve_team
+    confirmed: false

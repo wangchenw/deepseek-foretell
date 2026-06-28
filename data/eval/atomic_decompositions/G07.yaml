@@ -1,0 +1,67 @@
+type_id: G07
+type_name: 优化方案
+scenario: G
+case_id: TC-G07-001
+turns:
+- turn_index: 0
+  text: 请根据以下5条标准…根据这些条件帮我找今天还没开始比赛的北单 选择合适的比赛推荐几场比分
+  atomics:
+  - id: G07-T0-a1
+    category: maintain_context
+    target: 5条筛选标准模板
+    hard_constraints:
+    - 逐条是/否格式
+    - 综合结论规则
+  - id: G07-T0-a2
+    category: fetch_schedule
+    target: 今日北单未开赛场次
+    hard_constraints:
+    - get_lottery_schedule play_type=301
+    - 仅未开始比赛
+  - id: G07-T0-a3
+    category: fetch_schedule
+    target: 今日 top 足球赛程辅助
+    hard_constraints:
+    - get_schedule_by_date tier=top
+  - id: G07-T0-a4
+    category: fetch_odds_snapshot
+    target: 盘口/赔率用于标准2/3/5
+    hard_constraints:
+    - 安全边际≥5% 需用户概率或 stub 赔率
+  - id: G07-T0-a5
+    category: discover_via_search
+    target: 媒体热度/全网热门
+    hard_constraints:
+    - Eval 约束 skipped
+  - id: G07-T0-a6
+    category: synthesize_answer
+    target: 北单比分推荐
+    hard_constraints:
+    - 按5标准筛选后输出
+- turn_index: 1
+  text: 那有没有能优化筛选标准的？怎么样选择合适的比赛？
+  atomics:
+  - id: G07-T1-a1
+    category: maintain_context
+    target: 延续筛选模板与先前推荐
+    hard_constraints:
+    - 引用 turn0 逻辑
+  - id: G07-T1-a2
+    category: synthesize_answer
+    target: 优化方案说明
+    hard_constraints:
+    - 高置信度+正价值+低市场效率框架
+- turn_index: 2
+  text: 我没有概率估算 还有我在其他窗口 你帮我推荐的今天002和010的比分就是正确的 他们条件是什么？
+  atomics:
+  - id: G07-T2-a1
+    category: maintain_context
+    target: 跨窗口/session 引用
+    hard_constraints:
+    - 需 checkpointer 或用户复述上下文
+    - 不得编造其他窗口推荐
+  - id: G07-T2-a2
+    category: synthesize_answer
+    target: 解释002/010筛选条件
+    hard_constraints:
+    - 诚实说明无法读取其他窗口

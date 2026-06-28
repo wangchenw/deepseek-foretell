@@ -1,0 +1,74 @@
+type_id: "A13"
+case_id: "TC-A13-001"
+classification: "⚠️"
+classification_reason: |
+  找到可行路径但 foretell 工具有隐患。SQL 直查 football_match 双向 + match_time<2026-05-17 路径完全可行,
+  5 对球队 h2h 数据全部命中且与 atomic 期望完全一致。但 foretell get_h2h 工具有三类隐患:
+  (1) 不区分赛前/赛后,返回 5/17 当日场违反「赛前视角不反推」硬约束;
+  (2) resolve_team('浦项制铁') 别名缺失一线队 10417,误选后备队会导致假阴性;
+  (3) 暴露内部 ID 且不返回球队名/赛事名,需 LLM 层 JOIN 剥离。
+  须用 SQL workaround 或 LLM 层严格剔除+别名降级,工具直调路径脆弱。
+path_assessment: |
+  SQL 路径质量高:football_match 双向查 + match_time<1778976000 + JOIN football_team(主客各一)+ football_competition,
+  一次性返回带球队中文名/赛事名/比分的 h2h 列表,完全规避工具三类隐患。
+  foretell get_h2h 路径脆弱:(1) 须 LLM 层手工剔除 date>=赛前日的比赛(get_h2h 无 before 参数);
+  (2) 须 LLM 层判断 resolve_team 候选是否为一线队(浦项制铁须降级「浦项铁人」);
+  (3) 须 LLM 层 JOIN 名称 + 剥离 match_id/team_id;
+  (4) 须正确解析 scores 数组索引 0=常规比分。
+  推荐 SQL 直查为首选,工具调用为兜底且须配合 LLM 层严格守门。
+exploration_sufficiency: |
+  探索充分。覆盖了:(1) 10 个 team_id 一线队归属验证;
+  (2) 5 对球队 h2h 双向 SQL 查询(正确时间戳 1778976000);
+  (3) 时间戳坑复现(初用 1747465600 漏掉一年,修正后 atomic 期望全部命中);
+  (4) get_h2h 工具对照(发现赛前/赛后不区分+ID 暴露);
+  (5) resolve_team('浦项制铁') 别名风险复现(一线队 10417 缺失)。
+  五个维度全部命中,数据真实可溯源,足以支撑用户 5 场赛前分析的 h2h 输入需求。
+gaps:
+  - gap_type: "tool_logic_gap"
+    detail: "get_h2h 无 before/after 过滤,返回赛前日当日场,违反赛前视角"
+    evidence_ref: "step 8: get_h2h(20060,10417,n=5) 返回含 2026-05-17 match_id 4480379"
+    priority: "P1"
+    recommended_action: "get_h2h 增加 before/after 可选参数,或在工具层默认剔除 date>=今日的比赛(赛前视角场景)"
+  - gap_type: "alias_misroute"
+    detail: "resolve_team('浦项制铁') 缺一线队 10417,误选后备队导致假阴性"
+    evidence_ref: "step 9: resolve_team('浦项制铁') 仅返回 30019/31800/82260,无 10417"
+    priority: "P1"
+    recommended_action: "resolve_team 别名表补全「浦项制铁→浦项铁人(10417)」映射,或返回候选时标注一线队/后备队/U18 层级"
+  - gap_type: "tool_implementation_gap"
+    detail: "get_h2h 不返回球队名/赛事名,仅返回 ID"
+    evidence_ref: "step 8: 返回结构仅 match_id/home_team_id/away_team_id/scores,无 name/competition"
+    priority: "P2"
+    recommended_action: "get_h2h 返回结构增加 home_team_name/away_team_name/competition_name 字段"
+  - gap_type: "internal_id_exposure"
+    detail: "get_h2h 暴露 match_id/team_id 内部 ID"
+    evidence_ref: "step 8: 返回含 match_id 4480379/home_team_id 20060 等"
+    priority: "P3"
+    recommended_action: "工具层在 LLM 输出前剥离内部 ID,或在工具描述明确「LLM 须剥离」"
+  - gap_type: "scores_array_parsing"
+    detail: "scores 7 元数组须取索引 0,误读会出错"
+    evidence_ref: "step 4-7: home_scores '[比分,半场,红牌,黄牌,角球,加时,点球]'"
+    priority: "P3"
+    recommended_action: "工具层解析 scores 数组,直接返回 final_score + half_score 字段"
+  - gap_type: "timestamp_pitfall"
+    detail: "5/17 须推断为 2026-05-17(1778976000),误用 2025-05-17 会漏掉一年数据"
+    evidence_ref: "step 3-4: 初用 1747465600 漏掉 2025-10-25 等,修正为 1778976000 后全部命中"
+    priority: "P2"
+    recommended_action: "LLM 层结合对话时点(session 时间戳)推断用户语境日期,不假设当前年"
+recommended_answer_path: |
+  对话时点锚定 2026-05-17(session 28066650),5/17 = 2026-05-17,赛前视角 cutoff 时间戳 = 1778976000。
+  对 5 对球队分别 SQL 双向查:
+    SELECT m.match_time_str, ht.name_zh AS home, at.name_zh AS away,
+           m.home_scores, m.away_scores, c.name_zh AS comp
+    FROM football_match m
+    JOIN football_team ht ON ht.id=m.home_team_id
+    JOIN football_team at ON at.id=m.away_team_id
+    JOIN football_competition c ON c.id=m.competition_id
+    WHERE ((m.home_team_id=A AND m.away_team_id=B) OR (m.home_team_id=B AND m.away_team_id=A))
+      AND m.match_time < 1778976000
+    ORDER BY m.match_time DESC LIMIT 5
+  scores 取索引 0 作为常规比分(数组 [比分,半场,红牌,黄牌,角球,加时,点球])。
+  team_id:福伦丹10647/特尔斯达10455/科莫13402/帕尔马10907/全北10238/金泉10652/川崎10908/町田泽维亚25413/富川FC20060/浦项铁人10417。
+  「浦项制铁」须降级「浦项铁人」命中一线队 10417,不得误选 resolve_team 返回的后备队 30019。
+  输出 5 对球队 h2h 汇总(日期/主客/比分/赛事),剥离 match_id/team_id,标注数据来源。
+  不反推 5/17 当日结果,仅取 5/17 之前交锋。
+  若用 foretell get_h2h,须 LLM 层:(1) 剔除 date>=2026-05-17 的比赛;(2) JOIN 球队名/赛事名;(3) 剥离内部 ID。

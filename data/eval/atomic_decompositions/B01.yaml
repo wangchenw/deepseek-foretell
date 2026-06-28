@@ -1,0 +1,39 @@
+type_id: B01
+type_name: 竞彩模板分析
+scenario: B
+case_id: TC-B01-001
+turns:
+- turn_index: 0
+  text: 分析【2026-06-15 01:00:00 竞彩足球周日009 世界杯 德国 VS 库拉索】的赛事的胜平负、比分结果，并描写100-300字的分析内容
+  atomics:
+  - id: B01-T0-a1
+    category: resolve_entity
+    target: 竞彩足球 101 周日009 2026-06-15
+    hard_constraints:
+    - play_type=101 code=009 date=2026-06-15
+  - id: B01-T0-a2
+    category: fetch_stats
+    target: 基本面/近期状态
+    hard_constraints:
+    - get_recent_form stub 需标注
+  - id: B01-T0-a3
+    category: fetch_odds_snapshot
+    target: 胜平负/比分赔率
+    hard_constraints:
+    - 数据诚实：stub 不得编造
+  - id: B01-T0-a4
+    category: fetch_intel
+    target: 伤停战意
+    hard_constraints:
+    - get_injury_report stub
+  - id: B01-T0-a5
+    category: delegate_subagent
+    target: fundamentals-analyst + odds-analyst
+    hard_constraints:
+    - 多维度深度分析 100-300 字
+    - 不暴露工具名
+  - id: B01-T0-a6
+    category: synthesize_answer
+    target: 六段式分析输出
+    hard_constraints:
+    - 数据诚实规则

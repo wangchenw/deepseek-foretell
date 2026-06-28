@@ -1,0 +1,64 @@
+type_id: "A05"
+case_id: "TC-A05-001"
+classification: "⚠️"
+classification_reason: |
+  数据库层面路径完整且数据正确:3 场比赛 + 6 队 + 22 人首发/场 + 12 条伤停 + 三场完整情报 + 多公司欧赔 + 6 队赛季统计 + 近况/h2h 全部 SQL 可查,可完整支撑用户 8 大视角深度分析(exploration_log step 1-10 全部验证)。
+  但标记 ⚠️ 而非 ✅ 的原因:Foretell 生产工具层有 5 个 stub(get_match_lineup/get_injury_report/get_intel_tags/get_team_season_stats/get_odds_trend)对应用户最关心的首发/伤停/情报/赛季统计/赔率走势维度,若生产系统仅依赖 foretell 工具不暴露 SQL 直查,则 8 视角中至少 4 个(基本面伤停、战术首发、市场赔率走势、情报标签)会全部 DATA_MISSING,导致用户反复追问首发(turn5/11/16)时无法应答。
+  SQL workaround 完整且不脆弱(数据真实存在、SQL 标准模板可复用),但需生产层修复 stub 或暴露 SQL 路径才能在 foretell 原生调用下走通。
+  真不可得仅 xG/xGA(数据库无字段)与官方发布会(无搜索入口),这两项须按 expected_behaviors「数据不足时诚实说明」逐项声明,不编造。
+path_assessment: |
+  找到的路径分两层:
+  (A) SQL 直查层(本次验证可行):football_match → football_match_lineup+detail → football_team_injury → football_intelligence → football_odds_europe → football_competition_teams_stats → football_match(h2h/recent form)。覆盖 aq_1~aq_8、aq_11~aq_25 全部 atomic。
+  (B) foretell 工具层(生产路径):resolve_team/resolve_match 可用但「东京FC/首尔FC」语序风险;get_recent_form/get_h2h/get_odds_snapshot/get_match_result 可用;get_match_lineup/get_injury_report/get_intel_tags/get_team_season_stats/get_odds_trend 五个 stub 不可用。
+  数据正确性已交叉验证:三场赛果 home_scores/away_scores 解读与 atomic 一致(浦和0-0点球9-10、横滨0-1、大田1-2);6 队 competition_id 与 match 表对齐;首发 22 人/场与 coverage_lineup=1 标记一致。
+exploration_sufficiency: |
+  探索充分。10 步覆盖 8 个 atomic 类别(resolve_entity/fetch_schedule/fetch_intel/fetch_odds/fetch_stats/fetch_result/h2h/recent_form),每步均有 SQL 验证数据真实存在,且交叉验证 foretell 工具 stub 状态(Step 5 同时验证 SQL count=22 与 foretell DATA_MISSING)。
+  未深入项:赔率走势历史分区表(football_odds_europe_change_*)未单独验证,但欧赔快照(初盘/即时/最新)已足够支撑 8 视角之市场热度分析;赔率走势缺失须诚实说明。
+gaps:
+  - gap_type: "implementation_gap"
+    detail: "get_match_lineup stub 返回 DATA_MISSING,但 football_match_lineup_detail 三场各 22 人首发完整。生产层若不暴露 SQL,用户 turn5/11/16 反复追问首发会无法应答,严重违反 expected_behaviors。"
+    evidence_ref: "exploration_log step 4-5"
+    priority: "P1"
+    recommended_action: "修复 foretell/tools/crazy_sports/mysql_client.py:866-867,实现 get_match_lineup 直查 football_match_lineup+detail。"
+  - gap_type: "implementation_gap"
+    detail: "get_injury_report stub,football_team_injury 12 条伤停完整。"
+    evidence_ref: "exploration_log step 5-6"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:869-870,JOIN football_match_team_injury 关联比赛。"
+  - gap_type: "implementation_gap"
+    detail: "get_intel_tags stub,football_intelligence 三场完整 good/bad/neutral 文本。"
+    evidence_ref: "exploration_log step 7"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:872-873,直查 football_intelligence。"
+  - gap_type: "implementation_gap"
+    detail: "get_team_season_stats stub,football_competition_teams_stats 6 队全维度统计完整。"
+    evidence_ref: "exploration_log step 9"
+    priority: "P1"
+    recommended_action: "修复 mysql_client.py:724-725,直查 football_competition_teams_stats,须带 season_id 过滤。"
+  - gap_type: "data_gap"
+    detail: "xG/xGA 字段数据库未采集,用户明确要求,须诚实说明「赛季统计未采集 xG,以下为近期进球/射门序列供估算」,不编造。"
+    evidence_ref: "exploration_log step 9"
+    priority: "P2"
+    recommended_action: "回答时声明 xG 不可得,用近期进球数+射门数+射正数替代,标注非 xG 模型概率。"
+  - gap_type: "routing_gap"
+    detail: "用户「东京FC/首尔FC」语序与 DB「FC东京/FC首尔」相反,resolve_team 命名匹配可能 ENTITY_NOT_FOUND。"
+    evidence_ref: "exploration_log step 2"
+    priority: "P2"
+    recommended_action: "resolve_team 增加中文分词与去标点容错,或 LLM 层把「东京FC→FC东京」「首尔FC→FC首尔」标准化后再调用。"
+  - gap_type: "discover_via_search_gap"
+    detail: "官方发布会/俱乐部官方/联赛官方信息无 internet_search 路径(Tavily 不在评估范围),turn2/9 用户明确要求。"
+    evidence_ref: "exploration_log final_finding"
+    priority: "P2"
+    recommended_action: "诚实说明 foretell 无官方信息源采集路径,用 football_intelligence 内置情报文本替代,标注「非官方发布会,基于数据端情报」。"
+recommended_answer_path: |
+  生产层推荐路径(优先修复 stub 后用 foretell 原生工具,过渡期用 SQL workaround):
+  1. 实体解析:用 team_id 直查(10298/10061/10438/10305/10336/10380)绕过命名容错,或 LLM 层把「东京FC→FC东京」标准化后调 resolve_team;
+  2. 比赛定位:SQL 直查 football_match WHERE id IN (4470724,4480359,4470725),取 status_id=8 赛果;
+  3. 首发阵容:SQL JOIN football_match_lineup+detail WHERE confirmed=1 AND first=1(过渡期);修复后调 get_match_lineup;
+  4. 伤停:SQL 查 football_team_injury WHERE team_id IN (6 队) AND del_flag=1;修复后调 get_injury_report;
+  5. 情报:SQL 查 football_intelligence WHERE id IN (3 场);修复后调 get_intel_tags;
+  6. 欧赔快照:调 get_odds_snapshot(可用)或 SQL football_odds_europe;赔率走势缺失须诚实说明;
+  7. 赛季统计:SQL 查 football_competition_teams_stats WHERE season_id IN (13870,13903);xG/xGA 诚实声明不可得,用近期进球/射门序列替代;
+  8. 近况/h2h:调 get_recent_form/get_h2h(可用)或 SQL 直查;
+  9. 赛果:调 get_match_result(可用)或 SQL 解读 home_scores/away_scores;
+  10. 输出:8 视角合成为连贯篇章(归纳优先于罗列,无序号化标题);首发/伤停/赔率走势/xG/官方发布会逐项诚实说明数据采集状态;明确主推方向+置信度+仓位,禁止「主不败+客不败」双向推荐;不暴露内部 ID/工具名。

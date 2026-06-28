@@ -1,0 +1,65 @@
+type_id: "A03"
+case_id: "TC-A03-001"
+classification: "⚠️"
+classification_reason: |
+  A03 路径存在但有隐患。step 3/4/5/7/8 验证 4 场中 3 场数据完整(富勒姆vs伯恩利赛果 3-1/0-0 与用户原话一致,
+  赛前盘口+赛前近 5 场均可获取),路径技术上可回答用户"用框架分析指定场次"需求。
+  但存在两个隐患:
+  (1) step 6 get_recent_form 无 before_date 参数,返回当前最近 5 场(赛后),违反用户"不要搜赛后结果"硬约束,
+      需 LLM 层用 SQL 直查 match_time<比赛时间 的方式规避,workaround 脆弱;
+  (2) step 8 纽卡斯尔vs桑德兰 2026-03-22 数据库无此场次(真实 data_gap),LLM 层需诚实说明而非编造。
+  另有年份错位(用户 2025 会话 vs 数据库 2026 快照)需 LLM 层对齐。
+  故归 ⚠️:路径存在但依赖 LLM 层补丁(赛前数据 SQL workaround + 年份对齐 + 1 场 data_gap 诚实说明)。
+path_assessment: |
+  找到的路径能回答 3/4 场需求,但需 LLM 层做额外补丁:
+  1) 年份对齐:用户口语"3月21日"→数据库 2026-03-21(LLM 层用当前会话年份+1 或问用户确认年份)。
+  2) 赛前近期战绩:必须 SQL 直查 match_time < 比赛时间 AND status_id=8,不能用 get_recent_form(返回赛后)。
+  3) 赛前盘口:get_odds_snapshot + SQL football_odds_europe(初盘→即时→最新)。
+  4) 赛前伤停:SQL football_team_injury(get_injury_report 是 stub)。
+  5) 赛前排名:SQL football_points_table_team WHERE season_id=MAX(season_id)。
+  6) 赛前阵容:SQL football_match_lineup+detail(get_match_lineup 是 stub),注意赛前可能只有 predicted 阵型。
+  数据正确性:富勒姆vs伯恩利赛果 3-1/0-0 与用户原话完全一致,数据可信。
+  路径稳健性:依赖 LLM 层多个 SQL workaround,且 get_recent_form 的语义错误易被忽视(返回赛后数据却伪装赛前),
+  若 LLM 层不察觉会用错数据,这是 P1 隐患。
+exploration_sufficiency: |
+  探索充分。覆盖了:4 场次 match_id 定位(SQL 双向查)、赛果验证(get_match_result)、盘口验证(get_odds_snapshot)、
+  赛前近期战绩(get_recent_form 语义错误 + SQL workaround)、3/4 场存在性确认。
+  未深挖 h2h/伤停/排名/阵容(因 stub 工具已知,SQL 替代路径在 db_schema_map.md 已标注,且用户核心需求是
+  "用框架分析"而非逐项验证工具)。唯一未验证:football_match_lineup 在赛前是否有 predicted 数据(可能只有赛后 confirmed),
+  但这不影响路径成立判断。
+gaps:
+  - gap_type: "tool_logic_gap"
+    detail: "get_recent_form 无 before_date 参数,返回当前最近 N 场(含赛后),无法满足'赛前数据'硬约束"
+    evidence_ref: "exploration_log step 6 vs step 7"
+    priority: "P1"
+    recommended_action: "get_recent_form 增加 before_date 参数,SQL 过滤 match_time < before_date。否则 LLM 层必须 SQL 直查,易出错"
+  - gap_type: "data_gap"
+    detail: "纽卡斯尔vs桑德兰 2026-03-22 数据库无此场次(纽卡当日无比赛)"
+    evidence_ref: "exploration_log step 8"
+    priority: "P2"
+    recommended_action: "LLM 层诚实告知用户'该场次未在数据库中找到',建议用户确认日期或对手,不编造数据"
+  - gap_type: "context_gap"
+    detail: "用户会话年份 2025,数据库快照年份 2026。'3月21日'需 LLM 层对齐到 2026-03-21"
+    evidence_ref: "exploration_log step 1 vs step 3"
+    priority: "P2"
+    recommended_action: "LLM 编排层在解析历史日期时,优先用数据库实际有数据的年份(可先 SQL 探测),或问用户确认"
+  - gap_type: "tool_logic_gap"
+    detail: "get_injury_report/get_match_lineup/get_team_season_stats/get_intel_tags 是 stub"
+    evidence_ref: "db_schema_map.md 第四章"
+    priority: "P3"
+    recommended_action: "Phase 2 补实现,SQL 替代路径已标注(football_team_injury/football_match_lineup/football_competition_teams_stats/football_intelligence)"
+recommended_answer_path: |
+  生产实现推荐路径(按用户框架 V3.6 维度):
+  - 年份对齐:LLM 层先 SQL 探测球队在 3 月的场次年份(2025 vs 2026),确认实际有数据的日期。
+  - resolve_match(home, away, date) 或 SQL 直查 football_match 拿 match_id。
+  - 赛前近期状态(近6/近10场): SQL 直查 WHERE (home=team OR away=team) AND match_time < 比赛时间 AND status_id=8
+    ORDER BY match_time DESC LIMIT 10,计算胜率/进失球。**禁用 get_recent_form**(返回赛后)。
+  - 主客场攻防效率: SQL 同上但加 venue 过滤(home=team 为主场,away=team 为客场)。
+  - 排名: SQL football_points_table_team WHERE season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=英超id)。
+  - h2h: get_h2h(team_a, team_b, n=10)。
+  - 让球盘口: get_odds_snapshot(match_id) + SQL football_odds_europe(初盘→即时→最新走势)。
+  - 伤停: SQL football_team_injury WHERE team_id IN (home,away) AND del_flag=1。
+  - 阵容: SQL football_match_lineup+detail WHERE match_id=? AND confirmed=1(赛前可能只有 predicted)。
+  - 战意/框架其他维度: LLM 层基于上述数据综合判断,不编造。
+  - 纽卡vs桑德兰: 诚实说明"数据库未找到该场次,请确认日期"。
+  全程:不暴露 match_id/team_id,不承诺盈利,赛前数据缺失时诚实说明,不用赛后数据冒充赛前。

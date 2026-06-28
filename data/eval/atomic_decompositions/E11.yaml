@@ -1,0 +1,21 @@
+type_id: E11
+type_name: 比分串方案
+scenario: E
+entity_entry: batch
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 对四场比赛做一个深度拆解，然后定稿主推方案和比分四串一。 1. {WEEKDAY}{CODE}：日职联 水户蜀葵 VS 东京绿茵（2026/05/16
+    13:00） 2. {WEEKDAY}{CODE}：日职联 浦和红钻 VS FC东京（2026/05/16 15:00） 3. {WEEKDAY}{CODE}：韩K联
+    大田市民 VS FC首尔（2026/05/16 15:30） 4. {WEEKDAY}{CODE}：日职联 横滨水手 VS 柏太阳神（2026/05/16
+    16:00）
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

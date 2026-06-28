@@ -1,0 +1,82 @@
+type_id: "A02"
+case_id: "TC-A02-001"
+user_intent_analysis: |
+  用户核心意图是对某日（4月15日/16日）的158场体彩赛事进行综合分析，
+  其中欧冠场次需单独深度处理；同时用户期望系统从昨日教训中学习（欧冠
+  比分预测失准），给出今日"最稳稳"的串关方案（2串一、3串一、4串一等）
+  和若干比分推荐。隐含需求包括：指定日期+联赛（欧冠）的赛程拉取、
+  每场赔率及盘口数据、以及按联赛类型分组输出的能力。
+turns:
+  - turn: 1
+    user_text: "4.158场体彩综合分析，所有的都分析，欧冠单独分析..."
+    atomics:
+      - id: aq_1
+        category: resolve_entity
+        target: {date: "04-15或04-16", lottery_type: "体彩"}
+        success_criteria: "确认目标日期，并解析为数据库可用的日期格式"
+      - id: aq_2
+        category: fetch_schedule
+        target: {date: "resolved_date", lottery_type: "体彩", count: 158}
+        success_criteria: "返回该日全部158场场次列表，含编号、联赛、主客队、开赛时间"
+        depends_on: [aq_1]
+      - id: aq_3
+        category: fetch_schedule
+        target: {date: "resolved_date", league: "欧冠", filter: true}
+        success_criteria: "单独筛选出欧冠场次（预期2-4场）"
+        depends_on: [aq_2]
+      - id: aq_4
+        category: fetch_odds_snapshot
+        target: {matches: "全部场次", fields: ["欧赔", "亚盘", "凯利"]}
+        success_criteria: "获取每场赔率快照，欧冠场次需特别深度"
+        depends_on: [aq_2]
+      - id: aq_5
+        category: synthesize_answer
+        target: {intent: "串关方案", types: ["2串一", "3串一", "4串一", "5串一"]}
+        success_criteria: "给出分层方案，标注置信度，含风险声明"
+        depends_on: [aq_4]
+  - turn: 2
+    user_text: "我有疑惑，007他们说01 12主胜啊...再来一次终极版的汇总"
+    atomics:
+      - id: aq_6
+        category: maintain_context
+        target: {reference: "turn_1_analysis", action: "refine_recommendation"}
+        success_criteria: "正确继承上轮分析结论，针对用户质疑的场次（007、005、006、008）重新验证"
+      - id: aq_7
+        category: fetch_odds_deep
+        target: {lottery_codes: ["007", "005", "006", "008"]}
+        success_criteria: "对指定编号场次做盘口深度复核"
+        depends_on: [aq_6]
+      - id: aq_8
+        category: apply_guardrails
+        target: {check: "欧冠失准教训", action: "保守化推荐"}
+        success_criteria: "对欧冠场次降低置信度，避免重复上次的过度自信"
+  - turn: 4
+    user_text: "现在给我重点分析欧冠比赛的..."
+    atomics:
+      - id: aq_9
+        category: fetch_intel
+        target: {matches: "欧冠场次", data_type: "h2h+standings+form"}
+        success_criteria: "欧冠场次均有近期状态+历史交锋数据"
+      - id: aq_10
+        category: synthesize_answer
+        target: {intent: "欧冠深度分析", format: "六段式或全面分析"}
+        success_criteria: "不遗漏任何欧冠场次，每场均有明确推荐方向"
+        depends_on: [aq_9]
+
+hard_constraints:
+  - "未穷尽 DB 检索前不得断言无比赛"
+  - "不得暴露内部 match_id 或竞彩编号给用户"
+  - "不得给出主不败+客不败双向推荐"
+  - "串关方案必须含风险声明，不承诺盈利"
+  - "欧冠淘汰赛阶段不应套用联赛积分排名逻辑（B10规则）"
+  - "数据不足时诚实说明，不得编造赔率或比分数据"
+
+risk_notes: |
+  最高风险点：158场体彩的批量赛程拉取——DB中竞彩编号与内部
+  match_id的映射可能不完整，部分场次可能找不到对应记录。
+
+  第二风险点：欧冠场次的特殊性——淘汰赛阶段不存在"积分排名"，
+  如果工具调用了 get_standings，可能返回错误或无关数据。
+
+  第三风险点：用户的"教训引用"属于会话级上下文，如果系统没有
+  checkpointer 机制，跨轮的教训引用无法被真正纳入推理。

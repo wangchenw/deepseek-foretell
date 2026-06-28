@@ -1,0 +1,22 @@
+type_id: X16
+type_name: 网络兜底
+scenario: X
+entity_entry: match
+priority: P1
+generated: true
+turns:
+- turn: 1
+  user: '[网络兜底示例问法]'
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+  - id: T1-x1
+    category: apply_guardrails
+    target: {}
+hard_constraints:
+- 不输出中间态

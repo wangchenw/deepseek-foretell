@@ -1,0 +1,43 @@
+type_id: X05
+case_id: TC-X05-REG-008
+explored_at: '2026-06-28'
+attempts:
+- round: 1
+  atomic_id: X05-T0-a1
+  tool: resolve_team
+  params:
+    name: 葡萄牙
+  code: OK
+  stub: false
+- round: 1
+  atomic_id: X05-T0-a2
+  fallback: null
+  tool: get_team_schedule
+  params:
+    team_id: 11331
+    direction: upcoming
+    limit: 5
+  code: OK
+  stub: false
+  count: 5
+- round: 3
+  atomic_id: X05-T0-a3
+  category: cross_validation
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-29'
+    tier: top
+  code: OK
+  stub: false
+  count: 1
+- round: 1
+  atomic_id: X05-T0-a4
+  category: discover_via_search
+  status: skipped
+  note: 'Eval constraint: no Tavily/internet_search'
+satisfied:
+- X05-T0-a1
+- X05-T0-a2
+- X05-T0-a3
+blocking_gap: null
+route_complete: true

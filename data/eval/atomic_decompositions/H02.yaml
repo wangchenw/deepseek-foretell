@@ -1,0 +1,19 @@
+type_id: H02
+type_name: 降级确定
+scenario: H
+entity_entry: league
+priority: P2
+generated: true
+turns:
+- turn: 1
+  user: 周二赛事 {WEEKDAY}{CODE}韩职全北现代vs仁川联{DATE} 18:30 {WEEKDAY}{CODE}韩职金泉尚武vs江原FC{DATE}
+    18:30 {WEEKDAY}{CODE}亚冠精英町田泽维vs迪拜国青{DATE} 00:15请全面分析这3场赛事，并推荐半全场胜负平最稳的一场。
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: match
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
+hard_constraints: []

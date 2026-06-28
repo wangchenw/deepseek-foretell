@@ -1,0 +1,66 @@
+type_id: "A01"
+case_id: "TC-A01-001"
+classification: "✅"
+classification_reason: |
+  A01 路径完全成立且数据正确完整。step 5 get_lottery_schedule(date='2026-06-28') 返回 9 场竞彩足球
+  含完整 spf/rq/bf/jq/bqc 全玩法赔率,可回答 turn 1"最可能出平局"(按 spf 平局赔率排序:阿尔及利亚vs奥地利 1.94 最低)。
+  step 4 resolve_lottery_match('周六071') 正确返回 match_id=4460972 与全玩法赔率。step 6 get_match_result
+  返回 3-3 比分+1-1 半场+红黄牌角球,回答 turn 3/13。step 8 get_odds_snapshot 返回欧赔+亚盘即时盘。
+  step 10 SQL 直查 football_odds_europe 返回 20 家公司初盘/即时/最新盘,完全可推导赔率走势(替代 stub 的 get_odds_trend)。
+  所有核心数据需求(赛程、赔率、赛果、盘口、比分、半全场)均有数据支撑,路径稳健,可直接给靠谱回答。
+path_assessment: |
+  找到的路径能完整回答用户多轮需求。核心链路:
+  1) get_lottery_schedule(play_type=101, date=今日) → 拿当日全部竞彩足球场次+全玩法赔率(spf/rq/bf/jq/bqc)
+  2) 按 spf 平局赔率升序排序 → 推荐"最可能出平局"场次(数据驱动,不虚构)
+  3) resolve_lottery_match(code='周X+三位序号') → 拿 match_id + 全玩法赔率 + match_candidates(含 team_id/排名/环境)
+  4) get_odds_snapshot(match_id) → 欧赔+亚盘即时盘(多家公司)
+  5) SQL football_odds_europe → 初盘/即时/最新盘对比,推导赔率走势(替代 stub 的 get_odds_trend)
+  6) get_h2h(team_a, team_b) → 历史交锋(冷门国家队样本可能少,需诚实说明)
+  7) get_match_result(match_id) → 已完赛场次的比分/半场/红黄牌/角球
+  数据正确性已交叉验证:6071 阿尔及利亚vs奥地利,工具返回 spf=3.90/1.94/2.80 与 SQL 一致;
+  赛果 3-3 平局,机构盘口平局赔率从 3.20→2.15 大幅下调,与赛果一致,数据可信。
+  路径稳健性:除 get_odds_trend/get_kelly/get_betfair/get_intel_tags 是 stub 需 SQL 替代外,
+  其余工具均返回 OK。无依赖 LLM 层编造的脆弱补丁。
+exploration_sufficiency: |
+  探索充分。覆盖了:赛程拉取(get_lottery_schedule)、编号解析(resolve_lottery_match 两种格式)、
+  赛果(get_match_result)、交锋(get_h2h)、盘口即时(get_odds_snapshot)、盘口走势(SQL football_odds_europe)。
+  未尝试的工具(get_kelly/get_betfair/get_intel_tags/get_injury_report/get_match_lineup/get_same_odds_history)
+  已在 db_schema_map.md 第四章记录为 stub,且 A01 核心需求(平局推荐/比分/赛果/盘口)不依赖它们,
+  无需重复验证。唯一未深挖:bf/bqc/jq 赔率字段的解析格式(31 个比分赔率对应 0-0~3-3 等),
+  但工具已返回原始字符串,LLM 层可按竞彩官方规则解析,非数据缺口。
+gaps:
+  - gap_type: "tool_logic_gap"
+    detail: "get_odds_trend 是 stub 返回 DATA_MISSING,无法直接给赔率走势时间序列"
+    evidence_ref: "exploration_log step 9"
+    priority: "P2"
+    recommended_action: "Phase 2 修复:get_odds_trend 应查 football_odds_europe_change_* 历史分区表,或用 first_odd→odd→real_odd 三点近似走势"
+  - gap_type: "routing_gap"
+    detail: "用户口语竞彩编号'001'与工具'周六067'格式语义错配,直接传'周日001'得 ENTITY_NOT_FOUND(假阴性风险)"
+    evidence_ref: "exploration_log step 3 vs step 4"
+    priority: "P1"
+    recommended_action: "LLM 编排层应先 get_lottery_schedule 取列表,按时间排序映射用户口语编号到 issue_num→'周X+三位序号',再调 resolve_lottery_match。或在 resolve_lottery_match 增加相对序号模式"
+  - gap_type: "data_gap"
+    detail: "冷门国家队历史交锋样本极少(阿尔及利亚vs奥地利仅 1 场 h2h)"
+    evidence_ref: "exploration_log step 7"
+    priority: "P3"
+    recommended_action: "LLM 层诚实说明'h2h 样本不足',改用近期战绩(get_recent_form)+排名+盘口综合判断"
+  - gap_type: "tool_logic_gap"
+    detail: "get_kelly/get_betfair/get_intel_tags 是 stub(本次未深入验证,db_schema_map.md 已记录)"
+    evidence_ref: "db_schema_map.md 第四章"
+    priority: "P3"
+    recommended_action: "Phase 2 按 db_schema_map.md 指引补实现:get_betfair→football_bf,get_intel_tags→football_intelligence"
+recommended_answer_path: |
+  生产实现推荐路径(按 turn):
+  - turn 1(最可能出平局): get_lottery_schedule(play_type=101, date=今日) → 按返回 entries 的 odds.spf
+    第 2 个值(平局赔率)升序排序 → 取 top 2-3 场,展示主客队+联赛+平局赔率+让球盘,给推荐理由。
+  - turn 2(盘口+历史交战推荐比分): 对每场调 resolve_lottery_match(code=lottery_code) 拿 match_id →
+    get_odds_snapshot(match_id) 拿欧赔+亚盘 + SQL football_odds_europe 拿初盘→即时走势 +
+    get_h2h(team_a, team_b) 拿历史交锋(样本少时诚实说明) → 综合推荐 1-3 个比分(不双向)。
+  - turn 3(已结束比赛结果+赔率): get_lottery_schedule 取列表(按 sell_status=3 过滤已结束)→
+    对每场 resolve_lottery_match 拿 match_id → get_match_result(match_id) 拿比分 + odds 字段拿赔率。
+  - turn 4(昨天所有): 同 turn 3,日期改为昨日。
+  - turn 10-12(深度分析001/002/003): 先 get_lottery_schedule 取列表,按用户口语编号映射到 lottery_code,
+    再 resolve_lottery_match + get_odds_snapshot + football_odds_europe + get_h2h + get_match_result(若已结束) 综合分析。
+  - turn 13(001红卡): get_match_result(match_id).score_breakdown.red_card。
+  - turn 15/16(冷门+大赔率): football_odds_europe 找 real_odd 异常高(冷门方向)+ spf 客胜赔率高 → 推荐冷门比分+半全场。
+  全程风险声明:购彩建议必须含"不承诺盈利、量力而行"声明,不暴露 match_id/issue_num 给用户。

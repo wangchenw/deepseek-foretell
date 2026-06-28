@@ -1,0 +1,15 @@
+type_id: F03
+type_name: 变动最大
+scenario: F
+entity_entry: date
+priority: P1
+generated: true
+turns:
+- turn: 1
+  user: '[变动最大示例问法]'
+  atomics:
+  - id: T1-a1
+    category: fetch_schedule
+    target:
+      source: date
+hard_constraints: []

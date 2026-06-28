@@ -3,7 +3,7 @@
 # 手动全量跑：uv run pre-commit run --all-files
 #
 # ruff / mypy 复用项目 venv 中的版本（language: system），避免与 CI 版本漂移。
-# 首次需安装 dev 依赖：uv sync --extra dev
+# 首次需安装依赖：uv sync
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
