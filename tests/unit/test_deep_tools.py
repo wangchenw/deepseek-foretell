@@ -11,7 +11,7 @@ def _parse(result: str) -> dict:
 
 def test_get_match_lineup() -> None:
     result = _parse(get_match_lineup.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
+    assert result["code"] == "OK"
     assert result["dimension"] == "match_lineup"
     assert result["match_id"] == 4531806
 
@@ -23,14 +23,14 @@ def test_get_match_lineup_missing() -> None:
 
 def test_get_injury_report() -> None:
     result = _parse(get_injury_report.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
+    assert result["code"] == "OK"
     assert result["match_id"] == 4531806
 
 
 def test_get_intel_tags() -> None:
     result = _parse(get_intel_tags.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
-    assert result["data"]["tags"] == []
+    assert result["code"] == "OK"
+    assert result["data"]["count"] >= 1
 
 
 def test_get_intel_tags_missing() -> None:

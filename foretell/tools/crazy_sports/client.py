@@ -136,6 +136,78 @@ class CrazySportsClient(Protocol):
     def get_match_player_stats(self, match_id: int | str, limit: int = 30) -> list[dict]:
         """返回比赛球员技术统计（含评分）。"""
 
+    def resolve_basketball_team(self, name: str) -> list[dict]:
+        """模糊解析篮球球队。"""
+
+    def resolve_basketball_league(self, name: str) -> list[dict]:
+        """模糊解析篮球赛事。"""
+
+    def get_seasons(self, competition_id: int | str, sport: str = "football") -> list[dict]:
+        """返回赛事赛季列表（按最新优先）。"""
+
+    def get_player_profile(self, player_id: int | str, sport: str = "football") -> dict | None:
+        """返回球员资料。"""
+
+    def get_player_market_value(self, player_id: int | str) -> list[dict]:
+        """返回球员身价历史。"""
+
+    def get_player_transfers(self, player_id: int | str, sport: str = "football") -> list[dict]:
+        """返回球员转会历史。"""
+
+    def get_player_honors(self, player_id: int | str, sport: str = "football") -> list[dict]:
+        """返回球员荣誉。"""
+
+    def get_team_honors(self, team_id: int | str, sport: str = "football") -> list[dict]:
+        """返回球队荣誉。"""
+
+    def get_coach(self, coach_id: int | str, sport: str = "football") -> dict | None:
+        """返回教练资料。"""
+
+    def get_referee(self, referee_id: int | str) -> dict | None:
+        """返回裁判资料。"""
+
+    def get_venue(self, venue_id: int | str, sport: str = "football") -> dict | None:
+        """返回场馆资料。"""
+
+    def get_match_half_stats(self, match_id: int | str, scope: str = "ft") -> dict | None:
+        """返回半全场统计（scope: ft/p1/p2/o1/o2）。"""
+
+    def get_goals_lost_rate(self, match_id: int | str) -> list[dict]:
+        """返回进失球概率。"""
+
+    def get_over_under_odds(self, match_id: int | str) -> dict | None:
+        """返回大小球赔率。"""
+
+    def get_half_odds(self, match_id: int | str) -> dict | None:
+        """返回半场赔率（欧赔/亚盘/大小球）。"""
+
+    def get_corner_odds(self, match_id: int | str) -> dict | None:
+        """返回角球赔率（全场/半场）。"""
+
+    def get_hundred_europe_odds(self, match_id: int | str) -> list[dict]:
+        """返回百欧赔率。"""
+
+    def get_official_handicap_odds(self, match_id: int | str) -> list[dict]:
+        """返回官方让球盘。"""
+
+    def get_promotions(self, sport: str = "football") -> list[dict]:
+        """返回升降级信息。"""
+
+    def get_first_second(self, limit: int = 20) -> list[dict]:
+        """返回冠亚军信息。"""
+
+    def get_fifa_ranking(self, gender: int = 1, limit: int = 30) -> list[dict]:
+        """返回 FIFA 排名。"""
+
+    def get_club_ranking(self, limit: int = 30) -> list[dict]:
+        """返回俱乐部排名。"""
+
+    def get_season_best(self, competition_id: int | str, season_id: int | str | None = None) -> dict | None:
+        """返回赛季最佳球员/球队。"""
+
+    def get_recommendations(self, match_id: int | str) -> dict | None:
+        """返回心水推荐。"""
+
     @property
     def freshness(self) -> str:
         """数据新鲜度标识。"""

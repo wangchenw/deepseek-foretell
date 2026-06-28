@@ -119,3 +119,29 @@
 3. **已知 stub 工具有 SQL 替代**:不必每个 case 重新验证 stub,直接用 SQL 替代表。
 4. **真 data_gap 维度已知**:XG/官方发布会/冷门联赛覆盖,后续 case 涉及这些维度直接标 data_gap+诚实说明。
 5. **context_gap 系统性**:多轮 case(G 类 20 个)都会遇到,Phase 2 统一规划 checkpointer。
+
+## 七、Phase 2 工具层重构(批 1+2)后预计升档
+
+Phase 2 批 1+2 已完成:类 1 抽象修复(状态映射/比分解码/竞彩赔率/欧赔亚盘/get_standings season_id/series_game bug)+ 批 1 新增 8 个高频工具 + 批 2 实现 8 个 stub。基于工具端到端验证,9 个 ⚠️ case 预计升档如下:
+
+| type_id | 原 ⚠️ 原因 | Phase 2 修复 | 预计分类 |
+|---|---|---|---|
+| A05 | 5 个 stub(lineup/injury/intel/stats/trend) | 批 2 实现 lineup/injury/intel/team_season_stats;trend 主表实现(历史分区表限制) | ✅(trend 历史走势仍有分区表限制,但即时盘可查) |
+| A06 | 3 个 stub(trend/betfair/kelly) | 批 2 实现 betfair/kelly;trend 主表实现 | ✅(trend 同上) |
+| A10 | get_standings 缺 season_id | 批 1 修复:season_id=MAX 过滤 + 主客分列 + 结构化(验证:欧冠阿森纳 8 战 8 胜) | ✅ |
+| A14 | get_match_lineup stub | 批 2 实现:football_match_lineup+_detail(验证:4-3-3 阵型主客各 15 人) | ✅ |
+| A02 | 里斯本竞技别名缺失(routing_gap) | 未修(批 3 实体扩展可覆盖) | ⚠️ |
+| A03 | get_recent_form 无 before_date(tool_logic_gap) | 未修 | ⚠️ |
+| A04 | 无 XG + get_recent_form(data_gap+tool_logic_gap) | XG 真 data_gap;before_date 未修 | ⚠️ |
+| A09 | 无在玩列表/实时比分工具 | get_match_tlive 部分覆盖文字直播;在玩列表工具未新增 | ⚠️(部分改善) |
+| A13 | 浦项制铁别名(routing_gap) | 未修(批 3 实体扩展可覆盖) | ⚠️ |
+
+**预计升档结果**:✅ 从 9 升到 **13**(+A05/A06/A10/A14),⚠️ 从 9 降到 5(A02/A03/A04/A09/A13)。
+
+**仍 ⚠️ 的 5 个的修复路径**:
+- A02/A13(别名):批 3 扩展 resolve_team/resolve_match 别名库,或 Skill 层加别名映射
+- A03/A04(before_date):get_recent_form 加 before_date 参数(类 1 补充修复)
+- A09(在玩列表):新增 get_live_matches 工具(football_match WHERE status_id IN(2,3,4,5))
+
+**注**:此为工具端到端验证的预计升档;完整 18 case 三智能体重跑留待 Phase 2 全部代码改动完成后统一派发(todo 9)。
+

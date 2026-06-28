@@ -17,12 +17,33 @@ from foretell.tools.entity import (
     resolve_match,
     resolve_team,
 )
+from foretell.tools.extra import (
+    get_club_ranking,
+    get_corner_odds,
+    get_fifa_ranking,
+    get_first_second,
+    get_half_odds,
+    get_hundred_europe_odds,
+    get_official_handicap_odds,
+    get_over_under_odds,
+    get_promotions,
+    get_recommendations,
+    get_season_best,
+)
 from foretell.tools.odds import (
     get_betfair,
     get_kelly,
     get_odds_snapshot,
     get_odds_trend,
     get_same_odds_history,
+)
+from foretell.tools.player import (
+    get_player_honors,
+    get_player_market_value,
+    get_player_profile,
+    get_player_transfers,
+    get_team_honors,
+    resolve_basketball_team,
 )
 from foretell.tools.review import get_match_result
 from foretell.tools.schedule import (
@@ -32,12 +53,23 @@ from foretell.tools.schedule import (
 )
 from foretell.tools.search import internet_search
 from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
+from foretell.tools.tournament import (
+    get_coach,
+    get_goals_lost_rate,
+    get_match_half_stats,
+    get_referee,
+    get_seasons,
+    get_venue,
+    resolve_basketball_league,
+)
 
 ENTITY_TOOLS = [
     resolve_match,
     resolve_lottery_match,
     resolve_team,
     resolve_league,
+    resolve_basketball_team,
+    resolve_basketball_league,
 ]
 
 SCHEDULE_TOOLS = [
@@ -75,6 +107,37 @@ DEEP_TOOLS = [
     get_match_player_stats,
 ]
 
+PLAYER_TOOLS = [
+    get_player_profile,
+    get_player_market_value,
+    get_player_transfers,
+    get_player_honors,
+    get_team_honors,
+]
+
+TOURNAMENT_TOOLS = [
+    get_seasons,
+    get_coach,
+    get_referee,
+    get_venue,
+    get_match_half_stats,
+    get_goals_lost_rate,
+]
+
+EXTRA_TOOLS = [
+    get_over_under_odds,
+    get_half_odds,
+    get_corner_odds,
+    get_hundred_europe_odds,
+    get_official_handicap_odds,
+    get_promotions,
+    get_first_second,
+    get_fifa_ranking,
+    get_club_ranking,
+    get_season_best,
+    get_recommendations,
+]
+
 REVIEW_TOOLS = [
     get_match_result,
 ]
@@ -89,6 +152,9 @@ FORETELL_TOOLS = (
     + STATS_TOOLS
     + ODDS_TOOLS
     + DEEP_TOOLS
+    + PLAYER_TOOLS
+    + TOURNAMENT_TOOLS
+    + EXTRA_TOOLS
     + REVIEW_TOOLS
     + SEARCH_TOOLS
 )

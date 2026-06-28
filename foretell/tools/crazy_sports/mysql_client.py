@@ -95,6 +95,73 @@ _INJURY_TYPE_MAP: dict[int, str] = {
     3: "doubtful",
 }
 
+# football_match_incidents.type —— 纳米足球状态码文档「技术统计」
+# 1进球/2角球/3黄牌/4红牌/5越位/6任意球/7球门球/8点球/9换人/10比赛开始/
+# 11中场/12结束/13半场比分/15两黄变红/16点球未进/17乌龙球/18助攻/19伤停补时/
+# 21射正/22射偏/23进攻/24危险进攻/25控球率/26加时赛结束/27点球大战结束/
+# 28 VAR/29点球(点球大战)/30点球未进(点球大战)/37射门被阻挡/38补水
+_INCIDENT_TYPE_MAP: dict[int, str] = {
+    1: "goal", 2: "corner", 3: "yellow_card", 4: "red_card", 5: "offside",
+    6: "free_kick", 7: "goal_kick", 8: "penalty", 9: "substitution",
+    10: "match_start", 11: "half_time", 12: "match_end", 13: "half_time_score",
+    15: "second_yellow_to_red", 16: "penalty_missed", 17: "own_goal",
+    18: "assist", 19: "stoppage_time", 21: "shot_on_target", 22: "shot_off_target",
+    23: "attack", 24: "dangerous_attack", 25: "possession",
+    26: "overtime_end", 27: "penalty_shootout_end", 28: "var",
+    29: "penalty_shootout", 30: "penalty_shootout_missed",
+    37: "shot_blocked", 38: "water_break",
+}
+
+# football_match_incidents.reason_type —— 纳米足球状态码文档「事件原因」
+# 0未知/1犯规/2个人犯规/3侵犯对手或受伤换人/4战术犯规或战术换人/5进攻犯规/
+# 6无球犯规/7持续犯规/8持续侵犯/9暴力行为/10危险动作/11手球犯规/12严重犯规/
+# 13故意犯规/14阻挡进球机会/15拖延时间/16视频回看裁定/17判罚取消/18争论/
+# 19对判罚表达异议/20犯规和攻击言语/21过度庆祝/22没回退到要求距离/23打架/
+# 24辅助判罚/25替补席/26赛后行为/27其他原因/28未被允许进入场地/29进入比赛场地/
+# 30离开比赛赛场/31非体育道德行为/32非主观意愿恶意犯规/33假摔/34干预var复审/
+# 35进入裁判评审区/36吐口水/37病毒
+_INCIDENT_REASON_MAP: dict[int, str] = {
+    0: "unknown", 1: "foul", 2: "personal_foul",
+    3: "opponent_violation_or_injury_sub", 4: "tactical_foul_or_tactical_sub",
+    5: "offensive_foul", 6: "off_ball_foul", 7: "persistent_foul",
+    8: "persistent_violation", 9: "violent_conduct", 10: "dangerous_play",
+    11: "handball", 12: "serious_foul", 13: "intentional_foul",
+    14: "denying_goal_scoring_opportunity", 15: "time_wasting",
+    16: "var_review", 17: "decision_overturned", 18: "dissent",
+    19: "protest_to_decision", 20: "foul_and_abusive_language",
+    21: "excessive_celebration", 22: "failure_to_retreat_distance",
+    23: "fighting", 24: "assistant_decision", 25: "substitute_bench",
+    26: "post_match_behavior", 27: "other", 28: "not_allowed_to_enter",
+    29: "entering_field", 30: "leaving_field", 31: "unsporting_behavior",
+    32: "unintentional_malicious_foul", 33: "diving", 34: "interfering_var",
+    35: "entering_review_area", 36: "spitting", 37: "virus",
+}
+
+# football_player_transfer.transfer_type —— 纳米 openapi 字段说明
+# 1租借/2租借结束/3转会/4退役/5选秀/6已解约/7已签约/8未知
+_TRANSFER_TYPE_MAP: dict[int, str] = {
+    1: "loan", 2: "loan_end", 3: "transfer", 4: "retirement",
+    5: "draft", 6: "released", 7: "signed", 8: "unknown",
+}
+
+# football_player.preferred_foot —— 纳米 openapi 字段说明
+# 0未知/1左脚/2右脚/3左右脚
+_PREFERRED_FOOT_MAP: dict[int, str] = {
+    0: "unknown", 1: "left", 2: "right", 3: "both",
+}
+
+# basketball_player.position —— DB 列注释（C/SF/PF/SG/PG/F/G）
+_BASKETBALL_POSITION_MAP: dict[str, str] = {
+    "C": "center", "SF": "small_forward", "PF": "power_forward",
+    "SG": "shooting_guard", "PG": "point_guard",
+    "F": "forward", "G": "guard",
+}
+
+# basketball_player.preferred_hand —— DB 列注释：1左手/2右手/3左右手
+_PREFERRED_HAND_MAP: dict[int, str] = {
+    1: "left", 2: "right", 3: "both",
+}
+
 
 def _status_from_id(status_id: Any, sport: str = "football") -> str:
     if status_id is None:
@@ -1436,6 +1503,468 @@ class MySQLCrazySportsClient:
             rows = cur.fetchall()
         return [_format_player_stats_row(r) for r in rows]
 
+    def resolve_basketball_team(self, name: str) -> list[dict]:
+        sql = """
+            SELECT id, name_zh, name_en, short_name_zh, national, competition_id, venue_id
+            FROM basketball_team
+            WHERE name_zh LIKE %s OR short_name_zh LIKE %s OR name_en LIKE %s
+            LIMIT 10
+        """
+        pattern = _like_pattern(name)
+        with mysql_connection() as cur:
+            cur.execute(sql, (pattern, pattern, pattern))
+            rows = cur.fetchall()
+        return [{"team_id": r["id"], "name": r.get("short_name_zh") or r.get("name_zh") or "",
+                 "name_en": r.get("name_en") or "", "sport": "basketball",
+                 "national": int(r.get("national") or 0),
+                 "competition_id": r.get("competition_id"),
+                 "aliases": [a for a in [r.get("name_zh"), r.get("name_en")] if a]}
+                for r in rows]
+
+    def resolve_basketball_league(self, name: str) -> list[dict]:
+        sql = """
+            SELECT id, name_zh, name_en, short_name_zh, type
+            FROM basketball_competition
+            WHERE name_zh LIKE %s OR short_name_zh LIKE %s OR name_en LIKE %s
+            LIMIT 10
+        """
+        pattern = _like_pattern(name)
+        with mysql_connection() as cur:
+            cur.execute(sql, (pattern, pattern, pattern))
+            rows = cur.fetchall()
+        return [{"league_id": r["id"], "name": r.get("short_name_zh") or r.get("name_zh") or "",
+                 "name_en": r.get("name_en") or "", "sport": "basketball",
+                 "type": {0: "unknown", 1: "league", 2: "cup"}.get(int(r.get("type") or 0), "unknown"),
+                 "aliases": [a for a in [r.get("name_zh"), r.get("name_en")] if a]}
+                for r in rows]
+
+    def get_seasons(self, competition_id: int | str, sport: str = "football") -> list[dict]:
+        comp_id = _parse_int_id(competition_id)
+        if comp_id is None:
+            return []
+        table = "basketball_season" if sport == "basketball" else "football_season"
+        sql = f"""
+            SELECT id, competition_id, year, is_current, has_player_stats, has_team_stats, has_table
+            FROM {table}
+            WHERE competition_id = %s
+            ORDER BY is_current DESC, id DESC
+            LIMIT 10
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (comp_id,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_player_profile(self, player_id: int | str, sport: str = "football") -> dict | None:
+        raw_id = _parse_int_id(player_id)
+        if raw_id is None:
+            return None
+        table = "basketball_player" if sport == "basketball" else "football_player"
+        sql = f"""
+            SELECT id, name_zh, name_en, short_name_zh, show_name_zh, nationality, country_id,
+                   birthday, age, height, weight, position, market_value, market_value_currency,
+                   contract_until, preferred_foot
+            FROM {table}
+            WHERE id = %s
+            LIMIT 1
+        """
+        # basketball_player 没有 nationality/market_value/preferred_foot，用容错 SELECT
+        if sport == "basketball":
+            sql = """
+                SELECT id, name_zh, name_en, short_name_zh, show_name_zh, country_id,
+                       birthday, age, height, weight, position, salary, shirt_number,
+                       school, contract_until, preferred_hand
+                FROM basketball_player
+                WHERE id = %s
+                LIMIT 1
+            """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            row = cur.fetchone()
+        if row is None:
+            return None
+        profile = dict(row)
+        # 足球：preferred_foot 映射
+        if sport != "basketball" and profile.get("preferred_foot") is not None:
+            profile["preferred_foot_code"] = profile.get("preferred_foot")
+            profile["preferred_foot"] = _PREFERRED_FOOT_MAP.get(
+                int(profile.get("preferred_foot") or 0), "unknown"
+            )
+        # 篮球：position + preferred_hand 映射
+        if sport == "basketball":
+            pos = profile.get("position")
+            if pos:
+                profile["position_code"] = pos
+                profile["position"] = _BASKETBALL_POSITION_MAP.get(pos, pos)
+            if profile.get("preferred_hand") is not None:
+                profile["preferred_hand_code"] = profile.get("preferred_hand")
+                profile["preferred_hand"] = _PREFERRED_HAND_MAP.get(
+                    int(profile.get("preferred_hand") or 0), "unknown"
+                )
+        return profile
+
+    def get_player_market_value(self, player_id: int | str) -> list[dict]:
+        raw_id = _parse_int_id(player_id)
+        if raw_id is None:
+            return []
+        sql = """
+            SELECT player_id, market_time, market_value, market_value_currency, team_id, age
+            FROM football_player_market
+            WHERE player_id = %s
+            ORDER BY market_time DESC
+            LIMIT 10
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_player_transfers(self, player_id: int | str, sport: str = "football") -> list[dict]:
+        raw_id = _parse_int_id(player_id)
+        if raw_id is None:
+            return []
+        if sport == "basketball":
+            sql = """
+                SELECT player_id, from_team_id, to_team_id, transfer_type, transfer_time, transfer_fee, transfer_desc
+                FROM basketball_player_transfer
+                WHERE player_id = %s
+                ORDER BY transfer_time DESC
+                LIMIT 10
+            """
+        else:
+            sql = """
+                SELECT player_id, from_team_id, from_team_name, to_team_id, to_team_name,
+                       transfer_type, transfer_time, transfer_fee, transfer_desc
+                FROM football_player_transfer
+                WHERE player_id = %s
+                ORDER BY transfer_time DESC
+                LIMIT 10
+            """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [_format_transfer_row(r) for r in rows]
+
+    def get_player_honors(self, player_id: int | str, sport: str = "football") -> list[dict]:
+        raw_id = _parse_int_id(player_id)
+        if raw_id is None:
+            return []
+        table = "basketball_player_honor" if sport == "basketball" else "football_player_honor"
+        sql = f"""
+            SELECT player_id, honor_id, team_id, competition_id, season_id, season
+            FROM {table}
+            WHERE player_id = %s
+            ORDER BY season_id DESC
+            LIMIT 20
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_team_honors(self, team_id: int | str, sport: str = "football") -> list[dict]:
+        raw_id = _parse_int_id(team_id)
+        if raw_id is None:
+            return []
+        table = "basketball_team_honor" if sport == "basketball" else "football_team_honor"
+        sql = f"""
+            SELECT team_id, honor_id, competition_id, season_id, season
+            FROM {table}
+            WHERE team_id = %s
+            ORDER BY season_id DESC
+            LIMIT 20
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_coach(self, coach_id: int | str, sport: str = "football") -> dict | None:
+        raw_id = _parse_int_id(coach_id)
+        if raw_id is None:
+            return None
+        if sport == "basketball":
+            sql = """
+                SELECT id, name_zh, name_en, short_name_zh, type, birthday, age, team_id, country_id
+                FROM basketball_coach
+                WHERE id = %s
+                LIMIT 1
+            """
+        else:
+            sql = """
+                SELECT id, name_zh, name_en, short_name_zh, type, birthday, age,
+                       preferred_formation, country_id, nationality, team_id, joined, contract_until
+                FROM football_coach
+                WHERE id = %s
+                LIMIT 1
+            """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_referee(self, referee_id: int | str) -> dict | None:
+        raw_id = _parse_int_id(referee_id)
+        if raw_id is None:
+            return None
+        sql = """
+            SELECT id, name_zh, name_en, short_name_zh, birthday, age, country_id
+            FROM football_referee
+            WHERE id = %s
+            LIMIT 1
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_venue(self, venue_id: int | str, sport: str = "football") -> dict | None:
+        raw_id = _parse_int_id(venue_id)
+        if raw_id is None:
+            return None
+        if sport == "basketball":
+            sql = """
+                SELECT id, name_zh, name_en, capacity, country_id, city, city_zh, city_en
+                FROM basketball_venue
+                WHERE id = %s
+                LIMIT 1
+            """
+        else:
+            sql = """
+                SELECT id, name_zh, name_en, capacity, country_id, city_zh, city_en, surface, undersoil_heating
+                FROM football_venue
+                WHERE id = %s
+                LIMIT 1
+            """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_match_half_stats(self, match_id: int | str, scope: str = "ft") -> dict | None:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return None
+        sql = """
+            SELECT scope, home_goals, away_goals, home_corner_kicks, away_corner_kicks,
+                   home_yellow_cards, away_yellow_cards, home_red_cards, away_red_cards,
+                   home_shots, away_shots, home_shot_on_target, away_shot_on_target,
+                   home_ball_possession, away_ball_possession, home_passes, away_passes,
+                   home_passes_accuracy, away_passes_accuracy, home_fouls, away_fouls,
+                   home_offsides, away_offsides, home_attack, away_attack,
+                   home_attack_dangerous, away_attack_dangerous
+            FROM football_match_half_team_stats
+            WHERE match_id = %s AND scope = %s
+            LIMIT 1
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id, scope))
+            row = cur.fetchone()
+        return dict(row) if row else None
+
+    def get_goals_lost_rate(self, match_id: int | str) -> list[dict]:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return []
+        sql = """
+            SELECT match_id, host_jin, host_shi, guest_jin, guest_shi, type, name
+            FROM football_match_goals_lost_rate
+            WHERE match_id = %s
+            LIMIT 10
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_over_under_odds(self, match_id: int | str) -> dict | None:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return None
+        rows = _query_odds_table("football_odds_over_down", raw_id)
+        if not rows:
+            return None
+        return {"match_id": raw_id, "over_under": [_format_generic_odds(r, _OVER_UNDER_LABELS) for r in rows]}
+
+    def get_half_odds(self, match_id: int | str) -> dict | None:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return None
+        europe = _query_odds_table("football_odds_half_europe", raw_id)
+        asian = _query_odds_table("football_odds_half_asian", raw_id)
+        over_down = _query_odds_table("football_odds_half_over_down", raw_id)
+        if not europe and not asian and not over_down:
+            return None
+        return {
+            "match_id": raw_id,
+            "european": [_format_generic_odds(r, _EUROPEAN_LABELS) for r in europe],
+            "asian": [_format_generic_odds(r, _ASIAN_LABELS) for r in asian],
+            "over_under": [_format_generic_odds(r, _OVER_UNDER_LABELS) for r in over_down],
+        }
+
+    def get_corner_odds(self, match_id: int | str) -> dict | None:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return None
+        full = _query_odds_table("football_odds_corner", raw_id)
+        half = _query_odds_table("football_odds_half_corner", raw_id)
+        if not full and not half:
+            return None
+        return {
+            "match_id": raw_id,
+            "full_time": [_format_generic_odds(r, _OVER_UNDER_LABELS) for r in full],
+            "half_time": [_format_generic_odds(r, _OVER_UNDER_LABELS) for r in half],
+        }
+
+    def get_hundred_europe_odds(self, match_id: int | str) -> list[dict]:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return []
+        sql = """
+            SELECT h.company_id, c.company_name,
+                   h.first_odd1, h.first_odd2, h.first_odd3,
+                   h.real_odd1, h.real_odd2, h.real_odd3, h.is_entertained
+            FROM football_odds_hundred_europe h
+            LEFT JOIN match_odds_companys c ON h.company_id = c.company_id AND c.match_type = 1
+            WHERE h.match_id = %s
+            ORDER BY h.updated_at DESC
+            LIMIT 5
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [{
+            "company_id": r.get("company_id"), "company_name": r.get("company_name"),
+            "initial": _odds_triplet(r, "first_odd", _EUROPEAN_LABELS),
+            "latest": _odds_triplet(r, "real_odd", _EUROPEAN_LABELS),
+            "suspended": _bool_flag(r.get("is_entertained")),
+        } for r in rows]
+
+    def get_official_handicap_odds(self, match_id: int | str) -> list[dict]:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return []
+        sql = """
+            SELECT o.company_id, c.company_name,
+                   o.first_handicap, o.first_odd1, o.first_odd2, o.first_odd3,
+                   o.real_handicap, o.real_odd1, o.real_odd2, o.real_odd3, o.is_entertained
+            FROM football_odds_official_handicap o
+            LEFT JOIN match_odds_companys c ON o.company_id = c.company_id AND c.match_type = 1
+            WHERE o.match_id = %s
+            ORDER BY o.updated_at DESC
+            LIMIT 5
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        return [{
+            "company_id": r.get("company_id"), "company_name": r.get("company_name"),
+            "initial": {"handicap": r.get("first_handicap"),
+                        **_odds_triplet(r, "first_odd", _EUROPEAN_LABELS)},
+            "latest": {"handicap": r.get("real_handicap"),
+                       **_odds_triplet(r, "real_odd", _EUROPEAN_LABELS)},
+            "suspended": _bool_flag(r.get("is_entertained")),
+        } for r in rows]
+
+    def get_promotions(self, sport: str = "football") -> list[dict]:
+        if sport == "basketball":
+            sql = "SELECT id, name_zh, name_en, season_id, competition_id FROM basketball_promotions LIMIT 30"
+        else:
+            sql = "SELECT id, name_zh, name_en FROM football_promotions LIMIT 30"
+        with mysql_connection() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_first_second(self, limit: int = 20) -> list[dict]:
+        sql = """
+            SELECT id, name, season, sport_id, type, issue_num, sell_status, bonus_odds,
+                   team_name_first, team_id_first, team_name_second, team_id_second,
+                   champion_flag, top2_qualification
+            FROM football_first_second_info
+            ORDER BY end_time DESC
+            LIMIT %s
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_fifa_ranking(self, gender: int = 1, limit: int = 30) -> list[dict]:
+        sql = """
+            SELECT ranking, team_id, region_id, points, previous_points, position_changed, pub_time
+            FROM football_fifa_ranking
+            WHERE gender = %s
+            ORDER BY pub_time DESC, ranking ASC
+            LIMIT %s
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (gender, limit))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_club_ranking(self, limit: int = 30) -> list[dict]:
+        sql = """
+            SELECT ranking, team_id, points, previous_points, position_changed
+            FROM football_club_ranking
+            ORDER BY ranking ASC
+            LIMIT %s
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+
+    def get_season_best(self, competition_id: int | str, season_id: int | str | None = None) -> dict | None:
+        comp_id = _parse_int_id(competition_id)
+        if comp_id is None:
+            return None
+        season_filter = "AND season_id = %s" if season_id is not None else "AND season_id = (SELECT MAX(season_id) FROM football_season_best_player WHERE competition_id = %s)"
+        params: list[Any] = [comp_id] if season_id is None else [comp_id, _parse_int_id(season_id)]
+        with mysql_connection() as cur:
+            cur.execute(
+                f"""
+                SELECT type_sort, type_name, team_id, player_id, matches, value, penalty
+                FROM football_season_best_player
+                WHERE competition_id = %s {season_filter}
+                ORDER BY type_sort, sort
+                LIMIT 30
+                """,
+                params,
+            )
+            players = cur.fetchall()
+            cur.execute(
+                f"""
+                SELECT type_sort, type_name, team_id, matches, value
+                FROM football_season_best_team
+                WHERE competition_id = %s {season_filter}
+                ORDER BY type_sort, sort
+                LIMIT 10
+                """,
+                params,
+            )
+            teams = cur.fetchall()
+        return {"competition_id": comp_id, "best_players": [dict(r) for r in players],
+                "best_teams": [dict(r) for r in teams]}
+
+    def get_recommendations(self, match_id: int | str) -> dict | None:
+        raw_id = _parse_int_id(match_id)
+        if raw_id is None:
+            return None
+        sql = """
+            SELECT id, confidence_factor, predict_msg, source_match_id
+            FROM data_macao_recommend
+            WHERE source_match_id = %s
+            ORDER BY create_time DESC
+            LIMIT 3
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql, (raw_id,))
+            rows = cur.fetchall()
+        if not rows:
+            return None
+        return {"match_id": raw_id, "recommendations": [dict(r) for r in rows]}
+
 
 def _parse_scores(raw: Any) -> list[int]:
     if raw is None:
@@ -1554,6 +2083,39 @@ def _format_asian_odds(row: dict) -> dict:
         "in_play": _bool_flag(row.get("is_zoudi")),
         "suspended": _bool_flag(row.get("is_entertained")),
     }
+
+
+_OVER_UNDER_LABELS = ("over", "total", "under")
+
+
+def _format_generic_odds(row: dict, labels: tuple[str, str, str]) -> dict:
+    return {
+        "company_id": row.get("company_id"),
+        "company_name": row.get("company_name"),
+        "initial": _odds_triplet(row, "first_odd", labels),
+        "current": _odds_triplet(row, "odd", labels),
+        "latest": _odds_triplet(row, "real_odd", labels),
+        "in_play": _bool_flag(row.get("is_zoudi")),
+        "suspended": _bool_flag(row.get("is_entertained")),
+    }
+
+
+def _query_odds_table(table: str, match_id: int) -> list[dict]:
+    sql = f"""
+        SELECT t.company_id, c.company_name,
+               t.first_odd1, t.first_odd2, t.first_odd3,
+               t.odd1, t.odd2, t.odd3,
+               t.real_odd1, t.real_odd2, t.real_odd3,
+               t.is_zoudi, t.is_entertained
+        FROM {table} t
+        LEFT JOIN match_odds_companys c ON t.company_id = c.company_id AND c.match_type = 1
+        WHERE t.match_id = %s AND t.odd1 IS NOT NULL
+        ORDER BY t.updated_at DESC
+        LIMIT 5
+    """
+    with mysql_connection() as cur:
+        cur.execute(sql, (match_id,))
+        return list(cur.fetchall())
 
 
 def _format_standings_row(row: dict) -> dict:
@@ -1767,10 +2329,14 @@ def _format_tlive_row(row: dict) -> dict:
 
 
 def _format_incident_row(row: dict) -> dict:
+    raw_type = row.get("type")
+    raw_type_int = int(raw_type) if raw_type is not None else None
     result: dict[str, Any] = {
-        "type": row.get("type"),
+        "type_code": raw_type_int,
+        "type": _INCIDENT_TYPE_MAP.get(raw_type_int, "unknown"),
         "side": _position_from_id(row.get("position")),
         "minute": row.get("time"),
+        "second": row.get("second"),
         "player_id": row.get("player_id"),
         "player_name": row.get("player_name"),
         "home_score": row.get("home_score"),
@@ -1789,7 +2355,18 @@ def _format_incident_row(row: dict) -> dict:
         result["var_reason"] = row.get("var_reason")
         result["var_result"] = row.get("var_result")
     if row.get("reason_type") is not None:
-        result["reason_type"] = row.get("reason_type")
+        raw_reason = int(row.get("reason_type"))
+        result["reason_code"] = raw_reason
+        result["reason"] = _INCIDENT_REASON_MAP.get(raw_reason, "unknown")
+    return result
+
+
+def _format_transfer_row(row: dict) -> dict:
+    result = dict(row)
+    raw_type = result.get("transfer_type")
+    if raw_type is not None:
+        result["transfer_type_code"] = raw_type
+        result["transfer_type"] = _TRANSFER_TYPE_MAP.get(int(raw_type), "unknown")
     return result
 
 

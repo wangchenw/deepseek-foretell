@@ -91,6 +91,29 @@
 ### football_team_injury.type
 1受伤/2停赛/3出战成疑/0未知
 
+### football_match_incidents.type（技术统计码，纳米状态码文档权威）
+1进球/2角球/3黄牌/4红牌/5越位/6任意球/7球门球/8点球/9换人/10比赛开始/11中场/12结束/13半场比分/15两黄变红/16点球未进/17乌龙球/18助攻/19伤停补时/21射正/22射偏/23进攻/24危险进攻/25控球率/26加时赛结束/27点球大战结束/28 VAR/29点球(点球大战)/30点球未进(点球大战)/37射门被阻挡/38补水
+
+### football_match_incidents.reason_type（事件原因码，纳米状态码文档权威）
+0未知/1犯规/2个人犯规/3侵犯对手或受伤换人/4战术犯规或战术换人/5进攻犯规/6无球犯规/7持续犯规/8持续侵犯/9暴力行为/10危险动作/11手球犯规/12严重犯规/13故意犯规/14阻挡进球机会/15拖延时间/16视频回看裁定/17判罚取消/18争论/19对判罚表达异议/20犯规和攻击言语/21过度庆祝/22没回退到要求距离/23打架/24辅助判罚/25替补席/26赛后行为/27其他原因/28未被允许进入场地/29进入比赛场地/30离开比赛赛场/31非体育道德行为/32非主观意愿恶意犯规/33假摔/34干预var复审/35进入裁判评审区/36吐口水/37病毒
+
+### football_player_transfer.transfer_type（纳米 openapi 字段说明权威）
+1租借/2租借结束/3转会/4退役/5选秀/6已解约/7已签约/8未知
+
+### football_player.preferred_foot（纳米 openapi 字段说明权威）
+0未知/1左脚/2右脚/3左右脚
+
+### basketball_player.position（DB 列注释权威）
+C中锋/SF小前锋/PF大前锋/SG得分后卫/PG组织后卫/F前锋/G后卫
+
+### basketball_player.preferred_hand（DB 列注释权威）
+1左手/2右手/3左右手
+
+### 指数公司ID（company_id，纳米状态码文档权威）
+2 BET365/3皇冠/4 10BET/5立博/6明陞/7澳彩/8 SNAI/9威廉希尔/10易胜博/11韦德/12 EuroBet/13 Inter wetten/14 12bet/15利记/16盈禾/17 18Bet/18 Fun88/19竞彩官方/20 onex/21 188/22平博/136马会
+
+> 以上映射已固化在 `foretell/tools/crazy_sports/mysql_client.py` 的 `_INCIDENT_TYPE_MAP`/`_INCIDENT_REASON_MAP`/`_TRANSFER_TYPE_MAP`/`_PREFERRED_FOOT_MAP`/`_BASKETBALL_POSITION_MAP`/`_PREFERRED_HAND_MAP`/`_STATUS_MAP` 等常量，工具返回时自动还原为语义字符串，LLM 无需自行解码裸数字。
+
 ## 三、关键表列结构(探索时少调 schema)
 
 ### football_match(比赛主表)
@@ -235,23 +258,75 @@ LIMIT 20
 
 ## 四、已知的 foretell 工具层问题(探索时参考,不阻塞你找 SQL 路径)
 
-以下 foretell 工具已知是 stub 或有 logic bug(代码定位在 `foretell/tools/crazy_sports/mysql_client.py`)。**遇到这些工具返回 DATA_MISSING/空/异常时,请直接 SQL 查上面映射的表验证数据是否真的不存在**——多数情况是工具坏而数据在。
+> **Phase 2 工具层重构已完成(类 1 抽象修复 5 项 + 类 2 补覆盖 38 新工具 + 8 stub 实现)。** 下表中标注 ✅ 的工具已修复/实现,可正常调用;标注 🆕 的是 Phase 2 新增工具。以下保留历史问题记录供溯源,但多数已不再是问题。
 
-| 工具 | 行号 | 问题 | SQL 路径替代 |
-|---|---|---|---|
-| get_team_season_stats | 724-725 | stub return None | football_competition_teams_stats |
-| get_match_lineup | 866-867 | stub return None | football_match_lineup + _detail |
-| get_kelly | 860-861 | stub return None | 无独立 kelly 表,可由 football_odds_europe 反推 |
-| get_betfair | 863-864 | stub return None | football_bf(必发指数) |
-| get_injury_report | 869-870 | stub return None | football_team_injury |
-| get_intel_tags | 872-873 | stub return [] | football_intelligence / football_match_intelligence |
-| get_odds_trend | 854-855 | stub return [] | football_odds_europe_change_*(历史分区表) |
-| get_same_odds_history | 857-858 | stub return [] | football_asian_match_index / football_europe_match_index |
-| get_standings | 705-722 | SQL 缺 season_id 过滤,返回多赛季混杂 position=1 | football_points_table_team WHERE season_id=MAX(见标准 SQL) |
-| get_team_schedule direction=upcoming | schedule.py | 语义反转返回历史升序 | football_match WHERE status_id IN(1,2,3,4,5,9) AND match_time>=NOW() ORDER BY match_time |
-| get_team_schedule league_id | schedule.py | 过滤器失效 | SQL WHERE competition_id=? |
-| resolve_team/league/match | tools | 仅查 football 表,篮球不可达 | basketball_team / basketball_competition / basketball_match 直查 |
-| 跨运动 ID 碰撞 | 多工具 | 篮球 team_id 传入足球工具静默返回足球数据 | 注意 sport 区分,篮球查 basketball_* 表 |
+### ✅ 已修复(Phase 2 类 1 抽象修复)
+
+| 工具 | 修复内容 |
+|---|---|
+| get_h2h / get_match_result | ✅ 比分数组解码为 `score_breakdown:{full,half,red_card,yellow_card,corner,overtime,penalty}`,移除 raw 数组 |
+| get_odds_snapshot | ✅ 欧赔 `odd1/2/3`→`{home_win,draw,away_win}`;亚盘→`{handicap,home_line,away_line}`;加 `company_name`;`is_zoudi/is_entertained`→`in_play/suspended` 布尔 |
+| get_standings | ✅ 加 `MAX(season_id)` 过滤当前赛季;补 `goals/goals_against/goal_diff` + 主客分列;结构化返回 |
+| resolve_match | ✅ 修 series_game 反转 bug(原 `if series_game is not None: return []`,现正常查) |
+| resolve_lottery_match / get_lottery_schedule | ✅ 竞彩赔率结构化:`spf/rq/bf/jq/bqc/sf/rf/dxf/sfc` 拆解;`sell_status` 映射中文;`play_type` 加 `play_type_desc` |
+
+### ✅ 已实现(Phase 2 类 2 批 2,原 stub)
+
+| 工具 | 实现表 |
+|---|---|
+| get_team_season_stats | ✅ football_competition_teams_stats |
+| get_match_lineup | ✅ football_match_lineup + _detail |
+| get_injury_report | ✅ football_team_injury(type 1受伤/2停赛/3出战成疑已映射) |
+| get_intel_tags | ✅ football_intelligence |
+| get_betfair | ✅ football_bf |
+| get_odds_trend | ✅ football_odds_europe_change_*(历史分区) |
+| get_same_odds_history | ✅ football_asian_match_index / football_europe_match_index |
+| get_kelly | ✅ 由 football_odds_europe 反推 |
+
+### 🆕 Phase 2 新增工具(类 2 批 1+3+4,共 33 个)
+
+| 工具 | 数据表 | 维度 |
+|---|---|---|
+| get_top_scorers | football_competition_shooters | 射手榜 |
+| get_team_squad | football_team_squad | 大名单 |
+| get_series_matchup | football/basketball_bracket_match_up | 系列赛对阵图(G7) |
+| get_basketball_standings | basketball_points_table_team | 篮球积分榜 |
+| get_match_tlive | football_match_tlive | 实时文字直播 |
+| get_match_incidents | football_match_incidents | 红黄牌/换人事件 |
+| get_match_team_stats | football_match_team_stats | 球队比赛统计 |
+| get_match_player_stats | football_match_player_stats | 球员比赛统计 |
+| resolve_basketball_team | basketball_team | 🆕 篮球球队解析(避免跨运动 ID 碰撞) |
+| resolve_basketball_league | basketball_competition | 🆕 篮球赛事解析 |
+| get_seasons | football/basketball_season | 赛季列表(is_current 过滤) |
+| get_player_profile | football/basketball_player | 球员资料 |
+| get_player_market_value | football_player_market | 球员身价历史 |
+| get_player_transfers | football/basketball_player_transfer | 球员转会 |
+| get_player_honors | football/basketball_player_honor | 球员荣誉 |
+| get_team_honors | football/basketball_team_honor | 球队荣誉 |
+| get_coach | football/basketball_coach | 教练资料 |
+| get_referee | football_referee | 裁判资料 |
+| get_venue | football/basketball_venue | 场馆资料 |
+| get_match_half_stats | football_match_half_team_stats | 半全场统计(scope: ft/p1/p2/o1/o2) |
+| get_goals_lost_rate | football_match_goals_lost_rate | 进失球概率 |
+| get_over_under_odds | football_odds_over_down | 🆕 大小球赔率(语义 over/total/under) |
+| get_half_odds | football_odds_half_europe/half_asian/half_over_down | 🆕 半场赔率(欧/亚/大小球) |
+| get_corner_odds | football_odds_corner/half_corner | 🆕 角球赔率(全场/半场) |
+| get_hundred_europe_odds | football_odds_hundred_europe | 🆕 百欧赔率 |
+| get_official_handicap_odds | football_odds_official_handicap | 🆕 官方让球盘 |
+| get_promotions | football/basketball_promotions | 🆕 升降级 |
+| get_first_second | football_first_second_info | 🆕 冠亚军 |
+| get_fifa_ranking | football_fifa_ranking | 🆕 FIFA 排名 |
+| get_club_ranking | football_club_ranking | 🆕 俱乐部排名 |
+| get_season_best | football_season_best_player/best_team | 🆕 赛季最佳 |
+| get_recommendations | data_macao_recommend | 🆕 心水推荐 |
+
+### 仍需注意的历史问题(部分场景可能仍触发)
+
+| 工具 | 问题 | 规避 |
+|---|---|---|
+| get_team_schedule direction=upcoming | schedule.py 语义反转返回历史升序 | SQL: `WHERE status_id IN(1,2,3,4,5,9) AND match_time>=NOW() ORDER BY match_time` |
+| get_team_schedule league_id | schedule.py 过滤器失效 | SQL WHERE competition_id=? |
+| honor_id 未映射名称 | 球员/球队荣誉表 honor_id 是数字 ID,荣誉字典表未 JOIN | 返回 honor_id + season + competition_id,LLM 可据上下文推断 |
 
 ## 五、探索工具入口
 
