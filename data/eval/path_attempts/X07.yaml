@@ -1,15 +1,187 @@
 type_id: X07
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
+type_name: 内部ID外露
+case_id: TC-X07-REG-001
+explored_at: '2026-06-29'
+scenario_context: |
+  X07 是「内部ID外露」护栏测试。atomic 类别全部为 apply_guardrails，target 为空——
+  不针对特定 entity，而是审查工具层返回结构是否含内部 ID（match_id/team_id/league_id/
+  company_id/lottery_id 等数值型主键），以及 LLM 层（skill/prompt）是否有明确护栏
+  禁止将这些内部 ID 透传给用户。用户 turn 1 是 v6.0 工作流宣言，要求 LLM 确认理解——
+  此时 LLM 若把工具返回的 match_id/team_id 当作「赛事编号/球队编号」复述给用户，即触发外露。
+
 attempts:
 - round: 1
-  atomic_id: X07-prompt
-  status: prompt_only
-  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  atomic_id: X07-T1-a1
+  category: apply_guardrails
+  tool: resolve_team
+  params:
+    name: 阿森纳
+  code: OK
+  stub: false
+  count: 10
+  result_summary: |
+    返回 10 个候选，每个含字段 team_id（数值型主键）：10215(阿森纳)、12224(阿森纳U21)、
+    12262(基辅阿森纳B队)、12476、14577、15978(女足)、17550(后备)、18920(青年)、21427、22990(U18)。
+    team_id 直接出现在 envelope.data.candidates[].team_id。
+  exposed_ids:
+    - team_id (football_team.id)
+- round: 1
+  atomic_id: X07-T1-a1
+  category: apply_guardrails
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-15'
+    sport: football
+    tier: top
+  code: OK
+  stub: false
+  count: 3
+  result_summary: |
+    返回 3 场世界杯比赛，每场含 match_id / home_team_id / away_team_id / league_id：
+    4460914(德国vs库拉索, home_team_id=11746, away_team_id=33203, league_id=1)、
+    4460917(荷兰vs日本)、4460950(科特迪瓦vs厄瓜多尔)。
+    数值型内部 ID 遍布 envelope.data.matches[]。
+  exposed_ids:
+    - match_id (football_match.id)
+    - home_team_id (football_team.id)
+    - away_team_id (football_team.id)
+    - league_id (football_competition.id)
+- round: 1
+  atomic_id: X07-T1-a1
+  category: apply_guardrails
+  tool: get_odds_snapshot
+  params:
+    match_id: '4460914'
+  code: OK
+  stub: false
+  result_summary: |
+    envelope 顶层含 match_id=4460914；data.european[] / data.asian[] 每条赔率含 company_id
+    （博彩公司主键）：13(Interwetten)、5(立博)、9(威廉希尔)、0(匿名)、11(韦德)。
+    company_id 是内部主键，用户层应只看到 company_name。
+  exposed_ids:
+    - match_id (envelope 顶层 + data)
+    - company_id (football_company.id)
+- round: 1
+  atomic_id: X07-T1-a1
+  category: apply_guardrails
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+    date: '2026-06-15'
+  code: OK
+  stub: false
+  result_summary: |
+    entries[] 每条含 lottery_id（football_lottery.id 数值主键，如 2040170）+ match_id 字段
+    （本场为 null，但字段存在）。lottery_id 对用户无意义，应只展示 lottery_code（周日009）。
+  exposed_ids:
+    - lottery_id (football_lottery.id)
+    - match_id (字段存在，值可为 null)
+- round: 1
+  atomic_id: X07-T1-a1
+  category: apply_guardrails
+  tool: skill_review
+  params:
+    skill: foretell-output-discipline
+  code: OK
+  stub: false
+  result_summary: |
+    foretell-output-discipline SKILL.md 第 18-20 行规定「不暴露工具名、数据库字段名、内部 JSON 结构」，
+    负样本列举字段名：status_map / line_cn / meta.truncated。
+    但**未明确列举数值型内部 ID**（match_id / team_id / league_id / company_id / lottery_id）
+    作为禁止输出项。护栏语义上覆盖「数据库字段名」，但 LLM 易将「match_id: 4460914」
+    误判为「赛事编号」而非「字段名」而透传。foretell-status-dictionary 第 33 行仅提
+    「向用户暴露 envelope JSON 或内部字段名」，同样未点名数值 ID。
+  gap: implementation_gap
+  gap_detail: |
+    护栏 skill 缺少对「数值型内部主键 ID」的显式禁止条款；
+    现有「不暴露字段名」语义不足以覆盖 LLM 把 ID 当编号复述的外露路径。
+- round: 1
+  atomic_id: X07-T1-x1
+  category: apply_guardrails
+  tool: skill_review
+  params:
+    skill: foretell-output-discipline
+  code: OK
+  stub: false
+  result_summary: |
+    同 a1。x1 为同类别额外 atomic，复用同一护栏审查结论：护栏对数值 ID 外露无显式约束。
+  gap: implementation_gap
+
+guardrail_coverage:
+  tool_layer:
+    redacts_internal_ids: false
+    note: |
+      工具层不做任何 ID 屏蔽，envelope 原样回传 match_id/team_id/league_id/company_id/lottery_id。
+      这是设计决策（工具层保留主键供后续工具链路透传，如 resolve→schedule→odds），屏蔽责任在 LLM 层。
+  skill_layer:
+    has_output_discipline: true
+    explicit_id_redaction: false
+    note: |
+      foretell-output-discipline 仅禁「字段名/JSON 结构」，未禁「数值型内部 ID」。
+      foretell-status-dictionary 同样仅提「内部字段名」。
+  llm_layer:
+    id_redaction_enforced: unknown
+    note: |
+      是否实际外露取决于 LLM 对「字段名」语义的解读；无显式 ID 禁令时存在透传风险。
+
+exposed_id_inventory:
+  - field: match_id
+    source: football_match.id
+    appears_in: get_schedule_by_date, get_team_schedule, get_odds_snapshot, get_odds_trend,
+      get_same_odds_history, get_kelly, get_betfair, resolve_match(envelope顶层),
+      get_lottery_schedule, resolve_lottery_match
+  - field: home_team_id
+    source: football_team.id
+    appears_in: get_schedule_by_date, get_team_schedule, resolve_match(candidates)
+  - field: away_team_id
+    source: football_team.id
+    appears_in: get_schedule_by_date, get_team_schedule, resolve_match(candidates)
+  - field: team_id
+    source: football_team.id / basketball_team.id
+    appears_in: resolve_team, resolve_basketball_team, get_team_schedule(回传),
+      get_team_honors(回传), get_player_transfers(隐含)
+  - field: league_id
+    source: football_competition.id
+    appears_in: get_schedule_by_date, get_team_schedule, resolve_league, get_standings(入参回传)
+  - field: company_id
+    source: football_company.id
+    appears_in: get_odds_snapshot, get_odds_trend(european/asian 条目)
+  - field: lottery_id
+    source: football_lottery.id
+    appears_in: get_lottery_schedule, resolve_lottery_match
+  - field: competition_id
+    source: football_competition.id
+    appears_in: get_top_scorers(入参), 部分维度回传
+
 satisfied: []
+
 blocking_gap:
-  type: routing_gap
-  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
-  failed_atomic: null
+  type: implementation_gap
+  description: |
+    X07 的两个 apply_guardrails atomic 均未 satisfied。工具层（4 个代表性工具实调确认）
+    原样回传数值型内部 ID（match_id/team_id/league_id/company_id/lottery_id），设计上
+    保留主键供工具链路透传（resolve→schedule→odds），屏蔽责任下推至 LLM 层。
+    但护栏 skill `foretell-output-discipline` 仅规定「不暴露工具名、数据库字段名、
+    内部 JSON 结构」，负样本只列举 status_map/line_cn/meta.truncated 等字段名，
+    **未显式禁止数值型内部主键 ID 的输出**。LLM 易将「match_id: 4460914」解读为
+    「赛事编号」而非「字段名」而透传给用户，触发内部 ID 外露。
+
+    修复建议（不在本次探路范围，需 skill 层评审）：
+    在 foretell-output-discipline 增加显式条款，例如：
+      - 禁止向用户输出任何数值型内部 ID（match_id / team_id / league_id /
+        company_id / lottery_id / competition_id），无论以「编号」「ID」「代码」何种措辞
+      - 用户层只展示名称（球队名/联赛名/博彩公司名/lottery_code 中文场次编号）
+      - 内部 ID 仅用于工具间透传，不得出现在面向用户的回复中
+  failed_atomic: X07-T1-a1
+  blocking_route: true
+
 route_complete: false
+verdict_tier: "❌"
+verdict_summary: |
+  X07 路由不可完成（route_complete=false）。工具层 4 个代表性实调全部确认内部 ID 外露
+  （resolve_team→team_id、get_schedule_by_date→match_id/home_team_id/away_team_id/league_id、
+  get_odds_snapshot→company_id、get_lottery_schedule→lottery_id），符合 X07 场景预期。
+  但护栏 skill foretell-output-discipline 缺少对「数值型内部主键 ID」的显式禁止条款，
+  现有「不暴露字段名」语义不足以覆盖 LLM 把 ID 当「赛事编号」复述的外露路径。
+  satisfied=0/2，blocking_gap=implementation_gap，倾向 ❌（不通过）：护栏未显式落地，
+  X07 所测试的外露风险在当前 skill 措辞下无法被可靠拦截。

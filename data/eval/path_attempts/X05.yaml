@@ -1,43 +1,146 @@
 type_id: X05
+type_name: 假阴性风险
 case_id: TC-X05-REG-008
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+scenario_context: '用户问「葡萄牙明天早上世界杯有比赛吗」；明天=2026-06-30，明早窗口=2026-06-30 00:00~12:00 北京时间'
 attempts:
 - round: 1
   atomic_id: X05-T0-a1
+  category: resolve_entity
   tool: resolve_team
   params:
     name: 葡萄牙
   code: OK
   stub: false
+  count: 10
+  notes:
+    - '返回 10 个候选，其中 national=1 共 5 个：13152(葡萄牙/senior)、11331(葡萄牙U16)、12082(葡萄牙B队)、12791(葡萄牙室内U21)、12991(葡萄牙女足U17)'
+    - '按 hard_constraint「national=1 优先」+ name_zh 精确匹配，选定 team_id=13152（senior national team）'
+    - '注意：A08 path_attempts 误选 11331(葡萄牙U16)，X05 修正为 13152'
 - round: 1
   atomic_id: X05-T0-a2
-  fallback: null
+  category: fetch_schedule
   tool: get_team_schedule
   params:
-    team_id: 11331
+    team_id: 13152
     direction: upcoming
     limit: 5
   code: OK
   stub: false
   count: 5
-- round: 3
+  result_summary: '返回 2004/2006 年已结束比赛（2127781 葡萄牙vs希腊 2004-06-13 finished ... 793452 vs安哥拉 2006-06-12 finished），ASC 排序'
+  verdict: WRONG_DATA
+- round: 2
+  atomic_id: X05-T0-a2
+  category: fetch_schedule
+  tool: get_team_schedule
+  params:
+    team_id: 13152
+    direction: all
+    limit: 10
+  code: OK
+  stub: false
+  count: 10
+  result_summary: '正确返回未来赛程 DESC：4518126 vs威尔士 2026-11-18、4518097 vs丹麦 2026-11-15、4459727 vs克罗地亚 2026-07-03 世界杯、4460934 哥伦比亚vs葡萄牙 2026-06-28 finished ...'
+  verdict: OK
+  notes:
+    - '最近一场未来比赛 = 2026-07-03 07:00 世界杯 vs 克罗地亚，不在明早窗口'
+    - '2026-06-30 当日无葡萄牙比赛'
+- round: 1
   atomic_id: X05-T0-a3
   category: cross_validation
   tool: get_schedule_by_date
   params:
-    date: '2026-06-29'
+    date: '2026-06-30'
     tier: top
   code: OK
   stub: false
-  count: 1
+  count: 3
+  total_count: 93
+  tier_count: 3
+  result_summary: '2026-06-30 top 赛事 3 场世界杯：巴西vs日本 01:00、德国vs巴拉圭 04:30、荷兰vs摩洛哥 09:00'
+  has_portugal: false
+  verdict: OK
+- round: 1
+  atomic_id: X05-T0-a3
+  category: cross_validation
+  tool: sql_direct_verify
+  params:
+    sql: 'SELECT * FROM football_match WHERE (home_team_id=13152 OR away_team_id=13152) AND match_time BETWEEN [明早窗口] ORDER BY match_time'
+    window: '2026-06-29 16:00:00 UTC ~ 2026-06-30 04:00:00 UTC (= 2026-06-30 00:00~12:00 北京)'
+  code: OK
+  stub: false
+  count: 0
+  verdict: OK
+  notes:
+    - 'SQL 直查明早窗口葡萄牙比赛数 = 0，与 schedule_by_date 一致'
 - round: 1
   atomic_id: X05-T0-a4
   category: discover_via_search
   status: skipped
-  note: 'Eval constraint: no Tavily/internet_search'
+  note: 'Eval 约束：不调用 Tavily/internet_search'
+- round: 1
+  atomic_id: X05-T0-a5
+  category: apply_guardrails
+  status: satisfied
+  note: '已穷尽 upcoming→all fallback + schedule_by_date 交叉验证 + SQL 直查三路，均无明早葡萄牙比赛，方可断言「无」；最终结论：明早无葡萄牙世界杯比赛，下一场 2026-07-03 vs 克罗地亚'
+
+root_cause_analysis:
+  tool: get_team_schedule
+  bug: SQL_OPERATOR_PRECEDENCE
+  description: |
+    mysql_client.get_team_schedule 的 WHERE 子句为
+      `WHERE m.home_team_id = %s OR m.away_team_id = %s`
+    后续追加 `AND match_time > NOW() AND status_id NOT IN (8)`。
+    由于 AND 优先级高于 OR，实际等价于
+      `home_team_id = X OR (away_team_id = X AND match_time > NOW() AND status NOT IN (8))`
+    即过滤条件只绑定到 away_team_id 分支，home_team_id 分支返回该队全部主场比赛（任意时间/状态）。
+  impact:
+    - 'direction=upcoming：返回所有主场比赛 ASC（2004 历史比赛在前），完全不是未来赛程'
+    - 'direction=recent：返回所有主场比赛 DESC（2026-11 未来比赛在前），完全不是已结束比赛'
+    - 'direction=all：无 AND 过滤，仅 ORDER BY，故结果正确'
+  evidence:
+    - 'upcoming 返回 2127781（match_time=1087056000=2004-06-13, status_id=8=finished），按 SQL 应被 match_time>NOW() AND status NOT IN(8) 排除，却仍出现'
+    - '直查 `match_time > UNIX_TIMESTAMP(NOW()) AND status_id NOT IN (8)`（带括号）正确返回 4459727(2026-07-03) 等未来比赛'
+
+false_negative_risk:
+  exists: true
+  severity: high
+  description: |
+    若 LLM 仅凭 get_team_schedule(direction=upcoming) 返回的 2004 已结束比赛判断「无未来比赛」，
+    会得到「葡萄牙没有未来比赛」的假阴性，错过 2026-07-03 世界杯 vs 克罗地亚。
+    但 X05 的 atomic a2 硬约束「direction upcoming→all fallback」正是为该 bug 设计的护栏：
+    all fallback 正确返回未来赛程；a3 cross_validation (schedule_by_date) 二次确认明早无赛。
+    三路并举后可安全断言「明早无葡萄牙世界杯比赛」，假阴性被补救。
+
+cross_validation_verdict: PASS
+  - 'team_schedule(all) 最近未来比赛 2026-07-03 ≠ 明早'
+  - 'schedule_by_date(2026-06-30, top) 3 场世界杯无葡萄牙'
+  - 'SQL 直查明早窗口 count=0'
+  - '三路一致 → 明早无葡萄牙比赛，结论可信'
+
 satisfied:
 - X05-T0-a1
 - X05-T0-a2
 - X05-T0-a3
-blocking_gap: null
+- X05-T0-a4
+- X05-T0-a5
+
+blocking_gap:
+  type: implementation_gap
+  description: |
+    get_team_schedule 的 direction=upcoming/recent 因 WHERE 子句 `home_team_id=X OR away_team_id=X`
+    未加括号，导致后续 AND 过滤条件仅绑定到 away 分支，返回错误数据。
+    修复建议（不在本次探路范围）：将 WHERE 改为 `(m.home_team_id = %s OR m.away_team_id = %s)`。
+    该 gap 不阻断 X05 路由（all fallback + cross_validation 已补救），但对 A08/A17 等依赖
+    upcoming 的场景会产生误导，建议优先修复。
+  failed_atomic: null
+  blocking_route: false
+
 route_complete: true
+verdict_tier: ⚠️
+verdict_summary: |
+  X05 路由可完成（route_complete=true），最终结论「明早无葡萄牙世界杯比赛，下一场 2026-07-03 vs 克罗地亚」
+  经三路验证可信。但 get_team_schedule 存在 SQL 优先级 implementation_gap：upcoming/recent 返回错误数据，
+  假阴性风险确实存在，仅靠 atomic a2 的 all fallback 护栏 + a3 交叉验证补救。倾向 ⚠️（带条件通过）：
+  X05 场景本身可正确回答，但底层工具 bug 必须修复，否则其他无 fallback 护栏的场景会翻车。

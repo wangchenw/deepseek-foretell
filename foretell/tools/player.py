@@ -29,12 +29,13 @@ def get_player_profile(player_id: int | str, sport: Literal["football", "basketb
     result = client.get_player_profile(player_id, sport)
     if result is None:
         return make_envelope(
-            StatusCode.DATA_MISSING, "player_profile", {"player_id": player_id, "sport": sport},
-            source=_META_SOURCE, player_id=player_id, sport=sport,
+            StatusCode.DATA_MISSING, "player_profile",
+            {"player_id": player_id, "sport": sport},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "player_profile", {"profile": result},
-        source=_META_SOURCE, player_id=player_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "player_profile", {"profile": result, "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -50,11 +51,11 @@ def get_player_market_value(player_id: int | str) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "player_market_value", {"player_id": player_id},
-            source=_META_SOURCE, player_id=player_id,
+            meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "player_market_value", {"history": result, "count": len(result)},
-        source=_META_SOURCE, player_id=player_id, meta=_default_meta(client),
+        meta=_default_meta(client),
     )
 
 
@@ -70,12 +71,13 @@ def get_player_transfers(player_id: int | str, sport: Literal["football", "baske
     result = client.get_player_transfers(player_id, sport)
     if not result:
         return make_envelope(
-            StatusCode.DATA_MISSING, "player_transfers", {"player_id": player_id, "sport": sport},
-            source=_META_SOURCE, player_id=player_id, sport=sport,
+            StatusCode.DATA_MISSING, "player_transfers",
+            {"player_id": player_id, "sport": sport},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "player_transfers", {"history": result, "count": len(result)},
-        source=_META_SOURCE, player_id=player_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "player_transfers", {"history": result, "count": len(result), "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -91,12 +93,13 @@ def get_player_honors(player_id: int | str, sport: Literal["football", "basketba
     result = client.get_player_honors(player_id, sport)
     if not result:
         return make_envelope(
-            StatusCode.DATA_MISSING, "player_honors", {"player_id": player_id, "sport": sport},
-            source=_META_SOURCE, player_id=player_id, sport=sport,
+            StatusCode.DATA_MISSING, "player_honors",
+            {"player_id": player_id, "sport": sport},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "player_honors", {"honors": result, "count": len(result)},
-        source=_META_SOURCE, player_id=player_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "player_honors", {"honors": result, "count": len(result), "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -113,11 +116,11 @@ def get_team_honors(team_id: int | str, sport: Literal["football", "basketball"]
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "team_honors", {"team_id": team_id, "sport": sport},
-            source=_META_SOURCE, team_id=team_id, sport=sport,
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "team_honors", {"honors": result, "count": len(result)},
-        source=_META_SOURCE, team_id=team_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "team_honors", {"honors": result, "count": len(result), "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -132,10 +135,10 @@ def resolve_basketball_team(name: str) -> str:
     result = client.resolve_basketball_team(name)
     if not result:
         return make_envelope(
-            StatusCode.ENTITY_NOT_FOUND, "basketball_team", {"name": name},
-            source=_META_SOURCE, query=name,
+            StatusCode.ENTITY_NOT_FOUND, "basketball_team", {"query": name},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "basketball_team", {"candidates": result, "count": len(result)},
-        source=_META_SOURCE, query=name, meta=_default_meta(client),
+        StatusCode.OK, "basketball_team", {"candidates": result, "count": len(result), "query": name},
+        meta=_default_meta(client),
     )

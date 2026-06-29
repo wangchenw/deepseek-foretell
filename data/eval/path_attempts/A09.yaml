@@ -1,25 +1,116 @@
 type_id: A09
 case_id: TC-A09-001
-explored_at: '2026-06-28'
-source: probe_results
+type_name: 时间窗_几点开赛
+explored_at: '2026-06-29'
+phase2_regression: true
+source: phase2_path_explorer
+scenario_summary: |
+  用户场景：滚球盘中想买大球，问"接下来哪几场比较好"——需要查询某个时间窗内
+  开赛的比赛，并 ideally 知道当前哪些比赛正在进行中（在玩列表）。
+  Phase 1 gap: implementation_gap（无"在玩列表/实时比分"专用工具）。
+  Phase 2 新增 get_match_tlive / get_match_incidents，且 get_schedule_by_date
+  返回字段含 status（not_started/in_play/finished）+ match_time_beijing。
 attempts:
 - round: 1
-  atomic_id: A09-probe-1
-  tool: resolve_team
+  atomic_id: A09-T1-a3
+  tool: get_schedule_by_date
   params:
-    name: 葡萄牙
+    date: '2026-06-29'
+    sport: football
+    tier: top
   code: OK
+  count: 1
   stub: false
+  notes:
+    - 返回南非 vs 加拿大（世界杯 2026-06-29 03:00 北京时间）
+    - meta.total_count=222, tier_count=1, truncated=false
+    - 字段含 status=not_started + match_time_beijing → 能回答"几点开赛"
 - round: 2
-  atomic_id: A09-probe-2
-  tool: get_team_schedule
+  atomic_id: A09-T1-a3
+  tool: get_schedule_by_date
   params:
-    team_id: 11331
-    direction: all
-    limit: 5
+    date: '2026-06-29'
+    sport: football
+    tier: all
+  code: OK
+  count: 100
+  stub: false
+  notes:
+    - meta.total_count=222, count=100, truncated=true（limit=100 截断）
+    - status 分布：in_play=35, not_started=62, 其他=3（共 100）
+    - 字段含 status（in_play/not_started/...）→ 可本地按 status 过滤"在玩"
+    - 但 limit=100 截断，222 场无法一次拿全；in_play 是否全在 100 内不保证
+    - 无 limit 参数可调，分页/扩容需 SQL 直查
+- round: 3
+  atomic_id: A09-T1-a3-aux
+  tool: sql
+  params:
+    query: SELECT id,home_team_id,away_team_id,match_time,status_id FROM football_match
+      WHERE status_id IN (2,3,4) ORDER BY match_time DESC LIMIT 5
   code: OK
   count: 5
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  notes:
+    - 直查 DB 拿到 5 场进行中比赛（status_id=2），match_time=1782666000
+      (≈2026-06-29 17:00 北京时间)
+    - 证明 DB 有在玩数据，仅缺专用工具封装
+- round: 4
+  atomic_id: A09-T1-a3-aux
+  tool: get_match_tlive
+  params:
+    match_id: 4562270
+  code: OK
+  count: 3
+  stub: false
+  notes:
+    - 返回实时文字直播 3 条事件（热身/上半场开始）
+    - 可佐证比赛进行中，提供"在玩"实时进度
+- round: 5
+  atomic_id: A09-T1-a3-aux
+  tool: get_match_incidents
+  params:
+    match_id: 4562270
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  notes:
+    - incidents=[]，该进行中比赛无事件流数据
+    - 不足以替代"在玩列表"，仅对部分比赛可用
+- round: 6
+  atomic_id: A09-T1-a4
+  tool: discover_via_search
+  params: {}
+  code: skipped
+  stub: false
+  notes:
+    - 按探路协议不调用 internet_search
+    - status: skipped
+satisfied:
+- A09-T1-a3
+blocking_gap:
+  type: implementation_gap
+  severity: partial_mitigation
+  description: |
+    Phase 2 后 A09 部分缓解但未完全解决：
+    1. "几点开赛" ✅ 已解 — get_schedule_by_date 返回 match_time_beijing，
+       可按时间窗筛开赛时间。
+    2. "哪些在玩" ⚠️ 部分解 — 无专用"在玩列表/实时比分"工具，但
+       get_schedule_by_date 返回字段含 status（in_play/not_started），
+       可本地按 status 过滤得到在玩列表。
+       限制：(a) limit=100 截断，total 222 无法一次拿全，in_play 全集不保证；
+            (b) 无 tier=asia/特定联赛 + status=in_play 的复合过滤参数；
+            (c) 需调 get_match_tlive 逐场拿实时进度，无批量接口。
+    3. 实时进度 ✅ 已解 — get_match_tlive 能拿文字直播（佐证在玩），
+       get_match_incidents 对部分比赛 DATA_MISSING。
+    建议升级路径：新增 get_in_play_matches 工具（按 sport/tier/league 过滤
+    status_id IN (2,3,4)），或为 get_schedule_by_date 增加 status_in 参数 +
+    扩容 limit。
+  failed_atomic: A09-T1-a3
+route_complete: false
+upgrade_recommendation: |
+  保持 ⚠️（partial_mitigation）。不升 ✅ 的理由：
+  - 仍无专用"在玩列表"工具
+  - get_schedule_by_date limit=100 截断，无法可靠拿全在玩全集
+  - 需多步组合（schedule + 本地过滤 + 逐场 tlive）才能近似回答 A09
+  phase1_gap_status: implementation_gap
+  phase2_gap_status: implementation_gap (partial_mitigation)

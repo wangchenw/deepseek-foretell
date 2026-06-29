@@ -1,6 +1,7 @@
 type_id: X06
+type_name: 中间态外露
 case_id: TC-X06-REG-009
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
 attempts:
 - round: 1
   atomic_id: X06-T0-a1
@@ -8,10 +9,69 @@ attempts:
   params:
     home: 法国
     away: 挪威
+    date: '2026-06-27'
+  code: ENTITY_NOT_FOUND
+  stub: false
+  count: null
+  note: 2026 世界杯语境下法国 vs 挪威,法国主场未命中(与 X12 一致)
+- round: 2
+  atomic_id: X06-T0-a1
+  fallback: swap_home_away_for_world_cup
+  tool: resolve_match
+  params:
+    home: 挪威
+    away: 法国
+    date: '2026-06-27'
   code: OK
   stub: false
-  count: 10
+  count: 1
+  match_id: 4460928
+  match_status: finished
+  match_time_beijing: '2026-06-27 03:00:00'
+  neutral: true
+  round_group: 9
+  round_num: 3
+  league_name: 世界杯
+  note: 唯一候选,route 命中
+envelope_leakage_audit:
+  tool: resolve_match
+  envelope_fields_exposed_to_llm:
+  - dimension: match_entity
+  - code: OK
+  - match_id: 4460928 (top-level)
+  - meta.source: crazy_sports_db
+  - meta.freshness: '2026-06-28T17:14:46Z'
+  data.candidates[0] internal_fields:
+  - match_id: 4460928
+  - home_team_id: 13820
+  - away_team_id: 10234
+  - league_id: 1
+  - round_group: 9
+  - round_num: 3
+  - home_position: '22'
+  - away_position: '2'
+  - status: finished
+  - environment: {temperature, humidity, wind, pressure}
+  forbidden_term_hits:
+  - match_id
+  - team_id
+  - league_id
+  - status
+  - round_group
+  - round_num
+  - environment
+  - source (crazy_sports_db)
+  - dimension
+  - code
+  assessment: tool envelope 大量外露内部字段(match_id/team_id/league_id/status_map/environment/source/dimension/code);
+    X06 护栏的判定点在 LLM 合成层——LLM 必须转译为用户友好表述(日期+赛事+主客),
+    不得直出 envelope JSON 或字段名。工具层路由本身完整,无 routing/data/implementation gap。
 satisfied:
 - X06-T0-a1
+- X06-T0-a2
+satisfied_note:
+  X06-T0-a2: 工具层已提供唯一最优场次(2026-06-27 世界杯 挪威 vs 法国),LLM 层是否
+    遵守"不输出中间检索过程/不外露内部字段"属 Phase 2 LLM eval 范畴,Phase 1 路由无 gap。
 blocking_gap: null
 route_complete: true
+verdict: ✅ route_complete(工具层);⚠ LLM 层外露风险待 Phase 2 评估

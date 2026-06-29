@@ -1,49 +1,84 @@
 type_id: X12
+type_name: 主客颠倒
+scenario: X
 case_id: TC-X12-REG-002
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+
 attempts:
-- round: 1
-  atomic_id: X12-T0-a1
-  tool: resolve_match
-  params:
-    home: 法国
-    away: 挪威
-    date: '2024-06-27'
-  code: ENTITY_NOT_FOUND
-  stub: false
-- round: 2
-  atomic_id: X12-T0-a2
-  fallback: drop_date_filter
-  tool: resolve_match
-  params:
-    home: 法国
-    away: 挪威
-  code: OK
-  stub: false
-  count: 10
-- round: 3
-  atomic_id: X12-T1-a1
-  tool: resolve_match
-  params:
-    home: 法国
-    away: 挪威
-    date: '2026-06-27'
-  code: ENTITY_NOT_FOUND
-  stub: false
-  count: null
-- round: 3
-  atomic_id: X12-T1-a1
-  fallback: swap_home_away_for_world_cup
-  tool: resolve_match
-  params:
-    home: 挪威
-    away: 法国
-    date: '2026-06-27'
-  code: OK
-  stub: false
-  count: 1
+  # ---- Turn 0 ----
+  - round: 1
+    atomic_id: X12-T0-a1
+    tool: resolve_match
+    params: {home: 法国, away: 挪威, date: '2024-06-27'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 用户年份错误，预期 ENTITY_NOT_FOUND，符合 hard_constraint
+
+  - round: 1
+    atomic_id: X12-T0-a2
+    tool: resolve_match
+    params: {home: 法国, away: 挪威, date: null}
+    code: OK
+    count: 10
+    stub: false
+    note: date 失败后去 date fallback 生效；返回 10 候选（均为女足/U系列，无 2026 男足世界杯场次）—— 可用作上下文但未定位目标
+
+  # ---- Turn 1: refine to 2026-06-27 ----
+  - round: 2
+    atomic_id: X12-T1-a1
+    tool: resolve_match
+    params: {home: 法国, away: 挪威, date: '2026-06-27'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 按用户主客顺序 (法国主/挪威客) 在 2026-06-27 无记录——主客颠倒暴露
+
+  - round: 2
+    atomic_id: X12-T1-a1
+    tool: resolve_match
+    params: {home: 挪威, away: 法国, date: '2026-06-27'}
+    code: OK
+    count: 1
+    stub: false
+    match_id: 4460928
+    candidate:
+      match_id: 4460928
+      home_team_id: 13820
+      away_team_id: 10234
+      home_name: 挪威
+      away_name: 法国
+      date: '2026-06-27'
+      league_id: 1
+      league_name: 世界杯
+      status: finished
+      match_time_beijing: '2026-06-27 03:00:00'
+      neutral: true
+      round_group: 9
+      round_num: 3
+    note: swap home/away fallback 生效——DB 实际记录 挪威(home_team_id)/法国(away_team_id)；neutral=true 说明世界杯中立场，但 home_team_id 字段以挪威登记，故 swap 是定位策略
+
 satisfied:
-- X12-T0-a2
-- X12-T1-a1
-blocking_gap: null
+  - X12-T0-a1   # ENTITY_NOT_FOUND on 2024 date（年份错误预期）
+  - X12-T0-a2   # date-failure fallback (去 date) 返回候选
+  - X12-T1-a1   # 修正 2026-06-27 + swap 定位世界杯单场
+  - X12-T1-a2   # 保留法国-挪威对阵（swap 后仍是同一对阵实体）
+  - X12-T1-a3   # 主客表述修正为 挪威主/法国客；envelope 仅暴露必要字段，match_id 仅在单候选时返回（LLM 应按 guardrails 不直接输出）
+
+blocking_gap:
+  type: none
+  description: >-
+    无阻塞 gap。swap home/away fallback 在 Phase 2 工具层验证生效：
+    resolve_match 严格按 home_team_id/away_team_id 字段查询，不内置 auto-swap；
+    swap 是 LLM 侧路由策略（按 path-explorer 协议 fallback 第 2 条执行），
+    本 case 成功定位 2026-06-27 世界杯 挪威 vs 法国 (match_id=4460928)。
+    风险点：naive agent 若不主动 swap 会卡在 ENTITY_NOT_FOUND——
+    需在 skill/guardrails 中显式标注"主客颠倒时尝试 swap"。
+
 route_complete: true
+
+notes:
+  - resolve_match 不内置 auto-swap；swap 为 LLM 路由策略（符合协议 fallback 第 2 条）
+  - neutral=true（世界杯中立场），"挪威主场"为 feedback #002 的简化表述；DB home_team_id 登记为挪威，swap 策略以此字段为准
+  - Phase 2 resolve_match 返回单候选时 envelope 携带 match_id=4460928；按 X12-T1-a3 guardrails，LLM 输出不得直接暴露 match_id
+  - X12 不涉及 series_game，series_game bug 修复在 B09 验证；本 case 仅验证 swap 策略

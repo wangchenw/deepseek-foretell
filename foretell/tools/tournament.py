@@ -28,12 +28,12 @@ def resolve_basketball_league(name: str) -> str:
     result = client.resolve_basketball_league(name)
     if not result:
         return make_envelope(
-            StatusCode.ENTITY_NOT_FOUND, "basketball_league", {"name": name},
-            source=_META_SOURCE, query=name,
+            StatusCode.ENTITY_NOT_FOUND, "basketball_league", {"query": name},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "basketball_league", {"candidates": result, "count": len(result)},
-        source=_META_SOURCE, query=name, meta=_default_meta(client),
+        StatusCode.OK, "basketball_league", {"candidates": result, "count": len(result), "query": name},
+        meta=_default_meta(client),
     )
 
 
@@ -49,12 +49,13 @@ def get_seasons(competition_id: int | str, sport: Literal["football", "basketbal
     result = client.get_seasons(competition_id, sport)
     if not result:
         return make_envelope(
-            StatusCode.DATA_MISSING, "seasons", {"competition_id": competition_id, "sport": sport},
-            source=_META_SOURCE, competition_id=competition_id, sport=sport,
+            StatusCode.DATA_MISSING, "seasons",
+            {"competition_id": competition_id, "sport": sport},
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "seasons", {"seasons": result, "count": len(result)},
-        source=_META_SOURCE, competition_id=competition_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "seasons", {"seasons": result, "count": len(result), "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -71,11 +72,11 @@ def get_coach(coach_id: int | str, sport: Literal["football", "basketball"] = "f
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "coach", {"coach_id": coach_id, "sport": sport},
-            source=_META_SOURCE, coach_id=coach_id, sport=sport,
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "coach", {"profile": result},
-        source=_META_SOURCE, coach_id=coach_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "coach", {"profile": result, "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -91,11 +92,11 @@ def get_referee(referee_id: int | str) -> str:
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "referee", {"referee_id": referee_id},
-            source=_META_SOURCE, referee_id=referee_id,
+            meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "referee", {"profile": result},
-        source=_META_SOURCE, referee_id=referee_id, meta=_default_meta(client),
+        meta=_default_meta(client),
     )
 
 
@@ -112,11 +113,11 @@ def get_venue(venue_id: int | str, sport: Literal["football", "basketball"] = "f
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "venue", {"venue_id": venue_id, "sport": sport},
-            source=_META_SOURCE, venue_id=venue_id, sport=sport,
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "venue", {"profile": result},
-        source=_META_SOURCE, venue_id=venue_id, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "venue", {"profile": result, "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -139,11 +140,11 @@ def get_match_half_stats(
         return make_envelope(
             StatusCode.DATA_MISSING, "match_half_stats",
             {"match_id": match_id, "scope": scope},
-            source=_META_SOURCE, match_id=match_id, scope=scope,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "match_half_stats", {"stats": result, "scope": scope},
-        source=_META_SOURCE, match_id=match_id, scope=scope, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -159,9 +160,9 @@ def get_goals_lost_rate(match_id: int | str) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "goals_lost_rate", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "goals_lost_rate", {"rates": result, "count": len(result)},
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )

@@ -780,7 +780,7 @@ class MySQLCrazySportsClient:
             JOIN football_team ht ON m.home_team_id = ht.id
             JOIN football_team at ON m.away_team_id = at.id
             LEFT JOIN football_competition c ON m.competition_id = c.id
-            WHERE m.home_team_id = %s OR m.away_team_id = %s
+            WHERE (m.home_team_id = %s OR m.away_team_id = %s)
         """
         params: list[Any] = [raw_id, raw_id]
         if league_id is not None:
@@ -1074,19 +1074,47 @@ class MySQLCrazySportsClient:
         raw_id = _parse_int_id(match_id)
         if raw_id is None:
             return []
-        sql = """
-            SELECT e.company_id, c.company_name, e.odd1, e.odd2, e.odd3,
-                   e.is_zoudi, e.is_entertained, e.updated_at
-            FROM football_odds_europe_change e
-            LEFT JOIN match_odds_companys c
-              ON e.company_id = c.company_id AND c.match_type = 1
-            WHERE e.match_id = %s
-            ORDER BY e.updated_at ASC
-            LIMIT 50
-        """
+        select_cols = (
+            "e.company_id, c.company_name, e.odd1, e.odd2, e.odd3, "
+            "e.is_zoudi, e.is_entertained, e.updated_at"
+        )
+        join_clause = (
+            "LEFT JOIN match_odds_companys c "
+            "ON e.company_id = c.company_id AND c.match_type = 1"
+        )
+        # 先取比赛 match_time，路由到月分区表 football_odds_europe_change_YYYYMM
         with mysql_connection() as cur:
-            cur.execute(sql, (raw_id,))
-            rows = cur.fetchall()
+            cur.execute(
+                "SELECT match_time FROM football_match WHERE id = %s LIMIT 1",
+                (raw_id,),
+            )
+            match_row = cur.fetchone()
+            rows: list[dict] = []
+            if match_row and match_row.get("match_time"):
+                from datetime import datetime as _dt
+                try:
+                    ts = int(match_row["match_time"])
+                    dt = _dt.fromtimestamp(ts)
+                    # 分区表隔月建（奇数月：01/03/05/07/09/11），每个覆盖2个月
+                    odd_month = (dt.month - 1) // 2 * 2 + 1
+                    ym = f"{dt.year}{odd_month:02d}"
+                    partition_table = f"football_odds_europe_change_{ym}"
+                    cur.execute(
+                        f"SELECT {select_cols} FROM {partition_table} e {join_clause} "
+                        f"WHERE e.match_id = %s ORDER BY e.updated_at ASC LIMIT 50",
+                        (raw_id,),
+                    )
+                    rows = list(cur.fetchall())
+                except Exception:
+                    rows = []  # 分区表不存在则 fallback 基表
+            # fallback：基表
+            if not rows:
+                cur.execute(
+                    f"SELECT {select_cols} FROM football_odds_europe_change e {join_clause} "
+                    f"WHERE e.match_id = %s ORDER BY e.updated_at ASC LIMIT 50",
+                    (raw_id,),
+                )
+                rows = list(cur.fetchall())
         return [_format_odds_trend_row(r) for r in rows]
 
     def get_same_odds_history(self, match_id: int | str) -> list[dict]:
@@ -1198,7 +1226,7 @@ class MySQLCrazySportsClient:
                 return None
             cur.execute(
                 """
-                SELECT ld.team_id, ld.first, ld.captain, ld.name, ld.shirt_number,
+                SELECT ld.team_id, ld.first, ld.captain, ld.player_id, ld.name, ld.shirt_number,
                        ld.position, ld.x, ld.y, ld.rating
                 FROM football_match_lineup_detail ld
                 WHERE ld.lineup_id = %s
@@ -1486,11 +1514,12 @@ class MySQLCrazySportsClient:
         sql = """
             SELECT s.team_id, s.player_id, t.short_name_zh AS team_name,
                    p.short_name_zh AS player_name, p.name_zh AS player_full_name,
+                   s.first, s.minutes_played,
                    s.goals, s.penalty, s.assists, s.red_cards, s.yellow_cards,
                    s.shots, s.shots_on_target, s.passes, s.passes_accuracy,
                    s.key_passes, s.crosses, s.dribble, s.dribble_succ,
                    s.tackles, s.interceptions, s.clearances, s.fouls,
-                   s.was_fouled, s.offsides, s.rating, s.position
+                   s.was_fouled, s.offsides, s.rating
             FROM football_match_player_stats s
             LEFT JOIN football_team t ON s.team_id = t.id
             LEFT JOIN football_player p ON s.player_id = p.id
@@ -2383,7 +2412,8 @@ def _format_player_stats_row(row: dict) -> dict:
         "player_name": row.get("player_name") or row.get("player_full_name"),
         "team_id": row.get("team_id"),
         "team_name": row.get("team_name"),
-        "position": row.get("position"),
+        "is_starter": _bool_flag(row.get("first")),
+        "minutes_played": row.get("minutes_played"),
         "rating": rating_value,
         "goals": row.get("goals"),
         "penalty_goals": row.get("penalty"),
@@ -2482,6 +2512,7 @@ def _format_lineup_player(p: dict) -> dict:
         except (TypeError, ValueError):
             rating_value = None
     return {
+        "player_id": p.get("player_id"),
         "player_name": p.get("name"),
         "shirt_number": p.get("shirt_number"),
         "position": p.get("position"),

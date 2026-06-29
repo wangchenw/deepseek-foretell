@@ -1,14 +1,22 @@
 type_id: A10
 case_id: TC-A10-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+phase2_regression: true
+source: live_tool_call
+phase2_context: |
+  Phase 1 状态: ⚠️ — get_standings 缺 season_id 过滤，返回多赛季混杂数据，
+  position=1 有多条。Phase 2 修复: MAX(season_id) 子查询过滤当前赛季，
+  补 goals/goals_against/goal_diff + 主客分列（home_*/away_*），结构化返回。
+  本任务验证修复后是否返回单一当前赛季的清晰积分榜。
 attempts:
 - round: 1
   atomic_id: A10-probe-1
   tool: resolve_league
   params:
-    name: 英超
+    name_zh: 英超
+    sql: "SELECT id, name_zh, short_name_zh FROM football_competition WHERE short_name_zh LIKE '%英超%' LIMIT 10"
   code: OK
+  result: 找到英超 id=82 (英格兰超级联赛)
   stub: false
 - round: 2
   atomic_id: A10-probe-2
@@ -16,8 +24,72 @@ attempts:
   params:
     league_id: 82
   code: OK
+  count: 20
+  stub: false
+  season_id_filter: effective  # MAX(season_id) 子查询生效，仅返回 season_id=14320 单一当前赛季
+  position_unique: true        # position=1 仅阿森纳 (team_id=10215) 一条；20 行 20 个 distinct position
+  fields_returned:
+    - team_id
+    - team_name
+    - position
+    - points
+    - deduct_points
+    - played
+    - won
+    - draw
+    - loss
+    - goals          # Phase 2 新增
+    - goals_against  # Phase 2 新增
+    - goal_diff      # Phase 2 新增
+    - home.{points,played,won,draw,loss,goals,goals_against,goal_diff}  # Phase 2 新增主客分列
+    - away.{points,played,won,draw,loss,goals,goals_against,goal_diff}  # Phase 2 新增主客分列
+  sample_row:
+    team_id: 10215
+    team_name: 阿森纳
+    position: 1
+    points: 0
+    goals: 0
+    goals_against: 0
+    goal_diff: 0
+    home: {points: 0, played: 0, won: 0, draw: 0, loss: 0, goals: 0, goals_against: 0, goal_diff: 0}
+    away: {points: 0, played: 0, won: 0, draw: 0, loss: 0, goals: 0, goals_against: 0, goal_diff: 0}
+  note: 数据全 0 因 25/26 新赛季尚未开赛（pre-season），结构本身已正确
+- round: 3
+  atomic_id: A10-probe-3
+  tool: sql_verify
+  params:
+    sql: "SELECT season_id, COUNT(*) AS row_count, COUNT(DISTINCT pt.position) AS distinct_positions FROM football_points_table p JOIN football_points_table_team pt ON pt.table_id = p.id WHERE p.competition_id = 82 GROUP BY season_id ORDER BY season_id DESC LIMIT 3"
+  code: OK
+  result:
+    - season_id: 14320  # 当前赛季（MAX）
+      row_count: 20
+      distinct_positions: 20
+    - season_id: 13242  # 上一赛季
+      row_count: 20
+      distinct_positions: 20
+    - season_id: 12387
+      row_count: 20
+      distinct_positions: 20
+  stub: false
+  note: 每赛季 20 行 / 20 distinct position，证明 Phase 1 多赛季混杂问题已消除
+- round: 4
+  atomic_id: A10-side-basketball
+  tool: get_basketball_standings
+  params:
+    league_id: 1  # NBA
+  code: OK
   count: 30
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 侧发现（非 A10 核心）。MAX(season_id)=1911 过滤生效，但同 season_id=1911 下存在多个 point_table（regular season East/West 15 行 + playoff 5 行 + summer league 5 行 等多 stage 表），工具未按 stage 进一步过滤，导致 position=1 多条、同队多行混入。建议后续 Phase 3 给 get_basketball_standings 加 stage/group 过滤。
+satisfied:
+  - A10-probe-1
+  - A10-probe-2
+  - A10-probe-3
+blocking_gap:
+  type: null
+  description: A10 (足球积分榜) 路径已完整。get_standings 经 Phase 2 修复后返回单一当前赛季 (season_id=14320)、position 唯一、字段语义化（goals/goal_diff/主客分列），从 ⚠️ 升 ✅。
+  failed_atomic: null
+side_findings:
+  - get_basketball_standings 同 season 多 stage 表混杂，需后续加 stage 过滤（不阻塞 A10）
 route_complete: true
+regression_status: fixed  # ⚠️ -> ✅

@@ -1,17 +1,26 @@
 type_id: A14
 case_id: TC-A14-001
-explored_at: '2026-06-28'
-source: probe_results
+phase2_regression: true
+explored_at: '2026-06-29'
+source: live_probe
+regression_target: |
+  Phase 2 工具层重构后回归验证 get_match_lineup（原 stub 恒返回 None）
+  与新增 get_team_squad。atomic_decompositions/A14.yaml 仅到 schedule 层
+  (T1-a1 resolve_team, T1-a2 fetch_schedule)，本任务按用户要求扩展验证
+  阵容工具，因为 A14 type_name=球队阵容。
 attempts:
+# ---- T1-a1: resolve_entity (复用既有 probe) ----
 - round: 1
-  atomic_id: A14-probe-1
+  atomic_id: A14-T1-a1
   tool: resolve_team
   params:
     name: 利物浦
   code: OK
   stub: false
+  note: 沿用 Phase 1 probe 结果，team_id=10249 已验证
+# ---- T1-a2: fetch_schedule (复用既有 probe) ----
 - round: 2
-  atomic_id: A14-probe-2
+  atomic_id: A14-T1-a2
   tool: get_team_schedule
   params:
     team_id: 10249
@@ -20,6 +29,102 @@ attempts:
   code: OK
   count: 3
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 沿用 Phase 1 probe 结果
+# ---- 扩展: 定位有阵容数据的完赛场 ----
+- round: 3
+  atomic_id: A14-lineup-setup
+  tool: sql (foretell_eval_helper)
+  params:
+    query: >
+      SELECT m.id, m.home_team_id, m.away_team_id, m.match_time
+      FROM football_match m JOIN football_match_lineup l ON m.id=l.match_id
+      WHERE m.status_id=8 ORDER BY m.match_time DESC LIMIT 1
+  code: OK
+  count: 1
+  result:
+    match_id: 4561975
+    home_team_id: 20530
+    away_team_id: 87550
+    match_time: 1782658800
+# ---- 扩展: get_match_lineup 真实调用（Phase 2 修复点） ----
+- round: 4
+  atomic_id: A14-lineup-verify
+  tool: get_match_lineup
+  params:
+    match_id: 4561975
+  code: OK
+  stub: false
+  phase2_fixed: true
+  data_keys:
+    - confirmed
+    - home_formation
+    - away_formation
+    - home_coach_id
+    - away_coach_id
+    - home
+    - away
+  field_check:
+    has_formation_field: true
+    home_formation_value: ''  # DB 该场为空，字段存在
+    away_formation_value: ''
+    has_starters: true         # home 11 人 is_starter=true
+    has_substitutes: true      # home 含 is_starter=false 替补
+    has_position: true         # M/D/G/F
+    has_shirt_number: true
+    has_is_captain: true
+    has_player_id: false       # 仅 player_name，detail 表未 join football_player
+    has_x_y: true              # 均为 0
+    has_rating: true           # 均为 null
+  sample_player:
+    player_name: 伊万诺娃
+    shirt_number: 3
+    position: M
+    is_starter: true
+    is_captain: false
+  note: |
+    Phase 1 stub 恒返回 None；Phase 2 按 football_match_lineup +
+    football_match_lineup_detail 实现，返回结构化首发+替补。
+    player_id 字段缺失（detail 查询未 join football_player.id），
+    属字段完整性 minor gap，不阻塞主诉求"返回真实阵容"。
+# ---- 扩展: get_team_squad 真实调用（Phase 2 新增） ----
+- round: 5
+  atomic_id: A14-squad-verify
+  tool: get_team_squad
+  params:
+    team_id: 20530
+  code: OK
+  stub: false
+  phase2_new: true
+  count: 20
+  field_check:
+    has_player_id: true        # 2037018 等
+    has_position: true         # D/F/G/M
+    has_shirt_number: true
+    has_is_captain: true
+  sample_player:
+    player_id: 2037018
+    player_name: 雷日希赫
+    position: ''
+    shirt_number: 4
+    is_captain: false
+  note: 球队大名单含 player_id/位置/球衣号，结构完整
+satisfied:
+  - A14-T1-a1
+  - A14-T1-a2
+  - A14-lineup-verify
+  - A14-squad-verify
+blocking_gap:
+  type: null
+  description: |
+    get_match_lineup 已从 stub 修复为真实实现，返回 OK + 结构化首发/替补；
+    get_team_squad 新增实现，返回 OK + 20 人大名单（含 player_id）。
+    残留 minor gap: lineup 球员列表缺 player_id 字段（detail 表查询未
+    join football_player），不影响"返回真实阵容"主诉求，记为非阻塞。
+  failed_atomic: null
+field_completeness_gaps:
+  - tool: get_match_lineup
+    missing_field: player_id
+    severity: minor
+    fix_hint: 在 football_match_lineup_detail 查询中 LEFT JOIN football_player 取 id
 route_complete: true
+status_change: ⚠️ -> ✅

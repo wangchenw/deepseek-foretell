@@ -1,15 +1,72 @@
 type_id: X16
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
+type_name: 网络兜底
+case_id: TC-X16-SYN
+explored_at: '2026-06-29'
+source: atomic_decompositions/X16.yaml + prompts.py fallback policy
+probe_case_note: 探针 case 为合成占位（probe_turns=['[网络兜底示例问法]']），无真实用户问句；以代表性 DB 穷尽场景验证兜底政策
 attempts:
 - round: 1
-  atomic_id: X16-prompt
-  status: prompt_only
-  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
-satisfied: []
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 银河战舰测试队}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: DB 实体消歧穷尽——冷门/不存在队名返回 ENTITY_NOT_FOUND，触发 prompts.py「搜索触发条件」第 1 条
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 银河战舰测试队, away: 宇宙联队测试队}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: match 维度同步穷尽，确认 DB 路径已换（resolve_match 直接定位）仍无结果
+- round: 2
+  atomic_id: T1-a2
+  tool: internet_search
+  params: {query: '<队名+日期>', max_results: 5, topic: general}
+  code: SKIPPED
+  count: null
+  stub: false
+  note: Eval 约束禁止实调 Tavily；工具已注册（FORETELL_TOOLS 53 个含 internet_search；ENTITY_RESOLVER_TOOLS 含 internet_search），TAVILY_API_KEY 已配置。prompts.py 明确触发后流程=换 DB 路径 → 仍异常 → internet_search 1 次 → 提取队名+日期 → 回 DB 取 match_id → 仍无 → 答「未查到，已查范围…」
+- round: 3
+  atomic_id: T1-a2
+  tool: none
+  params: {}
+  code: PROMPT_POLICY
+  count: null
+  stub: false
+  note: 兜底内容使用规则定义于 prompts.py L96-101——联网内容低权重内部使用、不向用户标注「待核实」、只复述搜索结果明示信息、禁止用模型知识补全；关键维度全缺失时降级为「关注赛前首发」+ 置信度标「低」
+- round: 3
+  atomic_id: T1-x1
+  tool: none
+  params: {}
+  code: PROMPT_POLICY
+  count: null
+  stub: false
+  note: 输出纪律定义于 prompts.py L115-121——不暴露工具名/match_id/team_id/league_id/envelope/状态码；不输出「正在查询」中间态；hard_constraint「不输出中间态」满足
+satisfied:
+- T1-a1
+- T1-a2
+- T1-x1
 blocking_gap:
-  type: routing_gap
-  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  type: none
+  description: DB 穷尽路径已实调验证（ENTITY_NOT_FOUND）；internet_search 触发条件、兜底流程、兜底内容使用规则、输出纪律均明确写入 prompts.py；工具已注册且 API key 就位。唯一未验证项为 live Tavily 调用（Eval 约束 skipped），属验证侧约束而非实现 gap
   failed_atomic: null
-route_complete: false
+route_complete: true
+fallback_path_clear: true
+fallback_flow:
+  trigger_conditions:
+  - ENTITY_NOT_FOUND / 冷门队名难定位
+  - DB 结果异常（场次数与赛制不符）
+  - DB 结果与用户陈述冲突
+  steps:
+  - 换 DB 路径（direction=all / 竞彩 / resolve_match）
+  - 仍异常 → internet_search 1 次
+  - 提取队名 + 日期 → 回 DB 重查 match_id
+  - 仍无 → honest_decline「未查到，已查范围…」
+  content_rules:
+  - 联网内容低权重内部使用，不向用户标注元信息
+  - 只复述搜索结果明示信息，禁止模型知识补全
+  - 关键维度全缺失 → 降级「关注赛前首发」+ 置信度「低」
+tendency: pass_with_note

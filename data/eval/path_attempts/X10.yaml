@@ -1,15 +1,87 @@
 type_id: X10
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
+case_id: TC-X10-001
+explored_at: '2026-06-29'
+source: real_probe
+scenario_input: '乌拉圭甲级联赛，塞罗拉尔戈VS塞罗竞技，结合泊松分布纳什均衡天气对阵情况，精确给出最高概率比分。不用展示计算过程和任何说明，直接给出结果'
 attempts:
 - round: 1
-  atomic_id: X10-prompt
-  status: prompt_only
-  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
-satisfied: []
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 塞罗拉尔戈}
+  code: OK
+  count: 3
+  stub: false
+  note: 主队命中 team_id=26475 (Cerro Largo)
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 塞罗竞技}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 用户写的“塞罗竞技”在 DB 无此队名。LIKE %塞罗竞技% 无命中
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 塞罗拉尔戈, away: 塞罗竞技}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: away 名错位导致对阵无法定位。LLM 在 VS 上拆分成功，但 away 名不存在
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 塞罗}
+  code: OK
+  count: 10
+  stub: false
+  note: 中文短串 fallback——返回巴塞罗那/克鲁塞罗/塞罗拉尔戈等，但“塞路”不含“塞罗”二字，不在结果中。中文模糊匹配无法找回
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: Cerro}
+  code: OK
+  count: 10
+  stub: false
+  note: 英文名 fallback 命中——candidates 含 team_id=14570 “塞路” (Cerro Montevideo)，即用户“塞罗竞技”的真实对应队。需 LLM 具备“塞罗竞技→Cerro”的跨语言别名知识
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 塞罗拉尔戈, away: 塞路}
+  code: OK
+  count: 10
+  stub: false
+  match_id_latest: 4546025
+  note: 命中乌拉甲 (league_id=473) 历史对阵 10 场，全部 finished。最近一场 2026-05-30 (round 3, 塞罗拉尔戈主场)。match_status=ambiguous（无 date 时返回多候选），agent 需结合“最近一场”或当前赛程上下文选定。用户要求“预测比分”，无 upcoming 对阵，需以最近交锋+近期状态为分析基底
+- round: 3
+  atomic_id: T1-a1
+  tool: discover_via_search
+  params: {}
+  status: skipped
+  note: 不调用 internet_search；路径已通过 resolve_match 闭合
+satisfied:
+- T1-a1
 blocking_gap:
   type: routing_gap
-  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  description: >-
+    用户 away 名“塞罗竞技”与 DB 实际队名“塞路”(Cerro Montevideo) 别名错位。
+    中文 LIKE 模糊匹配（%塞罗%、%塞罗竞技%）无法找回“塞路”（不含“塞罗”字面），
+    必须经 resolve_team(英文名 "Cerro") 才能定位。该 fallback 可行但依赖 LLM
+    跨语言别名知识；且 resolve_match 无 date 时返回 10 候选 ambiguous，
+    需 agent 用上下文（最近交锋 2026-05-30）自行消歧。无 upcoming 对阵，
+    “预测比分”需降级为基于历史交锋+近期状态的推演。
   failed_atomic: null
-route_complete: false
+  recoverable: true
+  recovery_path: resolve_team(英文名) → resolve_match(home, away=塞路) → 取最近候选
+route_complete: true
+gaps_observed:
+- alias_mismatch: 塞罗竞技 → 塞路 (team_id 14570, Cerro Montevideo)
+- cn_fuzzy_miss: 中文短串模糊匹配无法跨“塞罗/塞路”字面差异找回
+- ambiguity: 无 date 时返回 10 历史候选，需上下文消歧
+- no_upcoming: 该对阵无未开赛场次，预测类需求需降级为状态推演
+resolution_summary: >-
+  resolve_match 工具签名要求 home/away 分开传参，“无分隔符拆分”由 LLM 在调用前完成
+  （本场景输入含 VS，拆分本身无难度）。真正难点是 away 名“塞罗竞技”的别名错位：
+  中文模糊匹配失效，必须经英文名 resolve_team("Cerro") 找回“塞路”后方可定位对阵。
+  路径可闭合但需 LLM 跨语言别名知识 + 消歧，记为 routing_gap (recoverable)。
+倾向: ⚠️

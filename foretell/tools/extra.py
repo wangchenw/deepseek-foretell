@@ -29,11 +29,11 @@ def get_over_under_odds(match_id: int | str) -> str:
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "over_under_odds", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "over_under_odds", result,
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -49,11 +49,11 @@ def get_half_odds(match_id: int | str) -> str:
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "half_odds", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "half_odds", result,
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -69,11 +69,11 @@ def get_corner_odds(match_id: int | str) -> str:
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "corner_odds", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "corner_odds", result,
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -89,11 +89,11 @@ def get_hundred_europe_odds(match_id: int | str) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "hundred_europe_odds", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "hundred_europe_odds", {"odds": result, "count": len(result)},
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -109,11 +109,11 @@ def get_official_handicap_odds(match_id: int | str) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "official_handicap_odds", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "official_handicap_odds", {"odds": result, "count": len(result)},
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )
 
 
@@ -129,11 +129,11 @@ def get_promotions(sport: Literal["football", "basketball"] = "football") -> str
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "promotions", {"sport": sport},
-            source=_META_SOURCE, sport=sport,
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "promotions", {"promotions": result, "count": len(result)},
-        source=_META_SOURCE, sport=sport, meta=_default_meta(client),
+        StatusCode.OK, "promotions", {"promotions": result, "count": len(result), "sport": sport},
+        meta=_default_meta(client),
     )
 
 
@@ -149,11 +149,11 @@ def get_first_second(limit: int = 20) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "first_second", {"limit": limit},
-            source=_META_SOURCE,
+            meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "first_second", {"items": result, "count": len(result)},
-        source=_META_SOURCE, meta=_default_meta(client),
+        meta=_default_meta(client),
     )
 
 
@@ -170,11 +170,11 @@ def get_fifa_ranking(gender: int = 1, limit: int = 30) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "fifa_ranking", {"gender": gender, "limit": limit},
-            source=_META_SOURCE,
+            meta=_default_meta(client),
         )
     return make_envelope(
-        StatusCode.OK, "fifa_ranking", {"rankings": result, "count": len(result)},
-        source=_META_SOURCE, gender=gender, meta=_default_meta(client),
+        StatusCode.OK, "fifa_ranking", {"rankings": result, "count": len(result), "gender": gender},
+        meta=_default_meta(client),
     )
 
 
@@ -190,11 +190,11 @@ def get_club_ranking(limit: int = 30) -> str:
     if not result:
         return make_envelope(
             StatusCode.DATA_MISSING, "club_ranking", {"limit": limit},
-            source=_META_SOURCE,
+            meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "club_ranking", {"rankings": result, "count": len(result)},
-        source=_META_SOURCE, meta=_default_meta(client),
+        meta=_default_meta(client),
     )
 
 
@@ -215,11 +215,11 @@ def get_season_best(
         return make_envelope(
             StatusCode.DATA_MISSING, "season_best",
             {"competition_id": competition_id, "season_id": season_id},
-            source=_META_SOURCE, competition_id=competition_id,
+            meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "season_best", result,
-        source=_META_SOURCE, competition_id=competition_id, meta=_default_meta(client),
+        meta=_default_meta(client),
     )
 
 
@@ -235,9 +235,9 @@ def get_recommendations(match_id: int | str) -> str:
     if result is None:
         return make_envelope(
             StatusCode.DATA_MISSING, "recommendations", {"match_id": match_id},
-            source=_META_SOURCE, match_id=match_id,
+            match_id=match_id, meta=_default_meta(client),
         )
     return make_envelope(
         StatusCode.OK, "recommendations", result,
-        source=_META_SOURCE, match_id=match_id, meta=_default_meta(client),
+        match_id=match_id, meta=_default_meta(client),
     )

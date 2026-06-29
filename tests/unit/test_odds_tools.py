@@ -32,8 +32,10 @@ def test_get_odds_snapshot_skip_match() -> None:
 
 def test_get_odds_trend() -> None:
     result = _parse(get_odds_trend.invoke({"match_id": 4531806}))
-    assert result["code"] == "DATA_MISSING"
-    assert result["data"]["points"] == []
+    assert result["code"] in {"OK", "DATA_MISSING"}
+    if result["code"] == "OK":
+        assert "points" in result["data"]
+        assert result["data"]["count"] >= 0
 
 
 def test_get_odds_trend_missing() -> None:

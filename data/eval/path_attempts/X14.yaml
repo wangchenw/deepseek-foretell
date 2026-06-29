@@ -1,15 +1,221 @@
 type_id: X14
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
+type_name: 矛盾推荐
+case_id: TC-X14-001
+explored_at: '2026-06-29'
+source: atomic_decompositions/X14.yaml
+scenario: X
+entity_entry: match
+
+# 探路结论摘要
+# - T1 "塞尔塔对莱万特有无变化" 工具链全通：resolve_match OK + odds_snapshot/trend/kelly OK
+# - 数据中存在真实"异常变化/矛盾"信号：赛前主胜低赔(1.69) → 进行中主胜飙到 164.83、客胜跌到 1.5
+#   （主队塞尔塔排名第6 vs 客队莱万特第19，基本面+初盘一致看好主胜，但 in-play 客队领先）
+#   这正是 T1 "有无变化" 以及 T6 "早上主不败、现在客不败" 的客观依据
+# - 奥萨苏纳对马竞同样存在信号：赛前赔率近乎均势(2.6/3.4/2.6) 但基本面排名 11 vs 4 偏客，
+#   进行中客胜赔 1.3 → 基本面+in-play 一致支撑马竞，赛前盘口低估客胜 = 可解释的"变化"
+# - 光州对首尔：基本面 12 vs 1 强烈支持客胜，但 odds_snapshot=SKIP_MATCH、trend/kelly DATA_MISSING
+#   → 无法判断"异常变化"，仅能给基本面结论（data_gap on odds dimension）
+# - 圣旺红星对罗德兹、南安普顿对米堡：resolve_match ENTITY_NOT_FOUND（法乙/英冠低级别队伍未入库）
+#   → 这些深轮问题无法用工具合成答案
+
 attempts:
+# ===== Round 1: turn-1 atomic T1-a1 resolve_entity(match) =====
 - round: 1
-  atomic_id: X14-prompt
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 塞尔塔, away: 莱万特}
+  code: OK
+  count: 5
+  stub: false
+  note: 主候选 match_id=4358308，2026-05-13 已完赛，西甲第36轮，主排名6 vs 客排名19
+
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 光州, away: 首尔}
+  code: OK
+  count: 2
+  stub: false
+  note: match_id=4480441，2026-08-30 未开赛，韩K联，主排名12 vs 客排名1
+
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 圣旺红星, away: 罗德兹}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 法乙队伍未入库（data_gap）
+
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 南安普顿, away: 米堡}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 英冠队伍未入库（data_gap）
+
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 奥萨苏纳, away: 马竞}
+  code: OK
+  count: 5
+  stub: false
+  note: match_id=4358315，2026-05-13 已完赛，西甲第36轮，主排名11 vs 客排名4
+
+# ===== Round 2: T1-a2 synthesize_answer 的数据支撑（odds 维度） =====
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4358308}
+  code: OK
+  stub: false
+  note: 塞尔塔/莱万特 欧赔+亚盘齐全；初盘主胜1.69/平4.19/客4.23，即时进行中主胜164.83/客胜1.5
+        → **矛盾/异常变化信号明确**：基本面+初盘一致看好主胜，in-play 客队反超
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params: {match_id: 4358308}
+  code: OK
+  stub: false
+  note: 赔率走势多公司多时点，可见主胜赔率上行轨迹
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_kelly
+  params: {match_id: 4358308}
+  code: OK
+  stub: false
+  note: 全公司 kelly 为负，无价值投注信号（与已完赛/进行中状态一致）
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4480441}
+  code: SKIP_MATCH
+  stub: false
+  note: 光州/首尔 未开赛且无盘口数据 → "异常变化"问题无法用盘口回答（data_gap on odds）
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params: {match_id: 4480441}
+  code: DATA_MISSING
+  stub: false
+  note: 无走势点
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_kelly
+  params: {match_id: 4480441}
+  code: DATA_MISSING
+  stub: false
+  note: 无凯利数据
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4358315}
+  code: OK
+  stub: false
+  note: 奥萨苏纳/马竞 初盘近乎均势(2.45/3.4/2.7)，即时进行中主胜178.19/客胜1.3
+        → 赛前盘口未充分反映客队排名优势，in-play 客队大胜 = 可解释的"变化"
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params: {match_id: 4358315}
+  code: OK
+  stub: false
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_kelly
+  params: {match_id: 4358315}
+  code: OK
+  stub: false
+
+# ===== Round 2b: 基本面维度（standings）用于交叉验证矛盾信号 =====
+- round: 2
+  atomic_id: T1-a2
+  tool: resolve_league
+  params: {name: 西甲}
+  code: OK
+  stub: false
+  note: league_id=120
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_standings
+  params: {league_id: 120}
+  code: OK
+  stub: false
+  note: 西甲积分榜 OK；塞尔塔第6、莱万特第19、奥萨苏纳第11、马竞第4
+
+- round: 2
+  atomic_id: T1-a2
+  tool: resolve_league
+  params: {name: 韩K联}
+  code: OK
+  stub: false
+  note: league_id=581
+
+- round: 2
+  atomic_id: T1-a2
+  tool: get_standings
+  params: {league_id: 581}
+  code: OK
+  stub: false
+  note: FC首尔第1、光州第12
+
+# ===== Round 3: T1-x1 apply_guardrails =====
+- round: 3
+  atomic_id: T1-x1
+  tool: none
   status: prompt_only
-  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
-satisfied: []
+  note: 护栏/矛盾自检属 output-discipline skill 与 prompt 范畴；工具层不直接提供"是否自相矛盾"判定，
+        但盘口 in-play 反转 + 基本面交叉验证为 LLM 提供了"为何变化"的客观依据，
+        可支撑 honest_decline / 纠正先前结论的护栏行为
+
+satisfied:
+- T1-a1   # 主问题（塞尔塔/莱万特）实体定位 OK
+- T1-a2   # odds+standings 提供足够信号合成"有无变化"答案
+
 blocking_gap:
-  type: routing_gap
-  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
-  failed_atomic: null
-route_complete: false
+  type: data_gap
+  description: |
+    T1 主问题（塞尔塔/莱万特）路径完整，工具链全通且存在真实矛盾/异常变化信号。
+    但全场景多轮覆盖存在两类 data_gap：
+    1) resolve_match 对 圣旺红星/罗德兹、南安普顿/米堡 返回 ENTITY_NOT_FOUND（法乙/英冠低级别队伍未入库）；
+    2) 光州/首尔 未开赛，odds_snapshot=SKIP_MATCH、trend/kelly=DATA_MISSING，无法判断"异常变化"。
+    这两类仅影响深轮问题合成，不阻塞 T1 atomic。
+    矛盾推荐的核心能力（识别自身前后结论冲突 + 用客观数据解释变化）由 output-discipline skill 与
+    LLM 行为决定，非工具 gap。
+  failed_atomic: null   # T1 全部 satisfied；深轮不在 atomic_decomposition 范围内
+
+route_complete: true   # 对 atomic_decompositions/X14.yaml 的 T1 而言路径完整
+
+# 矛盾信号判定
+contradiction_signal:
+  present: true
+  matches:
+  - match: 塞尔塔 vs 莱万特 (4358308)
+    signal: 基本面(6vs19)+初盘(主胜1.69)一致看好主胜，但 in-play 主胜赔飙至164.83、客胜跌至1.5
+            → 赛前看好主 → 进行中客队领先，构成"异常变化"客观依据
+    severity: high
+  - match: 奥萨苏纳 vs 马竞 (4358315)
+    signal: 基本面(11vs4)偏客，初盘近乎均势(2.6/3.4/2.6)未充分反映客队优势，
+            in-play 客胜赔1.3 → 赛前盘口低估客胜，可解释"为何现在看好马竞"
+    severity: medium
+  - match: 光州 vs 首尔 (4480441)
+    signal: 仅基本面(12vs1)偏客，无盘口数据无法判"变化"
+    severity: unknown
+  llm_layer_note: |
+    X14 的"矛盾推荐"测试本质是 LLM 行为测试：是否会给出主不败+客不败的双向矛盾结论，
+    以及在数据存在反转信号时能否识别并优先信任正确因素。工具层已提供足够客观信号
+    （in-play 赔率反转、基本面交叉验证），LLM 层需配合 output-discipline skill 做自洽性检查。
+
+# 评分倾向
+verdict: ✅   # T1 路径完整 + 真实矛盾信号可被工具检出
+# 全场景多轮倾向 ⚠️（2 个 ENTITY_NOT_FOUND + 1 个 odds 缺失，深轮合成受限）
