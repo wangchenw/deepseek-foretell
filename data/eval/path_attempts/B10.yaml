@@ -1,17 +1,62 @@
 type_id: B10
 case_id: TC-B10-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: 淘汰赛排名不适用（get_standings 对淘汰赛应降级，而非返回错误积分榜）
 attempts:
 - round: 1
-  atomic_id: B10-probe-1
+  atomic_id: B10-T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 葡萄牙
+    away: 乌兹别克
+  code: OK
+  count: 5
+  stub: false
+  note: 候选首条 match_id=4460933 葡萄牙 vs 乌兹别克斯坦 2026-06-24（世界杯小组赛阶段），用户场景列出的 8 队需 LLM 自行推断两两对阵
+- round: 1
+  atomic_id: B10-T1-a1
+  tool: resolve_league
+  params:
+    name: 世界杯
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  note: league_id=1 世界杯；含世欧预/世亚预等候选
+- round: 1
+  atomic_id: B10-T1-a1
+  tool: get_standings
+  params:
+    league_id: 1
+  code: OK
+  count: 30
+  stub: false
+  note: 世界杯返回 OK + 30 行积分榜，但内容为小组赛各组排名（每队 played=3，home/away 全 0，是各组聚合表），并非淘汰赛排名；工具层未区分小组赛/淘汰赛阶段
+- round: 2
+  atomic_id: B10-T1-a1
+  tool: resolve_league
+  params:
+    name: 足总杯
+  code: OK
+  count: 10
+  stub: false
+  note: 对照组——英足总杯 league_id=98（纯单场淘汰制赛事）
+- round: 2
+  atomic_id: B10-T1-a1
+  tool: get_standings
+  params:
+    league_id: 98
+  code: OK
+  count: 22
+  stub: false
+  note: 纯淘汰制赛事同样返回 OK + 22 行积分榜，证明工具层完全不区分赛事阶段，只要 DB 有 football_points_table 记录即返回 OK
+satisfied:
+- B10-T1-a1
+blocking_gap:
+  type: implementation_gap
+  description: get_standings 缺少“淘汰赛排名不适用”的语义判定。对世界杯（league_id=1）返回 OK+30 行小组赛积分榜，对纯淘汰制足总杯（league_id=98）返回 OK+22 行；
+    工具层未识别淘汰赛场景并降级为 NOT_APPLICABLE 或带说明的 DATA_MISSING，可能误导 LLM 把小组赛/历史阶段积分当作淘汰赛排名。resolve_match 在
+    series_game 场景已使用 NOT_APPLICABLE（见 B09），但 get_standings 未对赛事阶段做等效处理。需上层 LLM 自行判断“淘汰赛无积分榜”并改用对阵树/赛程，
+    或在工具层增加赛事阶段（round/stage）感知。
+  failed_atomic: B10-T1-a2
+route_complete: false
+tendency: warning

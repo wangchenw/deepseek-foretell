@@ -1,16 +1,48 @@
 type_id: E12
+type_name: 在售方案
 case_id: TC-E12-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+entity_entry: batch
+sport: any
+verdict_lean: no_path   # 世界杯维度无已发布方案数据
 attempts:
 - round: 1
-  atomic_id: E12-probe-1
-  tool: get_lottery_schedule
+  atomic_id: E12-T1-a1
+  tool: sql
   params:
-    play_type: '101'
+    query: resolve World Cup matches via competition_id=1, season MAX, latest 15
   code: OK
-  count: 16
+  count: 15
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  note: football_match competition_id=1 全量 424 场；2026 世界杯 season MAX 赛事 status_id=1 未开赛(7月起)
+- round: 2
+  atomic_id: E12-T1-a2
+  tool: sql
+  params:
+    query: LEFT JOIN data_macao_recommend ON football_match.id=source_match_id WHERE competition_id=1
+  code: OK
+  count: 0
+  stub: false
+  note: 全表 8583 条推荐，世界杯(competition_id=1)关联推荐 0 条
+- round: 3
+  atomic_id: E12-T1-a2
+  tool: get_recommendations
+  params:
+    match_id: 4459800
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 工具单场维度；对世界杯赛事返回 DATA_MISSING。对照组 match_id=5018260 返回 OK+1 条推荐，证明工具可用
+satisfied:
+- E12-T1-a1   # match 实体可经 SQL 解析(世界杯赛事已定位)
+blocking_gap:
+  type: data_gap
+  description: data_macao_recommend 表无任何世界杯(competition_id=1)已发布方案/心水推荐；8583 条推荐全部关联非世界杯赛事。
+    即便遍历 424 场世界杯 match_id 调 get_recommendations 也只会得到 DATA_MISSING。此外 get_recommendations
+    仅支持单 match_id 入口，缺 batch/competition 过滤的列表入口，但主阻塞为数据缺失而非路由。
+  failed_atomic: E12-T1-a2
+route_complete: false
+key_findings:
+- get_recommendations(match_id) 单场维度可用(对照组 OK)，但无 batch/competition 列表入口，entity_entry=batch 需遍历 match_id
+- 世界杯 competition_id=1 在 data_macao_recommend 中零关联，424 场赛事无一有已发布方案
+- 2026 世界杯 status_id=1 未开赛(7月)，预赛阶段通常无 Nami 心水推荐产出

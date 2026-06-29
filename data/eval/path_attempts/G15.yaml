@@ -1,11 +1,216 @@
 type_id: G15
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G15-001
+explored_at: '2026-06-29'
+scenario: G (综合分析追问)
+entity_entry: context
+sport: any
+turns:
+- turn_index: 1
+  text: 帮我进行2026年5月29日哈卡VS吉普的赛事分析，根据双方的积分和排名、主队主场战绩和客队客场战绩、
+    以及近期比赛成绩等信息，进行分析，然后撰写并输出赛事分析报告，主队一段、客队一段、综合分析一段。
+attempts:
+- round: 1
+  atomic_id: T1-a2
+  tool: resolve_match
+  params:
+    home: 哈卡
+    away: 吉普
+    date: '2026-05-29'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 用户音译"吉普"在 football_team 无对应 name_zh；resolve_match 按字面名模糊匹配未命中任何候选。
+- round: 1
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: football_team WHERE name_zh LIKE %哈卡%/%吉普% OR name_en LIKE %Haka%/%Jippo%
+  code: OK
+  count: 2
+  stub: false
+  note: SQL 兜底定位球队——哈卡=FC Haka(id=10541, comp=196)，"吉普"实为 JIPPO=基柏(id=19917, comp=196)。
+    两队同属 comp=196（芬甲），用户用非标准音译"吉普"指代 DB 中文名"基柏"。属 name-resolution 难点，非数据缺失。
+- round: 2
+  atomic_id: T1-a2
+  tool: resolve_match
+  params:
+    home: 哈卡
+    away: 基柏
+    date: '2026-05-29'
+  code: OK
+  count: 1
+  stub: false
+  note: 用 DB 标准名"基柏"重试命中——match_id=4477364，league=芬甲(196)，season=13906，round=9，status=finished，
+    比分 2-1（半场 0-1），home_position=5/away_position=3，neutral=false，含天气环境(17°C/33%/6.1m/s)。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_standings
+  params:
+    league_id: 196
+    season_id: 13906
+  code: OK
+  count: 10
+  stub: false
+  note: 积分榜+主客战绩维度——参数须用 league_id（非 competition_id）。返回 10 队含 position/points/won/draw/loss/goals
+    及 home/away 分列。哈卡 pos3(21分,主7场3胜2平2负/客5场3胜1平1负)，基柏 pos4(20分,主7场2胜4平1负/客5场3胜1平1负)。
+    注：此为当前轮(第12轮)榜；比赛时(第9轮)positions 为 home5/away3，比赛记录已带 position 快照。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_team_schedule
+  params:
+    team_id: 10541
+    direction: all
+    limit: 8
+  code: OK
+  count: 8
+  stub: false
+  note: 近期成绩维度（工具路径）——direction=all 返回 8 条均为 2026-08~10 未来赛事(status=not_started)，
+    触发已知 schedule direction 语义反转问题，未返回 2026-05-29 之前的近期历史。两队 schedule 均同此现象。
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: football_match WHERE (home/away=team) AND match_time_str<'2026-05-29' AND status_id=8 ORDER BY match_time DESC LIMIT 8
+  code: OK
+  count: 8
+  stub: false
+  note: 近期成绩 SQL 兜底——哈卡近8场(2026-04-25~05-26)含 VPS瓦萨/埃斯波等大比分，基柏近8场(2026-04-11~05-23)
+    含 PK35万塔/KTP科特卡等。两队近期成绩完整可得，方向反转不阻塞。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_h2h
+  params:
+    team_a: 10541
+    team_b: 19917
+    limit: 8
+  code: OK
+  count: 5
+  stub: false
+  note: 交锋历史维度——返回 5 条历史对阵(含 2026-05-29 本场 2-1、2024-04-16 基柏0-2哈卡、2014 两次等)，
+    score_breakdown 含 full/half/红黄牌/角球。补充基本面深度。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_match_lineup
+  params:
+    match_id: 4477364
+  code: OK
+  count: 22
+  stub: false
+  note: 首发阵型维度——confirmed=true，home/away 各 11 首发含 player_name/shirt_number/position(F/M/D/G)/is_starter，
+    home_coach_id=15143/away_coach_id=13334。formation 字段为空但阵容齐全(coverage_lineup=1)。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4477364
+  code: OK
+  count: 10
+  stub: false
+  note: 赔率面维度——欧赔 5 家(威廉希尔/立博/18Bet/Interwetten 等)+亚盘 5 家(易胜博/利记/onex 等)，
+    各含 initial/current/latest 三档 home_win/draw/away_win 或 handicap/home_line/away_line，company_name 已映射。
+    赔率面完整可得。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_intel_tags
+  params:
+    match_id: 4477364
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 情报面维度——tags=[] 返回空，与 match 记录 coverage_intelligence=0 一致，本场无情报数据。属 data_gap，
+    但用户明确维度(积分排名/主客战绩/近期成绩)未含情报面，不阻塞综合分析输出。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_team_season_stats
+  params:
+    team_id: 10541
+    season_id: 13906
+  code: OK
+  count: 1
+  stub: false
+  note: 球队赛季统计维度（工具）——工具未按传入 season_id=13906(芬甲) 过滤，误返 season_id=14028(芬兰杯, Haka 4场/基柏1场)
+    统计。属工具 season_id 过滤失效(implementation_gap 局部)。两队均同此现象。
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: football_competition_teams_stats WHERE season_id=13906 AND team_id IN(10541,19917)
+  code: OK
+  count: 2
+  stub: false
+  note: 球队赛季统计 SQL 兜底——正确取到芬甲 season=13906 统计：哈卡 12场/20球/27黄2红/控球56%/角球80，
+    基柏 12场/14球/17黄0红/控球55%/角球59。补充深度可得。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_injury_report
+  params:
+    match_id: 4477364
+  code: OK
+  count: 1
+  stub: false
+  note: 伤停维度——参数须 match_id（非 team_id）。主队 1 人弗里伯格 type=doubtful(出战成疑/受伤)，客队无伤停。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_match_team_stats
+  params:
+    match_id: 4477364
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 比赛球队统计维度（补充）——stats=[] 无该场比赛技术统计。非用户明确需求维度，不阻塞。
+- round: 1
+  atomic_id: T1-g0
+  tool: maintain_context
+  params: {}
+  code: OK
+  stub: false
+  note: maintain_context 属 agent 编排层——单轮综合分析请求内含三段式输出(主队段/客队段/综合段)，需在 synthesize
+    阶段维持上下文串联三段。无需独立工具调用，编排层满足。
+- round: 1
+  atomic_id: T1-a1
+  tool: maintain_context
+  params: {}
+  code: OK
+  stub: false
+  note: maintain_context 属 agent 编排层——多维度数据(积分榜/主客战绩/近期成绩/h2h/赔率/伤停)聚合到综合分析时
+    需跨工具结果维持上下文。编排层满足，无工具依赖。
+- round: 1
+  atomic_id: T1-a2
+  tool: synthesize_answer
+  params: {}
+  code: OK
+  stub: false
+  note: synthesize 综合分析——三段式报告所需数据全部可得：主队段(哈卡排名3/主场战绩/近期/伤停/阵容)、
+    客队段(基柏排名4/客场战绩/近期/阵容)、综合段(h2h+赔率面+双方对比)。可输出完整深度分析报告。
+satisfied:
+- T1-g0
+- T1-a1
+- T1-a2
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
-route_complete: false
+  type: none
+  description: 用户三个明确维度(积分排名/主客战绩/近期成绩)全部可得；综合追问所需基本面+赔率面完整。
+    情报面 DATA_MISSING 为本场无情报数据，非用户明确维度，不阻塞。
+  failed_atomic: ''
+  workaround: ''
+route_complete: true
+cross_sport_check:
+  sport_inferred: football
+  collision: false
+  note: 哈卡(10541)/基柏(19917) 均为 football_team，comp=196 芬甲，resolve_match 显式返回 sport=football。
+    "吉普"音译虽与多队(吉普斯兰/Jippo II 等)部分字面重叠，但经 JIPPO→基柏 映射后无跨运动碰撞，sport=any 风险不触发。
+data_quality_notes:
+- 名称解析难点：用户"吉普"为非标准音译，DB 中文名为"基柏"(JIPPO Joensuu)。resolve_match 对字面用户名返回
+  ENTITY_NOT_FOUND，需 LLM 自行完成 吉普→JIPPO→基柏 的音译消歧；属 routing/LLM-disambiguation 挑战，数据本身存在。
+- get_standings 参数须 league_id 而非 competition_id（传 competition_id 触发 ValidationError）。
+- get_team_schedule direction=all 存在语义反转，返回未来赛事而非近期历史；近期成绩需 SQL 兜底(WHERE match_time_str<date AND status_id=8)。
+- get_team_season_stats 未按传入 season_id 过滤，误返芬兰杯(season 14028)统计；芬甲球队赛季统计需 SQL 直查
+  football_competition_teams_stats WHERE season_id=13906 兜底。
+- get_injury_report 参数须 match_id（非 team_id，传 team_id 触发 ValidationError）。
+- 情报面 get_intel_tags 与比赛统计 get_match_team_stats 均为 DATA_MISSING(coverage_intelligence=0 且无技术统计)，
+  属本场数据稀疏，不影响用户明确维度。
+verdict: pass
+verdict_reason: G15 综合分析追问核心路径完整——resolve_match(基柏)定位 match_id=4477364 后，get_standings
+  提供积分排名+主客分列、SQL 提供近期历史成绩(工具 direction 反转兜底)、get_h2h+get_match_lineup+get_odds_snapshot+
+  get_injury_report 提供交锋/阵容/赔率/伤停深度，三段式综合分析报告(主队段/客队段/综合段)数据齐全。三个 atomic
+  (T1-g0/T1-a1 maintain_context 编排层 + T1-a2 synthesize_answer)均满足，route_complete=true，无 blocking_gap。
+  唯一注意点为"吉普→基柏"音译消歧需 LLM 自行完成，以及 schedule/team_season_stats 工具局部失效均已由 SQL 兜底。

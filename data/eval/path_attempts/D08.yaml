@@ -1,17 +1,38 @@
 type_id: D08
 case_id: TC-D08-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
 attempts:
 - round: 1
-  atomic_id: D08-probe-1
-  tool: resolve_match
+  atomic_id: D08-T1-a1
+  tool: get_lottery_schedule
   params:
-    home: 皇马
-    away: 巴萨
+    play_type: '301'
   code: OK
-  count: 10
+  count: 4
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 北单胜负可售 4 场（巴西vs日本、IA阿克拉内斯vs弗拉姆、荷兰vs摩洛哥 等），均含 home/away/league/bf 比分赔率；match_id=null 但 lottery 列表自带实体信息，足以推荐比分
+- round: 1
+  atomic_id: D08-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '301'
+    code: '64'
+    date: '2026-06-30'
+  code: OK
+  stub: false
+  note: 单场定位 巴西vs日本（世界杯 issue=26069 num=64）成功，bf 比分赔率完整；验证 resolve_entity(match) 路径
+- round: 1
+  atomic_id: D08-T1-a2
+  category: synthesize_answer
+  status: ok
+  note: 4 场北单均带 bf 比分赔率 + spf 让球胜平负，可按筛选标准选 3 场推荐比分；odds.spf.win 字段为被截断的 JSON 字符串（如 "{\"sf3\":\"2.80\""），LLM 仍可读出赔率值，属结构化小瑕疵不阻塞
+satisfied:
+- D08-T1-a1
+- D08-T1-a2
+blocking_gap:
+  type: none
+  description: 北单可售场次≥3 且比分赔率齐全，路径完整；sport=301 均为足球赛事（世界杯/冰岛超），无跨运动碰撞
+  failed_atomic: null
 route_complete: true
+verdict: verified
+cross_sport_data_collision: false

@@ -1,16 +1,158 @@
 type_id: E11
 case_id: TC-E11-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (比分串方案)
+entity_entry: batch
+sport: any (比分串关，4 场均为足球)
+turns:
+- turn_index: 0
+  text: 对四场比赛做深度拆解，定稿主推方案和比分四串一。1. 周六001 日职联 水户蜀葵 VS
+    东京绿茵（2026/05/16 13:00）2. 周六002 日职联 浦和红钻 VS FC东京（15:00）3. 周六003
+    韩K联 大田市民 VS FC首尔（15:30）4. 周六004 日职联 横滨水手 VS 柏太阳神（16:00）
 attempts:
 - round: 1
-  atomic_id: E11-probe-1
+  atomic_id: E11-T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
+    date: '2026-05-16'
   code: OK
-  count: 16
+  count: 24
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 竞彩足球批次 OK，命中周六001-004。每条 odds 含 spf/rq/bf/jq/bqc；bf 比分赔率为
+    list[31]（label+odds），正是比分四串一所需。match_id 在 lottery 条目中为 null（符合 schema
+    map 预期），需 resolve_match 回填。sell_status 多为 suspended（2026-05-16 已过开奖日）。
+- round: 1
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 水户蜀葵
+    away: 东京绿茵
+    date: '2026-05-16'
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4470723，league=567 日职联，status=finished，round_num=17，home_position=东区7/away=东区4
+- round: 1
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 浦和红钻
+    away: 东京FC
+    date: '2026-05-16'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 客队名"东京FC"未命中（命名差异），需 fallback 调整为"FC东京"
+- round: 1
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 大田市民
+    away: 首尔FC
+    date: '2026-05-16'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 客队名"首尔FC"未命中（命名差异），需 fallback 调整为"FC首尔"
+- round: 1
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 横滨水手
+    away: 柏太阳神
+    date: '2026-05-16'
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4470725，league=567 日职联，status=finished，home_position=东区8/away=东区9
+- round: 2
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 浦和红钻
+    away: FC东京
+    date: '2026-05-16'
+  code: OK
+  count: 1
+  stub: false
+  note: fallback 命名修正后命中，match_id=4470724，league=567 日职联，15:00，home_position=东区5/away=东区2
+- round: 2
+  atomic_id: E11-T1-a1
+  tool: resolve_match
+  params:
+    home: 大田市民
+    away: FC首尔
+    date: '2026-05-16'
+  code: OK
+  count: 1
+  stub: false
+  note: fallback 命名修正后命中，match_id=4480359，league=581 韩K联，15:30，home_position=9/away=1
+- round: 2
+  atomic_id: E11-T1-a2
+  tool: get_match_result
+  params:
+    match_id: 4470723
+  code: OK
+  count: 1
+  stub: false
+  note: M1 代表性验证。score_breakdown full=0-1/half=0-0/角球3-4/黄牌2-2，比分拆解可用
+- round: 2
+  atomic_id: E11-T1-a2
+  tool: get_goals_lost_rate
+  params:
+    match_id: 4470723
+  code: OK
+  count: 7
+  stub: false
+  note: 7 个时段（1~15/16~30/.../90+）进失球概率，支持比分预测时序维度
+- round: 2
+  atomic_id: E11-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 15733
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 水户蜀葵近5场全败（含本场0-1），近况维度可用
+- round: 2
+  atomic_id: E11-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 15733
+    team_b: 10327
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 5 场历史交锋均含 score_breakdown（本场0-1、2026-02-08客1-3、2023主0-0、2023客0-2、2022主1-2），
+    交锋比分模式可直接喂比分预测
+satisfied:
+- E11-T1-a1
+- E11-T1-a2
+blocking_gap:
+  type: none
+  description: 无阻断。比分四串一核心数据链已打通：get_lottery_schedule(play_type=101) 提供
+    4 场 bf 比分赔率（31 项 label+odds，含 1:0/2:1/胜其他/负其他 等），resolve_match 回填 4
+    个 match_id（M2/M3 命名差异经一轮 fallback 修正），深度拆解工具 get_match_result/get_goals_lost_rate/get_recent_form/get_h2h
+    均返回真实数据。比分预测无专用单工具，但 bf 比分赔率 + score_breakdown(h2h/近况) + 进失球概率
+    三者组合足以支撑 LLM 选定每场主推比分；四串一组合本身为 LLM 合成步骤（选 4 场比分 × 赔率连乘），非数据缺口。
+  failed_atomic: null
+  workaround: null
 route_complete: true
+verdict: pass
+verdict_reason: 路径完整。entity_entry=batch 经 get_lottery_schedule 一次拉取 4 场 bf 比分赔率即覆盖比分串关核心；4
+  场 resolve_match 全部命中（2 场需命名 fallback），均为足球无跨运动碰撞；深度拆解维度（比分拆解/进失球概率/近况/交锋）工具层全部
+  OK 且非 stub。串关组合为 synthesize_answer 范畴，无实现缺口。
+data_quality_notes:
+- bf 比分赔率为 list[31]，含精确比分（1:0 等）与"胜其他/平其他/负其他"聚合项，最低赔率项即隐含主推比分，可直接用于四串一选号
+- 4 场 sell_status 多为 suspended（已过 2026-05-16 开奖日），但赔率快照仍完整保留，不影响回溯分析
+- lottery 条目 match_id 为 null，必须经 resolve_match(home+away+date) 回填才能调用 match 维度深度工具
+- M2(浦和vs东京FC)/M3(大田vs首尔FC) 需把客队名调整为"FC东京"/"FC首尔"才命中，属常见命名归一化 fallback
+cross_sport_collision: none
+match_ids:
+  周六001: 4470723
+  周六002: 4470724
+  周六003: 4480359
+  周六004: 4470725

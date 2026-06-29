@@ -1,0 +1,250 @@
+type_id: G08
+case_id: TC-G08-001
+scenario: G  # 多轮追问（maintain_context + synthesize_answer）
+explored_at: '2026-06-29'
+methodology: SQL 优先（Agent 2 规则）—— information_schema 确认表结构 → 独立 SELECT 求真实返回行 → 调工具对照 → 判定 gap_type。
+target_match: NBA 总决赛 G4，match_id=3922409（圣安东尼奥马刺 10137 vs 纽约尼克斯 10115，2026-06-14 08:30，season_id=1911，competition_id=1）
+original_verdict: "❌ 无解（多轮上下文继承 + NBA 深度分析数据缺失）"
+rework_focus: "未做 SQL 基准验证数据库是否真的缺 NBA 深度分析所需数据。本次强制 SQL 验证。"
+
+# ============================================================
+# 全局证据摘要（按 NBA 深度分析模板字段分组）
+# ============================================================
+sql_baseline_summary:
+  比赛元数据_对阵: "SQL: basketball_match WHERE competition_id=1 → 真实存在（id=3922409, home=马刺10137, away=尼克斯10115, season_id=1911, kind=2 季后赛）"
+  比赛元数据_时间: "basketball_match.match_time=FROM_UNIXTIME→2026-06-14 08:30:00 ✓"
+  比赛元数据_场地: "basketball_match.venue_id=0（比赛级未填充）；basketball_venue 表存在（name_zh/city_zh/capacity）；basketball_team.venue_id 可关联主场球馆 → 部分缺口"
+  比赛元数据_裁判: "basketball_match_intelligence tag=12 真实存在：G4『本场裁判』content=斯科特·福斯特、詹姆斯·卡珀斯、泰勒·福特（回放中心米切尔·欧文）✓"
+  伤病量化: "basketball_match_intelligence tag=6 真实存在（西决实证）：『雷霆三名球员将缺席西决抢七』杰伦-威廉姆斯腿筋拉伤、阿杰伊-米切尔比目鱼肌拉伤、托马斯-索伯前十字韧带撕裂；G4(3922409)本身无 tag=6 记录（总决赛全员健康）。『缺阵影响%(-XX%)』无量化字段 → 需文本解析"
+  效率对比_进攻效率: "basketball_competition_team_stats.offensive_rating 真实有值：雷霆117、马刺118、尼克斯(10115)等 30 队 scope=5 常规赛 82 场 ✓"
+  效率对比_防守效率: "defensive_rating 真实有值：雷霆106、马刺110 等 ✓"
+  效率对比_Pace: "⚠️ basketball_competition_team_stats 无 pace 字段（仅 basketball_competition_players_stats.pace 有值：100.73/101.84/97.73 等）→ 球队级 Pace 局部 data_gap，需用 players_stats 聚合或上游补"
+  效率对比_三分命中率: "basketball_competition_team_stats.three_points_accuracy 真实有值：36/35/34% 等 ✓"
+  效率对比_联盟排名: "basketball_points_table（东部3265/西部3266，season_id=1911, scope=5）+ basketball_points_table_team.position 真实存在 ✓"
+  盘口追踪_大小分: "basketball_odds_over_down WHERE match_id=3922409 → 10+ 家公司，初盘216.5→即时215.5（盘口变化）✓"
+  盘口追踪_让分: "basketball_odds_asian（first_odd1/2/3 初盘 + odd1/2/3 即时 + real_odd 最新）✓"
+  盘口追踪_欧赔: "basketball_odds_europe match_start_time=2026-06-14 08:30 ✓；basketball_odds_europe_change_2026 → 3153 条变化，min_upd 2026-06-11 ~ max_upd 2026-06-14 ✓"
+  球员场均: "basketball_competition_players_stats 真实有值：points/rebounds/assists + pace + offensive_rating + defensive_rating + three_points_accuracy ✓"
+
+# ============================================================
+# 原子查询逐条探索
+# ============================================================
+atomics:
+
+  # ----------------------------------------------------------
+  - atomic_id: T1-g0
+    category: maintain_context
+    target: {}
+    rounds:
+      - round: 1
+        hypothesis: "G 多轮追问首步需会话级上下文继承。先确认 foretell 代码库是否存在 checkpointer / 会话状态持久化机制。"
+        schema_query: |
+          （代码库审查，非 SQL）检索 foretell/ 下 checkpointer / MemorySaver / thread_id / conversation state 相关实现
+        schema_result: "foretell 工具链为无状态工具调用封装（resolve_* / get_*），未发现 LangGraph checkpointer 或会话级上下文持久化机制。多轮上下文继承依赖 agent 编排层，工具层不提供。"
+        decision: blocked
+    final_status: blocked
+    gap_type: context_gap
+    gap_evidence: "此环节依赖会话级上下文维护（checkpointer），当前 foretell 工具链无该机制。与数据无关，属流程环节缺口。按 Agent 2 规则诚实标注 context_gap，不假装能模拟。"
+    recommended_next_step: "在 agent 编排层引入 LangGraph checkpointer（SqliteSaver/PostgresSaver）+ thread_id，或在 Deep Agents 层用 StoreBackend 维护多轮上下文。属工程编排层任务，非工具层。"
+
+  # ----------------------------------------------------------
+  - atomic_id: T1-a1
+    category: maintain_context
+    target: {}
+    rounds:
+      - round: 1
+        hypothesis: "第二段 maintain_context：用户 NBA 深度分析模板的表格结构（元数据/伤病/效率/盘口）需跨轮继承。验证同 T1-g0。"
+        schema_query: |
+          （同 T1-g0，代码库审查）
+        schema_result: "无 checkpointer，模板字段结构需在 synthesize 阶段由 LLM 根据首轮模板自行维持，工具层无法验证继承正确性。"
+        decision: blocked
+    final_status: blocked
+    gap_type: context_gap
+    gap_evidence: "与 T1-g0 同根因。多轮模板字段继承无会话状态支撑。"
+    recommended_next_step: "同 T1-g0；或在 system prompt 中固化 NBA 深度分析模板结构，降低对上下文继承的依赖。"
+
+  # ----------------------------------------------------------
+  - atomic_id: T1-a2
+    category: synthesize_answer
+    target: {template: NBA深度分析（比赛元数据/伤病量化/效率对比/盘口追踪）}
+    rounds:
+
+      - round: 1
+        hypothesis: "先确认 NBA 相关表结构，定位比赛/球队/球员/效率/伤病/盘口/积分榜/场馆表。"
+        schema_query: |
+          SELECT DISTINCT table_name FROM information_schema.columns
+          WHERE table_schema = DATABASE() AND table_name LIKE 'basketball%' ORDER BY table_name LIMIT 100
+          -- 关键表列结构：
+          SELECT table_name, column_name, column_type, column_comment
+          FROM information_schema.columns
+          WHERE table_schema = DATABASE()
+            AND table_name IN ('basketball_match','basketball_team','basketball_competition',
+              'basketball_competition_team_stats','basketball_competition_players_stats',
+              'basketball_match_intelligence','basketball_intelligence','basketball_match_team_data',
+              'basketball_points_table','basketball_points_table_team','basketball_venue',
+              'basketball_player','basketball_odds_over_down','basketball_odds_asian','basketball_odds_europe')
+        schema_result: |
+          关键字段确认：
+          - basketball_match: id, competition_id, home_team_id, away_team_id, match_time(int), status_id, venue_id, season_id, kind(1常规赛2季后赛)
+          - basketball_competition_team_stats: competition_id, season_id, team_id, scope(5常规赛), offensive_rating, defensive_rating, net_rating, three_points_accuracy, field_goals_accuracy（无 pace 字段！）
+          - basketball_competition_players_stats: ... pace, offensive_rating, defensive_rating, three_points_accuracy, points, rebounds, assists
+          - basketball_match_intelligence: match_id, belong(0无1主2客), tag(1爆料...6伤停...12裁判...14数据), title, content, pub_time
+          - basketball_points_table_team: point_table_id, team_id, position(排名), won, lost, won_rate, points_avg, points_against_avg, conference
+          - basketball_venue: id, name_zh, city_zh, capacity
+          - basketball_odds_over_down: match_id, company_id, first_odd1(初盘大球), first_odd2(盘口), first_odd3(小球), odd1/2/3(即时), real_odd1/2/3(最新), updated_at
+        decision: continue
+
+      - round: 2
+        hypothesis: "独立 SQL 求 NBA 比赛数据 + 球队效率统计真实返回行，作为基准答案。"
+        sql_baseline:
+          query_nba_match: |
+            SELECT m.id, m.competition_id, m.home_team_id, m.away_team_id,
+                   FROM_UNIXTIME(m.match_time) AS mt, m.status_id, m.venue_id, m.season_id, m.kind,
+                   th.name_zh AS home, ta.name_zh AS away
+            FROM basketball_match m
+            LEFT JOIN basketball_team th ON th.id=m.home_team_id
+            LEFT JOIN basketball_team ta ON ta.id=m.away_team_id
+            WHERE m.competition_id=1 ORDER BY m.match_time DESC LIMIT 10
+          result_nba_match: |
+            真实存在 10 行：最近 id=3922409（马刺 vs 尼克斯，2026-06-14 08:30，status=10完场，season=1911，kind=2季后赛，venue_id=0）；
+            系列赛 G1-G4 全在 DB（3921899/3921900/3921901/3921902/3922409）。
+          query_team_efficiency: |
+            SELECT uid, competition_id, season_id, team_id, scope, matches, points, points_against,
+                   offensive_rating, defensive_rating, net_rating, three_points_accuracy, field_goals_accuracy
+            FROM basketball_competition_team_stats
+            WHERE competition_id=1 AND offensive_rating IS NOT NULL ORDER BY season_id DESC LIMIT 10
+          result_team_efficiency: |
+            真实存在 10 行（30 队齐）：雷霆 off=117/def=106/net=11/3P=36%, 马刺(10137) off=118/def=110/net=8/3P=35%,
+            湖人 off=121/def=116, 活塞 off=108/def=118 等。scope=5 常规赛 82 场。
+          query_player_pace: |
+            SELECT uid, team_id, player_id, matches, points, rebounds, assists, pace,
+                   offensive_rating, defensive_rating, three_points_accuracy
+            FROM basketball_competition_players_stats
+            WHERE competition_id=1 AND season_id=1911 AND scope=5 AND pace IS NOT NULL ORDER BY points DESC LIMIT 8
+          result_player_pace: |
+            真实存在 8 行：player 12302 pace=100.73/off=119.4/def=115.6, 12485 pace=101.84/off=121.5/def=105.2 等。
+            注：team_stats 无 pace 字段，球队级 Pace 须由 players_stats 聚合或上游补 → 局部 data_gap。
+        decision: continue
+
+      - round: 3
+        hypothesis: "SQL 验证伤病/裁判/情报 + 盘口追踪 + 积分榜真实数据。"
+        sql_baseline:
+          query_injury_referee_intel: |
+            SELECT mi.id, mi.match_id, mi.belong, mi.tag, mi.title, LEFT(mi.content,120) AS preview,
+                   FROM_UNIXTIME(mi.pub_time) AS pub
+            FROM basketball_match_intelligence mi WHERE mi.match_id=3922409 ORDER BY mi.tag LIMIT 30
+          result_injury_referee_intel: |
+            真实存在 30 行 G4 情报：
+            - tag=5 先发：马刺(瓦塞尔/尚帕尼/文班亚马/卡斯尔/福克斯)、尼克斯(布里奇斯/阿努诺比/唐斯/哈特/布伦森)
+            - tag=12 裁判：斯科特·福斯特、詹姆斯·卡珀斯、泰勒·福特（回放中心米切尔·欧文）
+            - tag=14 数据：马刺场均113.8分排第3、篮板46.9第1、盖帽7.1第2；尼克斯117.6分第1、失分101.3第2、命中率49.9%第1
+            - tag=10 球员：文班24分13板、布伦森36分5板7助3断、阿奴诺比真实命中率78%
+            - tag=6 伤停：G4 无记录（西决 3921754 等有：雷霆杰伦威腿筋拉伤/米切尔比目鱼肌/索伯ACL）
+          query_odds: |
+            SELECT id, match_id, company_id, first_odd1 AS first_over, first_odd2 AS first_handicap,
+                   first_odd3 AS first_under, odd1 AS cur_over, odd2 AS cur_handicap, odd3 AS cur_under,
+                   FROM_UNIXTIME(updated_at) AS upd
+            FROM basketball_odds_over_down WHERE match_id=3922409 LIMIT 10
+            -- 欧赔变化分表行数：
+            SELECT COUNT(*) AS cnt, MIN(FROM_UNIXTIME(updated_at)) AS min_upd, MAX(FROM_UNIXTIME(updated_at)) AS max_upd
+            FROM basketball_odds_europe_change_2026 WHERE match_id=3922409
+          result_odds: |
+            真实存在：大小分 10+ 家公司，初盘 216.5→即时 215.5（company 2/3/5/6/7/9/10/11/13），upd 2026-06-14 11:xx；
+            basketball_odds_europe_change_2026 match_id=3922409 → cnt=3153，min_upd 2026-06-11 10:10 ~ max_upd 2026-06-14 11:29。
+            真实盘口变化时间序列完整覆盖模板『盘口追踪』。
+          query_standings: |
+            SELECT pt.competition_id, pt.season_id, pt.scope, pt.name, pt.id AS table_id
+            FROM basketball_points_table pt WHERE pt.competition_id=1 ORDER BY pt.season_id DESC LIMIT 10
+          result_standings: |
+            真实存在：season_id=1911 scope=5 东部排名(3265)/西部排名(3266)；
+            scope=4 季前赛东部/西部；scope=3 季中锦标赛东/西部 A/B/C 组。
+        decision: continue
+
+      - round: 4
+        hypothesis: "调 foretell 工具对照：get_basketball_standings / get_intel_tags / get_injury_report / get_odds_trend / get_team_season_stats。"
+        tool_call:
+          - name: get_basketball_standings
+            params: {league_id: 1}
+            result: {code: OK, count: 30, sample: "雷霆 position=1 won=64 lost=18 win_rate=0.78 PPG=119.0; 马刺 position=2 won=62 lost=20; 尼克斯 position=3 won=53 lost=29"}
+            verdict: 工具实现且返回真实 NBA 30 队积分榜（胜负/胜率/胜场差/场均得失分/主客战绩/近10场）✓
+          - name: get_intel_tags
+            params: {match_id: 3922409}
+            result: {code: DATA_MISSING, tags: "[]"}
+            verdict: "⚠️ tool_logic_gap：SQL 证明 DB 有 30 条 G4 情报（裁判/先发/数据/球员表现），工具却返回 DATA_MISSING。工具未正确读取 basketball_match_intelligence（篮球情报表）。"
+          - name: get_injury_report
+            params: {match_id: 3922409}
+            result: {code: OK, home: "[]", away: "[]"}
+            verdict: "G4 无 tag=6 伤停记录（SQL 一致，总决赛全员健康），空返回与 SQL 一致；但工具是否读取 tag=6 未对西决 match 验证，保守标注 implementation_gap（伤病维度工具对篮球未充分实现/未验证）。"
+          - name: get_odds_trend
+            params: {match_id: 3922409}
+            result: {code: OK, count: 50, first_point: {changed_at: 1683019525, odds: {home_win: 1.87, draw: 5.14, away_win: 5.68}}}
+            verdict: "⚠️ tool_logic_gap(P1)：返回 changed_at=1683019525=2023-05-02（与 2026-06-14 比赛严重错位）；SQL 证明 basketball_odds_europe_change_2026 有 3153 条 2026-06-11~14 的真实变化。工具读错表/字段或 match_id 映射错误，返回陈旧 2023 数据。且返回欧赔(home/draw/away)而非篮球模板所需的『大小分/让分盘口』。"
+          - name: get_team_season_stats
+            params: {team_id: 10137}
+            result: {note: "docstring 明确写 football_team.id / 进失球 — 足球专用工具，不返回篮球 offensive_rating/defensive_rating/pace"}
+            verdict: "implementation_gap：篮球球队赛季效率（offensive_rating/defensive_rating/三分命中率）SQL 能查到（basketball_competition_team_stats），但无 foretell 工具封装；team_stats 缺 pace 字段（仅 players_stats 有）。"
+        comparison: |
+          SQL 基准 vs 工具对照：
+          - 积分榜/联盟排名：SQL=points_table ✓，工具 get_basketball_standings ✓ → 一致，工具可信
+          - 情报（裁判/先发/数据）：SQL=30 条 ✓，工具 get_intel_tags=DATA_MISSING ✗ → 工具漏数据，tool_logic_gap
+          - 盘口追踪：SQL=over_down/asian/europe_change_2026 真实 2026 数据 ✓，工具 get_odds_trend=2023 陈旧数据 ✗ → 工具读错，tool_logic_gap
+          - 球队效率：SQL=team_stats offensive/defensive_rating 有值 ✓，工具无封装 ✗ → implementation_gap
+          - Pace（球队级）：SQL=team_stats 无 pace 字段 ✗（仅 players_stats 有）→ 局部 data_gap
+          - 伤病：SQL tag=6 西决有/G4 无，工具 G4 空（一致）但工具篮球伤病读取能力未验证 → implementation_gap
+          - 场地：SQL basketball_match.venue_id=0 比赛级未填充 → 局部 data_gap（可由 basketball_team.venue_id 关联 basketball_venue 补）
+        decision: blocked
+
+    final_status: partial
+    gap_type: implementation_gap  # 复合：implementation_gap + tool_logic_gap(P1) + context_gap + 局部 data_gap
+    gap_evidence: |
+      【SQL 基准实证 — NBA 深度分析数据真实存在于 DB】
+      1. 比赛元数据：basketball_match id=3922409（马刺 vs 尼克斯，2026-06-14 08:30，season=1911）✓
+      2. 裁判：basketball_match_intelligence tag=12（斯科特·福斯特/詹姆斯·卡珀斯/泰勒·福特）✓
+      3. 伤病：tag=6 西决实证（雷霆杰伦威腿筋拉伤/米切尔比目鱼肌/索伯ACL）✓；『缺阵影响%』无量化字段
+      4. 效率：team_stats offensive_rating(雷霆117/马刺118)/defensive_rating(106/110)/three_points_accuracy(36%/35%) ✓
+      5. 三分命中率/联盟排名：team_stats.three_points_accuracy ✓；points_table 东/西部排名 ✓
+      6. 盘口追踪：over_down 10+ 公司初盘216.5→即时215.5 ✓；europe_change_2026 3153 条 2026-06-11~14 变化 ✓
+      7. 球员场均：players_stats pace/off_rating/def_rating/3P% ✓
+      【工具对照 — 工具层缺陷】
+      - get_basketball_standings ✓ 实现（30 队真实积分榜）
+      - get_intel_tags ✗ 返回 DATA_MISSING 但 DB 有 30 条情报 → tool_logic_gap(P1)
+      - get_odds_trend ✗ 返回 2023 陈旧数据（changed_at=1683019525）但 DB 有 2026 真实变化 → tool_logic_gap(P1)
+      - 篮球球队赛季效率无工具封装（get_team_season_stats 是足球专用）→ implementation_gap
+      【按 Agent 2 规则判定】SQL 能查到 NBA 深度分析所需数据 → 不得标无解 ❌；判 implementation_gap（数据库能撑，工具层有缺陷），叠加 tool_logic_gap(P1,两个工具 bug) + context_gap(多轮 checkpointer 缺失) + 局部 data_gap(球队级 Pace / 比赛级 venue_id / 伤病缺阵影响%量化)。
+    recommended_next_step: |
+      1. [P1] 修 get_intel_tags：读取 basketball_match_intelligence（篮球情报表，tag 1-15 语义：6伤停/12裁判/14数据等），当前对篮球 match 返回 DATA_MISSING。
+      2. [P1] 修 get_odds_trend：篮球盘口应读 basketball_odds_over_down/asian/europe + 对应 _change_{year} 分表，返回大小分/让分盘口变化时间序列；当前返回 2023 陈旧欧赔数据（match_id 映射或表选择错误）。
+      3. [P2] 新增篮球球队赛季效率工具：封装 basketball_competition_team_stats.offensive_rating/defensive_rating/three_points_accuracy（+ 按 offensive_rating 排序得到联盟效率排名）；Pace 用 players_stats.pace 聚合或请求上游在 team_stats 补 pace 字段。
+      4. [P2] 伤病『缺阵影响%(-XX%)』：当前 tag=6 仅文本 content，无量化字段；需上游纳米数据补 player-level 缺阵影响百分比，或在合成层由 LLM 估算。
+      5. [P2] 比赛级 venue_id=0：用 basketball_team.venue_id 关联 basketball_venue 补主场球馆名/城市。
+      6. [P2] context_gap：在 agent 编排层引入 checkpointer（LangGraph SqliteSaver/PostgresSaver）+ thread_id 维护多轮模板继承。
+      7. [P3] get_injury_report 篮球维度：对西决 match（如 3921754，DB 有 tag=6）回归验证工具是否真正读取篮球伤停，确认非 stub。
+
+# ============================================================
+# 总判定
+# ============================================================
+overall:
+  original_verdict: "❌ 无解（NBA 深度分析数据缺失）"
+  new_verdict: "⚠️ 改判 — 非无解"
+  new_gap_type: "implementation_gap（复合：implementation_gap + tool_logic_gap[P1] + context_gap + 局部 data_gap）"
+  sql_found_nba_deep_data: true
+  key_evidence_rows:
+    - "比赛：basketball_match id=3922409 马刺10137 vs 尼克斯10115，2026-06-14 08:30，season=1911"
+    - "裁判：match_intelligence tag=12 → 斯科特·福斯特/詹姆斯·卡珀斯/泰勒·福特"
+    - "伤病：match_intelligence tag=6 西决 → 杰伦-威廉姆斯腿筋拉伤/阿杰伊-米切尔比目鱼肌拉伤/托马斯-索伯ACL撕裂"
+    - "进攻效率：team_stats 雷霆 offensive_rating=117、马刺=118；防守效率 雷霆=106、马刺=110"
+    - "三分命中率：team_stats 雷霆36%/马刺35%/湖人39%"
+    - "联盟排名：points_table 东部3265/西部3266（season=1911, scope=5）；standings 工具返回 30 队 position/won/lost"
+    - "盘口追踪：over_down 10+ 公司初盘216.5→即时215.5；europe_change_2026 3153条变化 2026-06-11~14"
+    - "球员场均+Pace：players_stats pace=100.73/101.84，off_rating=119.4/121.5"
+  tool_logic_gaps:
+    - "get_intel_tags(3922409)=DATA_MISSING 但 DB 有 30 条情报 → P1"
+    - "get_odds_trend(3922409)=2023 陈旧数据(changed_at=1683019525) 但 DB 有 2026 真实变化 → P1"
+  implementation_gaps:
+    - "篮球球队赛季效率(offensive/defensive_rating)无 foretell 工具封装（get_team_season_stats 是足球专用）"
+    - "伤病『缺阵影响%』无量化字段（tag=6 仅文本）"
+    - "比赛级 venue_id=0 未填充（需经 team.venue_id 关联 venue 表）"
+  data_gaps_local:
+    - "球队级 Pace：basketball_competition_team_stats 无 pace 字段（仅 players_stats 有）"
+    - "G4(3922409)无 tag=6 伤停记录（总决赛全员健康，非工具 bug）"
+  context_gap: "多轮追问需 checkpointer 会话级上下文维护，foretell 工具链无该机制（流程缺口，与数据无关）"

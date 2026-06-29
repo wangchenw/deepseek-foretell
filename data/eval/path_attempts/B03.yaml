@@ -1,17 +1,252 @@
 type_id: B03
+type_name: 对阵加日期分析
+scenario: B
 case_id: TC-B03-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+
 attempts:
-- round: 1
-  atomic_id: B03-probe-1
-  tool: resolve_match
-  params:
-    home: 利物浦
-    away: 热刺
-  code: OK
-  count: 10
-  stub: false
-satisfied: []
-blocking_gap: null
+  # ============================================================
+  # Turn 1 — T1-a1: resolve_entity (match) — 3 场对阵 + 日期定位
+  # ============================================================
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 全北现代, away: 仁川联, date: '2026-04-21'}
+    code: OK
+    count: 1
+    stub: false
+    match_id: 4480384
+    candidate:
+      match_id: 4480384
+      home_team_id: 10238
+      away_team_id: 10694
+      league_id: 581
+      league_name: 韩K联
+      date: '2026-04-21'
+      match_time_beijing: '2026-04-21 18:30:00'
+      status: finished
+      neutral: false
+      round_num: 9
+    note: 单候选直接命中，含 home_position/away_position/environment
+
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 金泉尚武, away: 江原FC, date: '2026-04-21'}
+    code: OK
+    count: 1
+    stub: false
+    match_id: 4480388
+    candidate:
+      match_id: 4480388
+      home_team_id: 10652
+      away_team_id: 23021
+      league_id: 581
+      league_name: 韩K联
+      date: '2026-04-21'
+      match_time_beijing: '2026-04-21 18:30:00'
+      status: finished
+      neutral: false
+      round_num: 9
+    note: 单候选直接命中
+
+  # ---- M3: 町田泽维 vs 迪拜国青 2026-04-22 00:15 亚冠精英 ----
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 町田泽维, away: 迪拜国青, date: '2026-04-22'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 用户使用简称「町田泽维」「迪拜国青」，DB 无该字符串对
+
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 町田泽维, away: 迪拜国青, date: null}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 去 date fallback 仍失败 → 名称本身不匹配
+
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 迪拜国青, away: 町田泽维, date: '2026-04-22'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: swap 主客 fallback 仍失败 → 确认是名称规范化问题，非主客颠倒
+
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_team
+    params: {name: 町田}
+    code: OK
+    count: 4
+    stub: false
+    note: 名称探测 → 候选含「町田泽维亚」team_id=25413（用户「町田泽维」为其简称）
+
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_team
+    params: {name: 迪拜}
+    code: OK
+    count: 10
+    stub: false
+    note: 名称探测 → 候选含「迪拜青年国民」team_id=16201（用户「迪拜国青」=迪拜+青年国民缩写）
+
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 町田泽维亚, away: 迪拜青年国民, date: '2026-04-22'}
+    code: OK
+    count: 1
+    stub: false
+    match_id: 4532864
+    candidate:
+      match_id: 4532864
+      home_team_id: 25413
+      away_team_id: 16201
+      league_id: 6736
+      league_name: 亚精英赛
+      date: '2026-04-22'
+      match_time_beijing: '2026-04-22 00:15:00'
+      status: finished
+      neutral: true
+      round_num: 0
+    note: 名称规范化 fallback 生效——用户简称 → DB 全称；亚精英赛中立场 neutral=true
+
+  # ============================================================
+  # Turn 1 — T1-b1: delegate_subagent (fundamentals / odds / intel)
+  # 以 M1 (4480384) 为代表验证全维度，M2/M3 抽样验证
+  # ============================================================
+  # ---- fundamentals: h2h / recent_form / standings ----
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_h2h
+    params: {team_a: 10238, team_b: 10694, n: 5}
+    code: OK
+    count: 5
+    stub: false
+    note: M1 全北 vs 仁川 h2h 5 场含 half_time/corner/red_yellow
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_recent_form
+    params: {team_id: 10238, n: 5}
+    code: OK
+    count: 5
+    stub: false
+    note: 全北现代近 5 场战绩（含主客场 venue）
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_standings
+    params: {league_id: 581}
+    code: OK
+    count: 12
+    stub: false
+    note: 韩K联积分榜；全北第 3、江原第 4、金泉第 11、仁川第 10
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_standings
+    params: {league_id: 6736}
+    code: OK
+    count: 12
+    stub: false
+    note: 亚精英赛积分榜（M3 所属联赛）
+
+  # ---- odds: get_odds_snapshot ----
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_odds_snapshot
+    params: {match_id: 4480384}
+    code: OK
+    count: 5
+    stub: false
+    note: M1 欧赔 5 家 + 亚盘齐全（含 in_play/suspended 字段）
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_odds_snapshot
+    params: {match_id: 4480388}
+    code: OK
+    count: 5
+    stub: false
+    note: M2 欧赔 OK
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_odds_snapshot
+    params: {match_id: 4532864}
+    code: OK
+    count: 5
+    stub: false
+    note: M3 欧赔 OK
+
+  # ---- intel / lineup / injury ----
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_match_lineup
+    params: {match_id: 4480384}
+    code: OK
+    stub: false
+    note: M1 阵容 confirmed=true，主 4-2-3-1 / 客 4-4-2，含 starter/captain/坐标
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_injury_report
+    params: {match_id: 4480384}
+    code: OK
+    stub: false
+    note: M1 伤停——主队孔帕尼奥/朴主英 injured，客队空
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_intel_tags
+    params: {match_id: 4480384}
+    code: OK
+    stub: false
+    note: M1 情报标签 home/away × positive/negative 四象限齐全
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_intel_tags
+    params: {match_id: 4480388}
+    code: OK
+    stub: false
+    note: M2 情报标签 OK
+
+  - round: 2
+    atomic_id: T1-b1
+    tool: get_intel_tags
+    params: {match_id: 4532864}
+    code: OK
+    stub: false
+    note: M3 情报标签 OK（含町田亚冠 7胜2平1负等）
+
+satisfied:
+  - T1-a1   # 3 场对阵全部定位（M3 经名称规范化 fallback）
+  - T1-a2   # synthesize_answer：数据齐备可支撑 3 场综合分析
+  - T1-b1   # delegate_subagent：fundamentals(h2h+recent_form+standings) + odds + intel(lineup+injury+intel_tags) 全 OK
+  - T1-b2   # synthesize_answer six_segment：6 段式输出所需数据全部就绪
+
+blocking_gap:
+  type: none
+  description: >-
+    无阻塞 gap。3 场对阵均成功定位，多维度工具链（fundamentals/odds/intel）全部返回 OK。
+    唯一风险点：M3 用户简称「町田泽维」「迪拜国青」与 DB 全称「町田泽维亚」「迪拜青年国民」不一致，
+    需 LLM 侧主动做名称规范化（先 resolve_team 取候选 → 选最匹配 → 再 resolve_match）。
+    此为 routing_gap 但已被 fallback 解，不构成 blocking；建议在 skill/guardrails 中标注
+    「对阵含简称/缩写时，先 resolve_team 做名称规范化再 resolve_match」。
+
 route_complete: true
+
+notes:
+  - M1/M2 直接单候选命中；M3 需名称规范化 fallback（去 date + swap 主客均无效，因根因是名称不匹配）
+  - 用户「迪拜国青」=「迪拜」+「青年国民」缩写（迪拜青年国民 = Shabab Al Ahli），非常见简称，依赖 LLM 语义识别
+  - M3 neutral=true（亚精英赛中立场），但 DB home_team_id 登记为町田泽维亚
+  - 3 场 status 均为 finished，分析场景为赛后复盘；six_segment 输出所需数据齐备
+  - 不涉及 series_game；不涉及 lottery_code（B03 entity_entry=match_pair）

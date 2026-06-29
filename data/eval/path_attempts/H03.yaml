@@ -1,23 +1,162 @@
 type_id: H03
-case_id: TC-H03-REG-010
-explored_at: '2026-06-28'
-source: probe_results
+case_id: TC-H03-001
+explored_at: '2026-06-29'
+scenario: H (赛季阶段/席位锁定)
+entity_entry: league
+sport: basketball
+turns:
+- turn_index: 1
+  text: 哪些球队锁定了季后赛
+  atomics:
+  - id: T1-a1
+    category: resolve_entity
+    target:
+      entity: league
+  - id: T1-a2
+    category: synthesize_answer
+    target: {}
 attempts:
 - round: 1
-  atomic_id: H03-probe-1
-  tool: resolve_league
+  atomic_id: T1-a1
+  tool: resolve_basketball_league
   params:
-    name: 英超
+    name: NBA
   code: OK
+  count: 10
   stub: false
-- round: 2
-  atomic_id: H03-probe-2
-  tool: get_standings
+  note: 篮球赛事解析命中——首选 league_id=1 (NBA, type=league, sport=basketball)，其余候选为
+    WNBA(2)/NBA全明星(19,cup)/夏季联赛(298)/G联赛(517) 等。resolve_basketball_league 走
+    basketball_competition 表，正确避开 football_competition（resolve_league 只查足球，禁用）。
+    实体解析满足。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_basketball_standings
   params:
-    league_id: 82
+    league_id: 1
   code: OK
   count: 30
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 篮球积分榜工具支持 NBA(league_id=1)，返回 30 行含 position/won/lost/win_rate/games_back(胜差)/
+    streak/home/away/last_10/conference_record。但工具仅按 MAX(season_id) 过滤、**未按 scope 过滤**，
+    把 scope=4 季前赛(4-0/3-1 小场次)、scope=5 常规赛(64-18 等 82 场)、scope=3 NBA杯赛小组赛
+    的积分榜混排——同队多次出现且胜负差异极大(雷霆 64-18 与 4-0 并存，马刺 3-1/5-0/62-20 三次)，
+    且 conference 字段返回的是 conference_record(战绩)而非东西部分区名，无法直接判定季后赛席位。
+    属 implementation_gap(工具缺 scope 过滤 + 不暴露分区)。
+- round: 1
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: basketball_season WHERE competition_id=1 ORDER BY id DESC
+  code: OK
+  count: 10
+  stub: false
+  note: 赛季定位——season_id=2120(2026-2027,is_current=1,has_table=0 当前赛季暂无积分榜)、
+    season_id=1911(2025-2026,is_current=0,has_table=1)。MAX(season_id) 实际落到 1911(已完赛赛季)，
+    解释了为何工具返回的是 2025-26 最终榜而非新赛季。
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: basketball_points_table WHERE competition_id=1 AND season_id=1911 (列 scope)
+  code: OK
+  count: 10
+  stub: false
+  note: 榜表结构澄清——basketball_points_table 有 scope 列(1赛季/2预选/3小组赛/4季前赛/5常规赛/6季后赛)。
+    season=1911 下存在 scope=3(NBA杯赛 6 组)、scope=4(季前赛东西排名 2 表)、scope=5(常规赛东西排名 2 表
+    id=3265/3266)。锁定季后赛需 scope=5 常规赛榜，工具未过滤即根因。
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: basketball_points_table p JOIN basketball_points_table_team pt JOIN basketball_team t
+      WHERE competition_id=1 AND season_id=1911 AND scope=5 ORDER BY position
+  code: OK
+  count: 30
+  stub: false
+  note: 纯常规赛榜(scope=5)SQL 兜底——东西部各 15 队，全部 won+lost=82(赛季已满)，含 game_back 胜差/
+    home/away/conference_record。东部前8：活塞(1,60-22)/凯尔特人(2,56-26)/尼克斯(3,53-29)/骑士(4,52-30)/
+    猛龙(5,46-36)/老鹰(6,46-36)/76人(7,45-37)/魔术(8,45-37)；西部前8：雷霆(1,64-18)/马刺(2,62-20)/
+    掘金(3,54-28)/湖人(4,53-29)/火箭(5,52-30)/森林狼(6,49-33)/开拓者(7,42-40)/太阳(8,45-37)。
+    附加赛区(9-10)：东部 黄蜂(44-38)/热火(43-39)；西部 快船(42-40)/勇士(37-45)。常规赛已完结，
+    "锁定季后赛"= 东西部前8直接晋级 + 9-10 进附加赛，数据完全可答。
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: basketball_bracket_match_up JOIN bracket_rounds JOIN brackets(competition_id=1,season_id=1911)
+      WHERE round=1/8决赛
+  code: OK
+  count: 22
+  stub: false
+  note: 季后赛对阵图交叉验证——1/8决赛(type_id=10 七局四胜)8 组对阵的 16 队与常规赛 scope=5 东西部前8
+    完全一致：东部 活塞vs魔术/骑士vs猛龙/尼克斯vs老鹰/凯尔特人vs76人；西部 雷霆vs太阳/湖人vs火箭/
+    掘金vs森林狼/马刺vs开拓者。state_id 多为7(主场胜)/8(客场胜)，季后赛已开打。席位锁定判定获
+    双重数据源验证(积分榜 + 对阵图)。
+- round: 1
+  atomic_id: T1-a1
+  tool: maintain_context
+  params: {}
+  code: OK
+  stub: false
+  note: maintain_context 属 agent 编排层——单轮 league 级聚合(解析 NBA + 取榜 + 对阵图交叉验证)需跨
+    工具/SQL 结果维持上下文以合成最终名单。编排层满足，无工具依赖。
+- round: 1
+  atomic_id: T1-a2
+  tool: synthesize_answer
+  params: {}
+  code: OK
+  stub: false
+  note: synthesize 综合答案——2025-26 NBA 常规赛已满 82 场，季后赛席位全部锁定。可直接晋级(东西部前8)
+    16 队由 scope=5 常规赛榜确定并经 bracket 1/8决赛交叉验证；附加赛 4 队(9-10)由同榜确定。
+    可输出"已锁定季后赛球队"完整名单(东西部各8 + 附加赛各2)。数据路径完整可答。
+satisfied:
+- T1-a1
+- T1-a2
+blocking_gap:
+  type: implementation_gap
+  description: 篮球工具层覆盖存在两处 implementation_gap，但均有 SQL 兜底，不阻塞最终作答。
+    (1) get_basketball_standings 仅按 MAX(season_id) 过滤、未按 basketball_points_table.scope 过滤，
+    返回 scope=3/4/5 混排的 30 行(季前赛+常规赛+杯赛小组赛同队多行胜负不一致)，且 conference 字段返回
+    战绩而非分区名，无法直接用于席位判定——需 SQL 加 scope=5 过滤兜底。
+    (2) 无篮球赛程工具——get_team_schedule 硬编码 football_match/football_team/football_competition，
+    不支持篮球；本场景因常规赛已满 82 场、无需剩余场次/魔力数计算故未阻塞，但中赛季"锁定"场景会缺
+    剩余场次维度工具。
+  failed_atomic: ''
+  workaround: SQL 直查 basketball_points_table(scope=5, season_id=1911) 取纯常规赛东西部榜 +
+    basketball_bracket_match_up(经 brackets/rounds join competition_id=1,season_id=1911)交叉验证
+    16 支季后赛队；常规赛已满 82 场，无需篮球赛程/剩余场次工具。
 route_complete: true
+cross_sport_check:
+  sport_inferred: basketball
+  collision: false
+  note: H03 明确 basketball/NBA，全程使用 resolve_basketball_league + basketball_* 表，禁用
+    resolve_league/football_*。NBA league_id=1 与 football_competition id 空间不冲突(篮球走
+    basketball_competition)。basketball_team 与 football_team 共享 id 整数空间但本场景仅触及篮球侧，
+    无跨运动碰撞。
+basketball_tool_coverage:
+  resolve_basketball_league: ok
+  get_basketball_standings: partial
+  get_basketball_schedule: missing
+  get_team_schedule_basketball: missing
+  note: 篮球解析工具齐备；积分榜工具可用但缺 scope 过滤(混排季前/常规/杯赛)；无篮球赛程/剩余场次工具
+    (get_team_schedule 硬编码足球表)。中赛季席位锁定场景需 SQL 兜底 basketball_match 计算剩余场次。
+data_quality_notes:
+- get_basketball_standings 缺 scope 过滤是核心工具缺陷——同 team_id 在 scope=3/4/5 下多行，won/lost
+  跨度从 4-0 到 64-18，直接消费会得到错误席位判定；必须 SQL 加 WHERE p.scope=5 取常规赛榜。
+- basketball_points_table.scope 枚举：1赛季/2预选/3小组赛/4季前赛/5常规赛/6季后赛；NBA 杯赛小组赛
+  在 scope=3(东西部各 A/B/C 组 6 表)。席位锁定只用 scope=5。
+- basketball_points_table_team.conference 字段存的是 conference_record(如"41-11")战绩，非东西部分区
+  名；分区归属需看父表 basketball_points_table.name("东部排名"/"西部排名")。
+- season_id 取数陷阱：basketball_season 当前赛季 2120(2026-27) has_table=0 无榜，MAX(season_id) 落到
+  1911(2025-26 已完赛)；故工具返回的是上季最终榜，新赛季席位暂不可判(无数据)。
+- 季后赛对阵图 join 路径：basketball_bracket_match_up.round_id → basketball_bracket_rounds.id →
+  basketball_brackets.id(含 competition_id+season_id)；首轮 round_name="1/8决赛" type_id=10。
+- 常规赛 30 队 won+lost 均为 82，赛季已完结，"锁定季后赛"等价于"进入季后赛"，由最终榜 + 对阵图双重验证。
+verdict: pass
+verdict_reason: H03 季后赛锁定核心路径完整——resolve_basketball_league 解析 NBA(league_id=1) 后，
+  SQL 取 basketball_points_table scope=5 常规赛榜(东西部各 15 队，82 场满)确定东西部前 8 共 16 支
+  直接晋级队 + 9-10 共 4 支附加赛队，并经 basketball_bracket_match_up 1/8决赛对阵图(16 队完全一致)
+  交叉验证。两个 atomic(T1-a1 resolve_entity + T1-a2 synthesize_answer)均满足，route_complete=true。
+  篮球工具覆盖：resolve_basketball_league ok；get_basketball_standings 支持 NBA 但缺 scope 过滤
+  (混排季前/常规/杯赛)且不暴露分区——属 implementation_gap，SQL 兜底;无篮球赛程工具(本场景常规赛
+  已满未触发剩余场次需求)。blocking_gap=implementation_gap(非阻塞，有 SQL workaround)。verdict=pass。

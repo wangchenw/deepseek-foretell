@@ -1,6 +1,7 @@
 type_id: E05
 case_id: TC-E05-REG-007
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+
 attempts:
 - round: 1
   atomic_id: E05-T0-a1
@@ -10,11 +11,146 @@ attempts:
   code: OK
   stub: false
   count: 14
+  note: >-
+    返回 issue=26089 本期 14 场,含 home_name/away_name/league_name/date/lottery_code,
+    均为 2026 世界杯场次(巴西vs日本、德国vs巴拉圭 ... 哥伦比亚vs加纳)。
+    ⚠️ 返回的 match_id 为合成 ID(issue+issue_num 字符串拼接,如 26089+1=260891,
+    26089+10=2608910),非真实 football_match.id。
+
+- round: 1
+  atomic_id: E05-T0-a1 (合成ID对照)
+  tool: sql
+  params:
+    query: football_match WHERE id IN (260891,260892,...,2608914)
+  code: OK
+  stub: false
+  count: 14
+  note: >-
+    合成 ID 数值与历史 football_match.id 碰撞:260891 实为 2009-08-16 法低级联赛
+    "高马 vs 斯特拉斯堡B队"(competition_id=145);2608910 实为 2019 爱尔兰联赛
+    "邓多克 vs 都柏林大学"。即 get_lottery_schedule 返回的 match_id 字段指向
+    完全无关的历史比赛,合成 ID 假命中 bug 在 Phase 2 后仍存在。
+
+- round: 1
+  atomic_id: E05-T0-a1 (真实ID定位)
+  tool: sql
+  params:
+    query: football_match 巴西vs日本 2026-06-30 competition_id=1
+  code: OK
+  stub: false
+  count: 1
+  note: 真实世界杯 巴西vs日本 → football_match.id=4459720 (status_id=1 未开赛)。
+
+- round: 1
+  atomic_id: E05-T0-a1 (正确解析路径)
+  tool: resolve_match
+  params:
+    home: 巴西
+    away: 日本
+    date: '2026-06-30'
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    resolve_match(主队+客队+date) 正确返回真实 match_id=4459720、league=世界杯、
+    status=not_started。这是十四场逐场基本面/赔率的正确入口,必须用球队名+日期
+    重新解析,不能直接用 get_lottery_schedule 返回的合成 match_id。
+
+- round: 1
+  atomic_id: E05-T0-a1 (lottery_match 同样假命中)
+  tool: resolve_lottery_match
+  params:
+    play_type: '401'
+    code: '1'
+  code: OK
+  stub: false
+  count: 10
+  note: >-
+    resolve_lottery_match 返回多期 第1场 候选,每条 match_id 同样是合成 ID
+    (260891/260881/260871...),与 get_lottery_schedule 共享同一合成 ID 假命中 bug。
+
+- round: 1
+  atomic_id: E05-T0-a4 (合成ID赔率)
+  tool: get_odds_snapshot
+  params:
+    match_id: 260891
+  code: SKIP_MATCH
+  stub: false
+  count: 0
+  note: 用合成 ID 拉赔率返回 SKIP_MATCH(欧赔与亚盘均缺失)——未拉到错数据,但无可用。
+
+- round: 1
+  atomic_id: E05-T0-a4 (真实ID赔率)
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 5
+  note: >-
+    用真实 match_id=4459720 拉赔率 OK,返回 18Bet/利记/易胜博/盈禾 等多家欧赔
+    (主胜1.71-1.80/和3.5-3.64/客胜4.64-5.2)+ 平博/Bet365 等亚盘(盘口-0.75)。
+    SQL 直查 football_odds_europe match_id=4459720 亦证实数据存在。
+
+- round: 1
+  atomic_id: E05-T0-a3 (基本面)
+  tool: get_recent_form
+  params:
+    team_id: 10477
+    limit: 5
+  code: OK
+  stub: false
+  count: 5
+  note: >-
+    get_recent_form 非 stub,用 team_id(巴西=10477,由 resolve_team 解析)拉近期
+    战绩 OK:近5场 4胜1平,含日期/胜负/进失球/主客。十四场逐场基本面路径:
+    resolve_team(home_name)→team_id→get_recent_form。
+
 satisfied:
 - E05-T0-a1
+- E05-T0-a3
+- E05-T0-a4
+
 blocking_gap:
-  type: implementation_gap
-  description: 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot
-    等为 stub
-  failed_atomic: E05-T0-a3
-route_complete: false
+  type: routing_gap
+  description: >-
+    合成 ID 假命中 bug 在 Phase 2 工具层重构后仍存在:get_lottery_schedule(401) 与
+    resolve_lottery_match 返回的 match_id 是 issue+issue_num 字符串拼接的合成值
+    (260891、2608910 等),非真实 football_match.id。这些合成值与历史 football_match.id
+    数值碰撞——例如 match_id=260891 实际指向 2009 年法国低级联赛"高马 vs 斯特拉斯堡B队",
+    而非工具宣称的 2026 世界杯"巴西 vs 日本"(真实 id=4459720)。直接用该 match_id
+    下游取赔率/统计会得到错误比赛数据或 SKIP_MATCH。
+    已验证规避路径:对每场比赛用 resolve_match(home_name, away_name, date) 重新解析
+    得到真实 football_match.id,再 get_odds_snapshot/get_recent_form;DB 数据完整可用,
+    故为 routing_gap 而非 data_gap。
+  failed_atomic: E05-T0-a1
+  workaround: >-
+    忽略 lottery 工具返回的 match_id,改用 resolve_match(主队+客队+date) 取真实
+    match_id;基本面用 resolve_team(球队名)→team_id→get_recent_form。
+
+route_complete: true
+
+caveats:
+- id: E05-T0-a2
+  category: delegate_subagent
+  note: >-
+    screening-agent 两阶段初筛(稳胆+搏冷分层、风险提示)属智能体编排层,非数据路径,
+    不在 foretell MySQL 工具链探路范围;数据齐备后可由上层 agent 完成。
+- id: E05-T0-a5
+  category: synthesize_answer
+  note: >-
+    十四场方案输出(两阶段初筛结构、数据诚实)属答案合成层,依赖 a1/a3/a4 数据;
+    数据路径已通,合成质量由 LLM 决定。
+- 跨运动碰撞: 十四场 401 全部为足球世界杯场次,home/away 名均为国家队,
+  resolve_team/resolve_match 命中 football_team,未触发篮球 ID 碰撞。
+
+verdict_lean: pass_with_caveat
+key_findings:
+- 合成 ID 假命中 bug 仍存在且已实锤:get_lottery_schedule(401) 与 resolve_lottery_match
+  返回的 match_id 是 issue+issue_num 拼接的合成值,与历史 football_match.id 碰撞
+  (260891→2009 法低级联赛,而非 2026 世界杯 巴西vs日本)。Phase 2 未修复此 lottery 层 bug。
+- 正确数据路径已验证通畅:get_lottery_schedule(401) 拿 14 场名单(球队名/联赛/日期正确)→
+  逐场 resolve_match(主+客+date) 取真实 match_id(4459720)→ get_odds_snapshot OK(欧赔+亚盘齐)、
+  resolve_team→get_recent_form OK(近5场战绩)。route_complete=true,但需强制走重解析规避路径。
+- a1/a3/a4 三项 atomic 数据层 satisfied;a2/a5 为 agent 编排与合成层,不属数据路径,
+  数据齐备后由上层完成。

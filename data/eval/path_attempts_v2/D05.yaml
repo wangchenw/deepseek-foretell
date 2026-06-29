@@ -1,0 +1,279 @@
+type_id: D05
+type_name: 比分玩法
+case_id: TC-D05-001
+explored_at: '2026-06-29'
+scenario: D
+entity_entry: match
+priority: P2
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+context: |
+  D05 场景为 D 购彩推荐（比分玩法）。用户问句：按 5 条标准判断比赛是否值得投注（猜比分），
+  找今天还没开始比赛的北单，推荐几场比分。
+  atomic T1-a1 resolve_entity(match) —— 定位“今日北单未开赛 + 在售比分”的场次并取出比分赔率；
+  T1-a2 synthesize_answer —— 按 5 条标准给出可考虑投注的比分推荐。
+  本次返工：原判 ⚠️ implementation_gap（北单 bf JSON 解析 bug）需用 SQL 基准验证：
+  到底是工具 JSON 解析 bug 还是 DB 数据缺失。以下严格按
+  information_schema → SQL 基准 → 工具对照 → 判定 的流程重做。
+
+# =========================================================================
+# 全局 schema 基础
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name LIKE '%lottery%' AND table_name LIKE '%bd%'
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    lottery_bd_odds（北单让球胜平负/总进球/半全场/上下单双/比分 赔率主表）:
+      - id(int,北单官方比赛ID), issue(int,期号), issue_num(int,序号)
+      - comp(varchar,赛事名称), home(varchar,主队名称), away(varchar,客队名称)
+      - match_time(int,UNIX时间戳), match_time_str(varchar,北京时间字符串)
+      - sell_status(varchar(20)) "销售状态码 顺序：胜平负,总进球,半全场,上下单双盘,比分；
+        状态码：0-未开售、1-销售中、2-未知、3-已停售、4-已开奖" —— 5 个逗号分隔状态码，第 5 位=比分
+      - spf(varchar(200),胜平负), jq(varchar(200),进球), bqc(varchar(200),半全场),
+        sxp(varchar(200),上下单双), bf(varchar(1000),比分) —— 均为 JSON 字符串
+    lottery_bd_result: 北单赛果表（含 home_score/away_score/bf 赛果码）。
+    lottery_match: 彩种映射表，lottery_type 404=北单让球胜平负、301=北单胜负过关。
+    football_bf: 必发交易指数表（与北单比分赔率无关，表名巧合）。
+    结论：北单比分赔率的真源是 lottery_bd_odds.bf（varchar(1000) JSON），
+          sell_status 第 5 位标识比分玩法是否在售。
+
+# =========================================================================
+# 原子查询 1: T1-a1 resolve_entity(match) —— 今日北单未开赛 + 比分在售 + 比分赔率
+# =========================================================================
+atomics:
+- atomic_id: D05-T1-a1
+  category: resolve_entity
+  rounds:
+  - round: 1
+    hypothesis: 先用 information_schema 确认北单比分相关表与字段，不凭表名臆测。
+    schema_query: |
+      SELECT table_name, column_name, column_type, column_comment
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+      AND table_name IN ('lottery_bd_odds','lottery_bd_result','lottery_match')
+      ORDER BY table_name, ordinal_position
+    schema_result: |
+      lottery_bd_odds: bf varchar(1000) "比分"；sell_status varchar(20)
+        "顺序：胜平负,总进球,半全场,上下单双盘,比分；0-未开售/1-销售中/2-未知/3-已停售/4-已开奖"；
+        match_time(int 时间戳), match_time_str(varchar), comp/home/away, issue/issue_num。
+      lottery_match: lottery_type 404=北单让球胜平负（含比分子玩法）。
+      结论：比分赔率字段 = lottery_bd_odds.bf（JSON）；比分在售判定 = sell_status 第 5 位=1。
+    decision: continue
+  - round: 2
+    hypothesis: 独立写 SQL 基准 —— 抽样 lottery_bd_odds 看 bf 字段真实形态，验证 JSON 是否合法。
+    sql_baseline:
+      query: |
+        SELECT id,issue,issue_num,comp,home,away,match_time_str,sell_status,
+               SUBSTRING(bf,1,120) AS bf_head, JSON_VALID(bf) AS bf_valid
+        FROM lottery_bd_odds ORDER BY update_time DESC LIMIT 5
+      result: |
+        5 行。代表行（id=26069067 世界杯 荷兰vs摩洛哥 2026-06-30 06:00）：
+        sell_status="1,1,1,1,1"（比分位=1 在售），bf_valid=1，
+        bf_head='{"s31":"19.68","s30":"55.20","s11":"5.90","s33":"38.18","s10":"12.05"...'
+        —— bf 是合法 JSON，含 s31/s30/s11/s10/s33/s32/s13/s12/s14/sl/sp/sw/s40/s20/s42/s41/
+           s00/s22/s21/s02/s24/s01/s23/s04/s03 共 25 个具体比分赔率键。
+        结论：DB 的 bf 字段是有效 JSON，并非损坏。
+    decision: continue
+  - round: 3
+    hypothesis: SQL 基准 —— 查“今日(2026-06-29)还没开始比赛且比分在售”的北单场次。
+      当前 23:11，今日北单场次（issue 26069 的 54~63 号）match_time 均在凌晨、已开赛(sell_status=3)；
+      真正“未开赛+在售”的应是同 issue 跨日到 06-30 的后续场次。用 match_time>UNIX_TIMESTAMP()
+      AND sell_status 第 5 位=1 过滤。
+    sql_baseline:
+      query: |
+        SELECT id,issue,issue_num,comp,home,away,match_time_str,sell_status,
+               SUBSTRING(bf,1,90) AS bf_head
+        FROM lottery_bd_odds
+        WHERE match_time > UNIX_TIMESTAMP()
+          AND sell_status LIKE '_,_,_,_,1%'
+          AND sell_status NOT LIKE '_,_,_,_,3%'
+        ORDER BY match_time LIMIT 30
+      result: |
+        命中 4 场未开赛且比分在售的北单（issue 26069）：
+        - id=26069064, 世界杯, 巴西 vs 日本, 2026-06-30 00:55, sell_status="1,1,1,1,1",
+          bf_head='{"s31":"9.50","s30":"24.73","s11":"10.87","s33":"55.32","s10":"15.10"...'
+        - id=26069065, 冰岛超, IA阿克拉内斯 vs 弗拉姆, 2026-06-30 03:10, sell_status="1,1,1,1,1"
+        - id=26069066, 世界杯, 德国 vs 巴拉圭, 2026-06-30 04:25, sell_status="1,1,1,1,1"
+        - id=26069067, 世界杯, 荷兰 vs 摩洛哥, 2026-06-30 06:00, sell_status="1,1,1,1,1"
+        SQL 基准结论：DB 确有今日（issue 26069 跨日到 06-30）未开赛+比分在售的北单 4 场，且 bf 赔率齐备。
+    decision: continue
+  - round: 4
+    hypothesis: SQL 基准 —— 进一步验证 bf JSON 可被正常解析取值（而非仅“看起来像 JSON”），
+      并对照 spf 字段同样有效。
+    sql_baseline:
+      query: |
+        SELECT id,home,away, JSON_VALID(bf) AS bf_valid, JSON_LENGTH(bf) AS bf_keys,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s31')) AS s31,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s10')) AS s10,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.sl')) AS sl,
+               spf, JSON_VALID(spf) AS spf_valid
+        FROM lottery_bd_odds
+        WHERE match_time > UNIX_TIMESTAMP()
+          AND sell_status LIKE '_,_,_,_,1%'
+        ORDER BY match_time LIMIT 10
+      result: |
+        4 行均 bf_valid=1, bf_keys=25, JSON_EXTRACT 正常取值：
+        - 26069064 巴西vs日本: s31=9.50, s10=15.10, sl=205.97;
+          spf='{"sf3":"2.74","goal":"-1","sf0":"2.73","sf1":"3.70"}' spf_valid=1
+        - 26069065 IA阿克拉内斯vs弗拉姆: s31=26.41, s10=28.63, sl=14.40
+        - 26069066 德国vs巴拉圭: s31=6.87, s10=14.29, sl=906.26
+        - 26069067 荷兰vs摩洛哥: s31=19.68, s10=12.05, sl=285.38
+        SQL 基准结论：bf / spf 均为 MySQL 可解析的合法 JSON，比分赔率可逐项提取。
+    decision: continue
+  - round: 5
+    hypothesis: 调现有工具 get_lottery_schedule(play_type=404, date=2026-06-29) 对照，
+      看工具是否返回与 SQL 基准一致的“未开赛+比分在售”场次及 bf 赔率。
+    tool_call:
+      name: get_lottery_schedule
+      params: {play_type: "404", date: "2026-06-29"}
+      result: |
+        code=OK, count=10, freshness=2026-06-29T15:15:49Z。
+        返回 10 条，全部 issue=26069、date=2026-06-29、sell_status_raw="3"、sell_status.sf=suspended
+        （即 54~63 号凌晨场次，已停售）。
+        代表行（lottery_id=26069054 凯夫拉维克vsKR雷克雅未克）：
+          "odds": {"sf": {"home_win": "{\"sf3\":\"3.23\"",
+                          "away_win": "\"goal\":\"0.5\""}}
+        关键问题：
+        (1) 工具仅返回 date=2026-06-29 的 10 条已停售场次，**完全漏掉 SQL 基准命中的 4 场
+            06-30 未开赛+比分在售场次（26069064~67）** —— 用户要的“还没开始比赛”的北单不在工具输出内。
+        (2) odds 字段 **没有 bf（比分）赔率**，仅有一个被错误解析的 "sf" 对象。
+        (3) "sf" 对象是 **损坏的 JSON 残片**：home_win='{"sf3":"3.23"'（缺闭花括号、缺后续键）、
+            away_win='"goal":"0.5"'（孤立残片）。工具把 spf JSON 按逗号粗暴切割成碎片赋给
+            home_win/away_win，且字段名误标（sf3=主胜并非 home_win，goal=让球并非 away_win）。
+        (4) sell_status_raw="3" 仅取 5 位状态码的第 1 位（胜平负），未暴露第 5 位（比分）在售状态。
+    comparison: |
+      SQL 基准 vs 工具对照：
+      - 场次覆盖：SQL 命中 4 场未开赛+比分在售（06-30 的 64~67）；工具返回 0 场未开赛在售
+        （10 条全 06-29 已停售）。工具 date 过滤过窄，跨日同 issue 的在售场次被丢弃。
+      - 比分赔率：SQL 用 JSON_EXTRACT 逐项取到 s31/s10/sl 等 25 个比分赔率；工具 odds 内
+        **完全没有 bf 字段**，比分玩法数据未被任何工具 surface。
+      - JSON 解析：DB 原始 spf='{"sf3":"2.74","goal":"-1","sf0":"2.73","sf1":"3.70"}'(valid)、
+        bf=valid 25 键；工具却把 spf 切成 '{"sf3":"3.23"' / '"goal":"0.5"' 残片 —— 工具侧 JSON
+        解析损坏（且与 DB 当前值 3.62/goal=1 存在数值偏差，疑带 15:15 快照缓存，但结构性损坏是主因）。
+      按 Agent 2 判定规则：SQL 基准查到北单未开赛+比分赔率 → 工具既漏场次又损坏 JSON 又不返回 bf
+      → implementation_gap / tool_logic_gap（数据在 DB，工具未实现比分赔率的正确解析与 surface）。
+  final_status: blocked_by_tool
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 基准（独立写出并真实执行）：
+      SELECT id,issue,issue_num,comp,home,away,match_time_str,sell_status,
+             JSON_VALID(bf),JSON_LENGTH(bf),
+             JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s31')) AS s31,
+             JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s10')) AS s10,
+             JSON_UNQUOTE(JSON_EXTRACT(bf,'$.sl')) AS sl
+      FROM lottery_bd_odds
+      WHERE match_time > UNIX_TIMESTAMP()
+        AND sell_status LIKE '_,_,_,_,1%'
+        AND sell_status NOT LIKE '_,_,_,_,3%'
+      ORDER BY match_time LIMIT 30
+    真实返回（4 行，全部 bf_valid=1, bf_keys=25）：
+      26069064 世界杯 巴西vs日本   2026-06-30 00:55 sell_status=1,1,1,1,1 s31=9.50  s10=15.10 sl=205.97
+      26069065 冰岛超 IA阿克拉内斯vs弗拉姆 2026-06-30 03:10 sell_status=1,1,1,1,1 s31=26.41 s10=28.63 sl=14.40
+      26069066 世界杯 德国vs巴拉圭 2026-06-30 04:25 sell_status=1,1,1,1,1 s31=6.87  s10=14.29 sl=906.26
+      26069067 世界杯 荷兰vs摩洛哥 2026-06-30 06:00 sell_status=1,1,1,1,1 s31=19.68 s10=12.05 sl=285.38
+      （spf 同样 valid：26069064 spf='{"sf3":"2.74","goal":"-1","sf0":"2.73","sf1":"3.70"}'）
+    工具返回（实际调用 get_lottery_schedule play_type=404 date=2026-06-29）：
+      code=OK count=10，10 条全为 06-29 已停售场次(sell_status_raw=3)；
+      odds.sf.home_win='{"sf3":"3.23"'（截断残片）、odds.sf.away_win='"goal":"0.5"'（残片）；
+      无 bf 字段；未返回 64~67 号未开赛在售场次。
+    对照结论：
+      DB 确有今日北单未开赛+比分在售的 4 场，bf 为合法 JSON、25 个比分赔率可逐项提取；
+      现有工具 get_lottery_schedule(404) 既漏掉跨日在售场次，又不 surface 比分(bf)赔率，
+      且把 spf JSON 解析成损坏残片。按 Agent 2 规则：SQL 查到 → implementation_gap
+      （缺正确解析/surface 比分赔率的工具实现，附带 tool_logic_gap：spf JSON 按逗号切割损坏 +
+       date 过滤过窄漏跨日在售场次），不得标 data_gap/无解。原判 ⚠️(implementation_gap)确认。
+  recommended_next_step: |
+    工程团队在 get_lottery_schedule(404) 或新增 get_lottery_bf_odds 工具中：
+    (1) 用 JSON_EXTRACT 正确解析 lottery_bd_odds.bf，surface 25 个比分赔率(s31/s30/s11/.../sl/sp/sw)；
+    (2) 修正 spf/sf 解析（当前按逗号切割成残片，应 json.loads 整体解析为 sf3/sf1/sf0/goal 结构）；
+    (3) sell_status 拆 5 位状态码，分别标注 胜平负/总进球/半全场/上下单双/比分 各子玩法在售状态；
+    (4) date 过滤放宽至“当前 issue 全部在售场次”（含跨日 06-30 未开赛），而非单日。
+    属 Phase 2 工具层重构，本次不修改 foretell/tools/。
+
+# =========================================================================
+# 原子查询 2: T1-a2 synthesize_answer —— 按 5 条标准推荐比分
+# =========================================================================
+- atomic_id: D05-T1-a2
+  category: synthesize_answer
+  depends_on: [D05-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: 合成回答依赖 T1-a1 给出的“未开赛+比分在售”场次及其 bf 赔率，外加 5 条标准
+      所需的联赛级别/盘口/阵容/战意/近期进球数据。验证数据齐备性。
+    sql_baseline:
+      query: |
+        -- 比分赔率（T1-a1 已验证 4 场在售，bf 25 键可提取）
+        -- 5 条标准所需周边：联赛级别、近期进球、盘口可由 football_match/competition +
+        --   get_recent_form/get_odds_snapshot 串接（用 lottery_bd_odds.home/away 名称解析球队）
+      result: |
+        T1-a1 SQL 基准已给出 4 场未开赛+比分在售北单及完整 bf 赔率（s31/s10/sl 等）。
+        5 条标准所需：
+        - 标准1（联赛属五大联赛/欧冠/英冠/荷乙）：4 场中 3 场为“世界杯”（顶级国家队赛事，类比顶级）、
+          1 场冰岛超（低级别，答“否”）；联赛名由 lottery_bd_odds.comp 直接给出。
+        - 标准3（盘口≤半一）：可由 spf.goal 让球数判定（SQL 已取 spf，valid JSON 含 goal 字段）。
+        - 标准5（两队近期总进球 2-3 球且盘口≤1 球）：需 get_recent_form 串接（依赖球队解析）。
+        - 标准2/4（价值边际/阵容战意）：需 odds_snapshot + lineup/injury，属深度分析子链，
+          场景 D 购彩推荐可按轻量规范仅以 bf 赔率 + 让球 + 近期进球给出推荐。
+    tool_call: {name: N/A, result: 合成步骤无独立工具，依赖 T1-a1 的 bf 赔率与让球/近期数据}
+    comparison: |
+      合成所需核心输入（未开赛场次 + bf 比分赔率 + 让球数）经 SQL 基准已齐备；
+      但 T1-a1 工具层无法 surface bf 赔率（implementation_gap），导致生产环境 Foretell 拿不到
+      比分赔率，无法按 5 条标准推荐比分。合成可行性受 T1-a1 传导制约。
+  final_status: blocked_by_tool
+  gap_type: implementation_gap
+  gap_evidence: |
+    合成所需 bf 比分赔率 SQL 基准已验证齐备（4 场 × 25 个比分赔率键，JSON_VALID=1 可提取）；
+    但工具层 get_lottery_schedule(404) 不返回 bf 字段且 spf 解析损坏，生产环境 Foretell 无比分赔率可用，
+    无法完成“推荐几场比分”。传导性 implementation_gap，根因同 T1-a1。
+  recommended_next_step: 随 T1-a1 工具层补齐 bf 赔率 surface 后自动满足。
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied: []
+satisfied_note: |
+  D05 无 atomic 在“纯工具链”下 satisfied。T1-a1 工具层 blocked（get_lottery_schedule(404)
+  漏跨日在售场次 + 不返回 bf 比分赔率 + spf JSON 解析损坏）；T1-a2 合成受 T1-a1 传导制约。
+  但 SQL 基准证明 DB 有今日北单未开赛+比分在售 4 场且 bf 为合法可提取 JSON →
+  implementation_gap（数据与路径都在，缺正确解析/surface 比分赔率的工具实现），非 data_gap、非无解。
+blocking_gap:
+  type: implementation_gap
+  description: |
+    get_lottery_schedule(play_type=404) 对北单比分玩法的支持存在三重缺陷：
+    (1) 不 surface 比分(bf)赔率 —— odds 对象仅含被错误解析的 sf，完全没有 bf 字段，
+        用户“推荐几场比分”所需的核心数据未被任何工具返回；
+    (2) spf/sf JSON 解析损坏 —— DB 原始 spf='{"sf3":"2.74","goal":"-1","sf0":"2.73","sf1":"3.70"}'
+        (JSON_VALID=1) 被工具按逗号切割成残片 home_win='{"sf3":"3.23"'(截断)、
+        away_win='"goal":"0.5"'(孤立残片)，字段名误标且数值与 DB 当前值偏差；
+    (3) date 过滤过窄 —— date=2026-06-29 仅返回 10 条已停售凌晨场次(sell_status=3)，
+        漏掉同 issue 26069 跨日到 06-30 的 4 场未开赛+比分在售场次(26069064~67)，
+        即用户要的“还没开始比赛”的北单不在工具输出内。
+    SQL 基准用 match_time>UNIX_TIMESTAMP() AND sell_status LIKE '_,_,_,_,1%' 即命中 4 场，
+    bf JSON_VALID=1、25 个比分赔率(s31/s30/s11/.../sl/sp/sw)可逐项 JSON_EXTRACT 提取。
+    故为“数据与路径都在，缺正确解析/surface 比分赔率的工具实现”的 implementation_gap
+    （附带 tool_logic_gap：spf JSON 按逗号切割损坏 + date 过滤漏跨日在售场次）。
+    原判 ⚠️(implementation_gap / 北单 bf JSON 解析 bug) 经 SQL 基准验证确认成立。
+  failed_atomic: D05-T1-a1
+  suggested_fix: |
+    在 get_lottery_schedule(404) 或新增 get_lottery_bf_odds 工具中：
+    (1) 用 JSON_EXTRACT/json.loads 正确解析 lottery_bd_odds.bf，surface 25 个比分赔率；
+    (2) 修正 spf/sf 解析（整体 json.loads 为 sf3/sf1/sf0/goal，杜绝按逗号切割残片）；
+    (3) sell_status 拆 5 位状态码，分别标注各子玩法在售状态（含第 5 位比分）；
+    (4) date 过滤放宽至“当前 issue 全部在售场次”（含跨日未开赛）。
+    属 Phase 2 工具层重构，本次不修改 foretell/tools/。
+route_complete: false
+verdict: |
+  ⚠️ partial —— D05 维持 ⚠️（原判 implementation_gap 经 SQL 基准验证确认）。
+  SQL 基准独立验证：DB 有今日(issue 26069 跨日 06-30)未开赛+比分在售北单 4 场
+  （巴西vs日本 00:55 / IA阿克拉内斯vs弗拉姆 03:10 / 德国vs巴拉圭 04:25 / 荷兰vs摩洛哥 06:00），
+  bf 字段 JSON_VALID=1、25 个比分赔率(s31/s30/s11/.../sl/sp/sw)可 JSON_EXTRACT 逐项提取；
+  spf 字段同样 JSON_VALID=1。
+  工具对照 get_lottery_schedule(404, 2026-06-29)：仅返回 10 条 06-29 已停售场次，
+  漏掉 4 场未开赛在售场次；odds 内无 bf 字段；spf 被解析成 '{"sf3":"3.23"'/'"goal":"0.5"' 残片。
+  判定：SQL 查到北单未开赛+比分赔率，工具 JSON 解析损坏且不 surface bf →
+  implementation_gap（数据在 DB，工具未正确实现比分赔率解析/surface），附带 tool_logic_gap
+  （spf 按逗号切割损坏 + date 过滤漏跨日在售）。非 data_gap、非无解。
+  建议工程团队补齐 bf 赔率 surface + 修正 JSON 解析 + 放宽 date 过滤后即可全链路 ✅。

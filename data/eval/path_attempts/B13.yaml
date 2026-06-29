@@ -1,17 +1,80 @@
 type_id: B13
+type_name: 伤病结合分析
 case_id: TC-B13-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: B (深度分析)
+entity_entry: match
+priority: P2
+turns:
+- turn_index: 0
+  text: 瓦伦西亚VS巴塞罗那 伤病名单对比赛影响
 attempts:
 - round: 1
-  atomic_id: B13-probe-1
+  atomic_id: T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 瓦伦西亚
+    away: 巴塞罗那
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 返回10候选，match_status=ambiguous。最近一场一线队交锋 match_id=4358276
+    （2026-05-24 西甲第38轮，瓦伦西亚 position=9 vs 巴萨 position=1，status=finished，
+    home_team_id=10325，away_team_id=10015，league_id=120）。LLM 需结合日期/赛事/位置择优选定。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_injury_report
+  params:
+    match_id: 4358276
+  code: OK
+  count: 7
+  stub: false
+  note: home(瓦伦西亚)6伤停——迪亚卡比肌肉挫伤(缺22场)、富尔基耶膝关节受伤(16)、
+    科佩特踝关节扭伤(13)、贝尔特兰膝关节受伤(6)、萨拉维亚受伤(3)、加亚肌肉挫伤(3)；
+    away(巴萨)1伤停——费尔明足部受伤(缺2场)。主客标签正确，足以支撑伤病影响分析。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_match_lineup
+  params:
+    match_id: 4358276
+  code: OK
+  count: 26
+  stub: false
+  note: confirmed=true，主队4-4-2、客队4-2-3-1。数据瑕疵：home/away 数组与实际主客颠倒
+    （home 数组存的是巴萨球员巴尔德/阿劳霍/莱万/什琴斯尼等11首发+4替补，away 数组存的是
+    瓦伦西亚球员杜罗/里奥哈/塔雷加/迪米特列夫斯基等）。与 B01 同源瑕疵，工具层面数据完整可用。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_team_squad
+  params:
+    team_id: 10015
+  code: OK
+  count: 29
+  stub: false
+  note: 巴萨大名单29人，含位置/球衣号/队长标识。可结合 injury_report 的 player_id 交叉
+    定位伤员在阵容中的位置与替代人选（如费尔明 M16 受伤 → 中场由加维/佩德里/奥尔莫顶替）。
+satisfied:
+- T1-a1
+- T1-a2
+- T1-b1
+- T1-b2
+blocking_gap:
+  type: none
+  description: ''
+  failed_atomic: ''
 route_complete: true
+data_quality_notes:
+- get_match_lineup home/away 数组与实际主客队颠倒（home=巴萨，away=瓦伦西亚），与 B01 观察到的
+  同源瑕疵；LLM 在做"伤病对比赛影响"分析时需以 injury_report 的 home/away 标签为准，lineup
+  数组按球员身份归队，不可直接信任 lineup 的 home/away 字段。
+- get_injury_report 主客标签正确，可与 lineup 球员交叉验证归队。
+phase2_verification:
+  new_tools_implemented:
+  - get_injury_report: OK (7 entries，含缺阵场次 missed_matches)
+  - get_match_lineup: OK (26 entries，confirmed=true，含阵型/教练/坐标)
+  - get_team_squad: OK (29 entries，含位置/球衣号/队长标识)
+  - resolve_match: OK (10 candidates，ambigous 但最近一线队场次明确)
+known_gap_status:
+  previous: 未探索
+  current: route_complete (injury + lineup + squad 三件套均通)
+  resolution: Phase 2 重构后伤病结合分析路径完全打通，无阻断

@@ -1,23 +1,180 @@
 type_id: H06
+type_name: 欧战席位
+scenario: H
+entity_entry: league
 case_id: TC-H06-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: live_probe
+verdict_lean: pass
+summary: |-
+  H06「欧战席位」数据路径完整可达。核心链路 resolve_league → get_standings(+ SQL 补 promotion_id)
+  综合给出：排名 / 积分分差 / 剩余轮次 / 欧战赛区标签。
+  关键发现：DB 通过 football_points_table_team.promotion_id JOIN football_promotions
+  直接编码欧战赛区——205=欧冠正赛、206=欧联正赛、172=欧协联资格赛、169=欧冠资格赛、0=无欧战，
+  即「欧战资格规则(前4欧冠/5-6欧联/7-8欧协联)」并非纯外部知识，DB 已有赛区映射，
+  消除了任务前置担忧的 knowledge_gap。
+  两条非阻塞 gap 均有 SQL workaround：(1) get_standings 对休赛期顶级联赛的 season_id 陷阱
+  （MAX(season_id) 落到未开赛新赛季空壳积分榜，6月查英超返回 20 队全 0），需 SQL 指定有数据的赛季；
+  (2) get_standings 返回结构丢弃 promotion_id 字段，欧战赛区标签需 SQL JOIN football_promotions。
+  跨运动碰撞：欧战席位为 UEFA 足球语义，entity_entry=league 已锁定 football 路径，未触发篮球 ID 碰撞。
 attempts:
+# ===== turn1 resolve_entity =====
 - round: 1
-  atomic_id: H06-probe-1
+  turn: 1
+  atomic_id: H06-T1-a1
+  category: resolve_entity
   tool: resolve_league
   params:
     name: 英超
   code: OK
+  count: 3
   stub: false
-- round: 2
-  atomic_id: H06-probe-2
+  note: 候选 league_id=82(英超/EPL)、3004(英亚杯)、7281(英超夏季赛)；取 82。
+    注：atomic 模板 target.entity 写为 match，与 H06 真实语义(entity_entry=league, 欧战席位)不符
+    ——这是 H 场景 atomic 自动生成模板的已知错位(参照 H07 user="中乙"配 type_name="世界杯进程")，
+    真实实体应为 league，按 league 语义判 satisfy。
+- round: 1
+  turn: 1
+  atomic_id: H06-T1-a1
+  category: resolve_entity
+  tool: resolve_league
+  params:
+    name: 瑞典超
+  code: OK
+  count: 3
+  stub: false
+  note: 交叉验证一个 UEFA 且 6 月正在赛季中的联赛(3-11月制)，候选 league_id=184(瑞典超/Allsvenskan)、
+    185(瑞典超甲)、193(瑞超杯)；取 184，用于验证活态「剩余轮次>0」欧战席位形势。
+# ===== turn1 fetch_stats / synthesize_answer =====
+- round: 1
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
   tool: get_standings
   params:
     league_id: 82
   code: OK
-  count: 30
+  count: 20
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 6月查英超命中 season_id 陷阱——MAX(season_id) 落到 2026-2027 新赛季(14320, 8月才开赛)
+    预建的空壳积分榜，20 队全 0 分 0 场，对欧战席位分析无用。routing_gap，需 fallback。
+- round: 2
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: sql
+  params:
+    competition_id: 82
+    season_id: 13242
+    query: football_points_table JOIN football_points_table_team JOIN football_team, ORDER BY position LIMIT 8
+  code: OK
+  count: 8
+  stub: false
+  note: Fallback——SQL 直查刚完赛的 2025-2026 赛季(13242, 38轮380场全完赛)真实最终积分榜。
+    结果：阿森纳85(1)/曼城78(2)/曼联71(3)/阿斯顿维拉65(4)/利物浦60(5)/伯恩茅斯57(6)/桑德兰54(7)/布莱顿53(8)。
+    欧战席位已定局，剩余轮次=0。分差可算(如 4-5 名阿斯顿维拉 vs 利物浦差 5 分)。
+- round: 2
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: sql
+  params:
+    query: football_match MAX(round_num) WHERE competition_id=82 AND season_id=13242
+  code: OK
+  count: 1
+  stub: false
+  note: 剩余轮次维度——英超 2025-26 max_round=38, matches=380, 全完赛 → 剩余轮次=0(赛季已结束)。
+    证明剩余轮次可由 football_match.round_num 派生(MAX(round_num) - 已赛轮次)。
+- round: 1
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: get_standings
+  params:
+    league_id: 184
+  code: OK
+  count: 16
+  stub: false
+  note: 瑞典超活态赛季(2026, id=13850, is_current=1)无空壳陷阱，get_standings 直接返回真实活态积分：
+    天狼星28(1, 10场)/赫根20(2)/埃尔夫斯堡18(3)/哈马比17(4)... 已赛约 10-11 轮。
+- round: 1
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: sql
+  params:
+    query: football_season + football_match round 统计 WHERE competition_id=184
+  code: OK
+  count: 3
+  stub: false
+  note: 瑞典超 2026 赛季 max_round=30, finished_matches=81(总 240) → 已赛约 34%，剩余轮次≈19-20。
+    活态欧战席位形势成立：分差可算(天狼星 28 领跑, 领先赫根 +8；欧协联区赫根20/埃尔夫斯堡18/哈马比17
+    三队争 2-3 名，分差仅 1-3 分，竞争激烈)。
+- round: 2
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: sql
+  params:
+    query: football_points_table_team.promotion_id LEFT JOIN football_promotions, 英超 2025-26 top10
+  code: OK
+  count: 10
+  stub: false
+  note: 关键——DB 直接编码欧战赛区。英超 2025-26：1-5名 promotion_id=205=欧冠正赛、
+    6-7名=206=欧联正赛、8名=172=欧协联资格赛、9名起=0=无欧战。
+    即「前4/5欧冠+5/6欧联+7/8欧协联」资格规则由 promotion_id 字段直接给出，无需 LLM 外部知识。
+- round: 2
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: fetch_stats
+  tool: sql
+  params:
+    query: football_points_table_team.promotion_id LEFT JOIN football_promotions, 瑞典超 2026 top8
+  code: OK
+  count: 8
+  stub: false
+  note: 瑞典超活态路径同样有赛区标签：1名=169 欧冠资格赛、2-3名=172 欧协联资格赛、4名起=0 无欧战。
+    不同联赛欧战名额结构不同(瑞典超仅 1 欧冠资格+2 欧协联资格)，DB 按各联赛实际规则编码，
+    无需 LLM 记忆各国名额差异。
+- round: 2
+  turn: 1
+  atomic_id: H06-T1-a2
+  category: synthesize_answer
+  tool: null
+  status: agent_layer
+  code: OK
+  stub: false
+  note: 欧战席位合成所需四维——排名(get_standings/SQL)、分差(points 相减)、剩余轮次
+    (MAX(round_num)-已赛)、欧战赛区标签(promotion_id JOIN football_promotions)——DB 全部可达。
+    agent 层据此可输出「当前欧战区队伍 / 分差形势 / 剩余轮次竞争压力」完整分析，无 foretell tool 阻塞。
+satisfied:
+- H06-T1-a1
+- H06-T1-a2
+blocking_gap:
+  type: none
+  description: 无阻塞 gap。欧战席位合成所需数据(排名/分差/剩余轮次/欧战赛区标签)DB 全部可达；
+    欧战资格规则由 promotion_id 字段直接编码，无需外部知识。两条次要 gap 见 secondary，均有 SQL workaround。
+  failed_atomic: null
+secondary:
+- type: routing_gap
+  description: get_standings 对休赛期顶级联赛命中 season_id 陷阱——MAX(season_id) over
+  football_points_table 落到未开赛新赛季(英超 2026-27, id=14320)预建的空壳积分榜(20 队全 0)，
+  6月查英超返回无用空数据。Workaround：SQL 显式指定有 played>0 数据的最近赛季
+  (英超用 2025-26 id=13242)；活态联赛(瑞典超 2026)无此问题，get_standings 直接可用。
+  影响场景：休赛期(6-7月)查询五大联赛欧战席位。
+- type: implementation_gap
+  description: get_standings 返回结构丢弃 football_points_table_team.promotion_id 字段，
+  欧战赛区标签(欧冠正赛/欧联正赛/欧协联资格赛)无法经工具直接获得，需 SQL JOIN football_promotions。
+  Workaround：SQL 直查 football_points_table_team.promotion_id LEFT JOIN football_promotions。
+  建议后续 get_standings 补 promotion_id + promotion_name 字段。
 route_complete: true
+verdict: pass
+verdict_reason: |-
+  路径完整(route_complete=true)，satisfied=2/2 atomic。
+  T1-a1 resolve_entity：resolve_league OK(英超82/瑞典超184)，atomic 模板 entity:match 错位按 league 真实语义判 satisfy。
+  T1-a2 synthesize_answer：欧战席位四维(排名/分差/剩余轮次/欧战赛区标签)DB 全部可达——
+  尤其 promotion_id JOIN football_promotions 直接给出欧战赛区名称，使「欧战资格规则」由 DB 编码而非依赖外部知识，
+  消除了任务前置担忧的 knowledge_gap。
+  两条次要 gap(get_standings season_id 陷阱 + 不含 promotion_id)均有 SQL workaround，不阻塞，
+  故 verdict 倾向 pass；若严格要求单工具直达(休赛期英超 get_standings 返回空)，可降为 partial_pass，
+  但数据可达性本身无问题。

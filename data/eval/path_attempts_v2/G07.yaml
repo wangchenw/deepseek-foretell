@@ -1,258 +1,446 @@
 type_id: "G07"
+type_name: 优化方案
 case_id: "TC-G07-001"
-summary: |
-  G07 是 15 轮长对话，用户带自创"5条筛选标准"要求 Foretell 从北单 301（2026-04-05 未开赛）场次筛比赛推荐比分，对话中多次意图漂移：跨窗口引用其他会话推荐（002/010 比分）→要求整合可复用模板→放宽条件→追问比分规律→引入"双平"玩法→要求新窗口使用说明。
-  路径探索核心发现：
-  ①时间旅行问题：用户场景日期 2026-04-05 相对今天(2026-06-28)是历史，该日全部 30+ 场次 sell_status=3（已停售），无法在当前时点验证"未开赛"过滤；用今天 2026-06-28 的数据代验证过滤逻辑：match_time_str>='2026-06-28 20:55' 且 sell_status='1,1,1,1,1' 的场次即为"未开赛可售"——过滤逻辑可迁移，标记 context_gap(时点)。
-  ②get_lottery_schedule(play_type=301, date=2026-04-05) 返回全部 30+ 场次但不过滤未开赛（全部 sell_status=3），"未开赛"过滤需 LLM 后置——tool_logic_gap(工具不过滤)。
-  ③lottery_bd_odds 的 spf/bf/jq/bqc/sxp 均为 JSON 字符串（非逗号串），spf 含 goal(让球数)+sf3/sf1/sf0(让球后胜平负赔率)，bf 含 s21=2-1 等比分赔率——比分预测与双平玩法数据可计算。
-  ④"双平"=总赛果平(bf 中 s00/s11/s22/s33/sp 平其他 之和)+让球平(spf.sf1)，可从 lottery_bd_odds 单表组合计算，无需 rq 独立字段。
-  ⑤北单 team name → football_team 映射部分缺失（样本 4 队仅 2 队匹配），get_recent_form 对映射成功的队可用——implementation_gap(低级别队映射缺失)。
-  ⑥跨窗口引用 002/010 比分（aq_6/7）当前会话无法验证——context_gap，诚实标注。
-  ⑦checkpointer 存在（MemorySaver/PostgresSaver），15 轮 maintain_context 在生产可工作；eval helper 单轮无法端到端模拟。
-atomics:
-  - atomic_id: aq_1
-    desc: "turn 1/9/10/12/13 合并：定位 2026-04-05 北单 301 未开赛可售场次列表"
-    rounds:
-      - round: 1
-        hypothesis: "查 lottery_bd_odds schema 确认字段，再 SQL 基准 2026-04-05 全部场次"
-        schema_query: |
-          SELECT column_name, column_type, column_comment FROM information_schema.columns
-          WHERE table_schema='data_center' AND table_name='lottery_bd_odds'
-        schema_result: "字段：id/issue/issue_num/comp/home/away/match_time(int)/match_time_str/sell_status(5段:胜平负,总进球,半全场,上下单双盘,比分;0未开售/1销售中/2未知/3已停售/4已开奖)/spf(JSON)/jq/bqc/sxp/bf(JSON)。无 match_id 字段，无独立 rq 字段（让球在 spf JSON 的 goal 键）"
-        decision: continue
-      - round: 2
-        hypothesis: "SQL 基准：2026-04-05 全部北单场次，看 sell_status 分布"
-        sql_baseline:
-          query: |
-            SELECT id, issue, issue_num, comp, home, away, match_time_str, sell_status,
-                   LEFT(spf,60) AS spf_head
-            FROM lottery_bd_odds
-            WHERE match_time_str LIKE '2026-04-05%'
-            ORDER BY issue_num LIMIT 30
-          result: "30+ 场次（issue=26042, issue_num 164-193+），全部 sell_status='3,3,3,3,3'（已停售，因 2026-04-05 是历史日期）。comp 含足总杯/西甲/德甲/意甲/荷甲/比甲/葡超/法甲/法乙/德乙/西乙/罗甲/希腊超/波兰甲/瑞士超/巴西乙/美职/阿职联等。spf 为 JSON 含 sf3/sf1/sf0/goal"
-        tool_call:
-          name: get_lottery_schedule
-          params: {play_type: "301", date: "2026-04-05"}
-          result: "code=OK，返回 30+ entries，全部 sell_status='3,3,3,3,3'，含 home_name/away_name/league_name/odds(spf/bf/jq/bqc/sxp)，match_id=null。工具不过滤未开赛，返回该日期全部场次"
-        comparison: "SQL 基准与工具结果一致（同样 30+ 场次，同样 sell_status=3）。关键发现：get_lottery_schedule 不过滤未开赛，需 LLM 后置过滤。对 2026-04-05 历史日期，无未开赛场次（全部已停售）——这是时点问题，不是 data_gap"
-        decision: continue
-      - round: 3
-        hypothesis: "用今天 2026-06-28 数据验证'未开赛可售'过滤逻辑：match_time>NOW() 且 sell_status 含 1"
-        sql_baseline:
-          query: |
-            SELECT id, issue_num, comp, home, away, match_time_str, sell_status,
-                   spf AS spf_json
-            FROM lottery_bd_odds
-            WHERE match_time_str LIKE '2026-06-28 2%'
-              AND sell_status='1,1,1,1,1'
-            ORDER BY match_time_str LIMIT 5
-          result: "5 场未开赛可售：兰斯克鲁纳vs韦纳穆(瑞典甲,20:55)、北雪平vs诺尔比(瑞典甲,20:55)、卡帕vs耶尔文佩(芬甲,20:55)、贝雷达比历克vs维京古尔(冰岛杯,21:55)、桑德维肯vs赫尔辛堡(瑞典甲,22:55)。spf JSON 含 goal(让球) + sf3/sf1/sf0"
-        comparison: "过滤逻辑验证成功：未开赛=match_time>NOW() 且 sell_status 段含 '1'。该逻辑可迁移到 2026-04-05（若在 2026-04-05 当天查询，match_time>查询时刻的场次即未开赛）。eval 时点导致历史日期无未开赛样本，标记 context_gap(时点)"
-        decision: satisfied
-    final_status: satisfied
-    gap_type: tool_logic_gap
-    gap_evidence: |
-      tool_logic_gap: get_lottery_schedule(play_type=301, date=2026-04-05) 返回该日期全部 30+ 场次，不过滤未开赛/可售状态（全部 sell_status=3 也照返回），用户意图"今天还没开赛"需 LLM 后置过滤。SQL 基准证明过滤条件为 match_time>NOW() AND sell_status LIKE '%1%'。
-      context_gap(时点): 2026-04-05 相对今天(2026-06-28)是历史，该日全部场次 sell_status=3；用 2026-06-28 数据代验证未开赛过滤逻辑成功（5 场 sell_status=1 且 match_time 在今晚），逻辑可迁移。
-      SQL 基准1: SELECT ... FROM lottery_bd_odds WHERE match_time_str LIKE '2026-04-05%' → 30+ 场全 sell_status=3
-      SQL 基准2: SELECT ... WHERE match_time_str LIKE '2026-06-28 2%' AND sell_status='1,1,1,1,1' → 5 场未开赛可售
-      工具: get_lottery_schedule(301, 2026-04-05) → 30+ entries 全 sell_status=3
-    recommended_next_step: |
-      P2 修复 get_lottery_schedule：增加 upcoming_only 或 sell_status_filter 参数，在 client 层过滤 match_time>NOW() AND sell_status 含 '1'，避免 LLM 后置过滤遗漏；
-      P3 增加 date 时点说明：当 date 是历史日期时工具应返回提示"该日期已过，全部场次已停售"。
-  - atomic_id: aq_2
-    desc: "turn 1：按5条标准逐场判定（联赛级别/价值/避开热门/阵容战意/比分专项）"
-    rounds:
-      - round: 1
-        hypothesis: "5 条标准的可判定性拆解：①联赛级别→comp 字段 ②正价值→需概率+赔率，用户无概率估算（turn 3 自述）→不可判定 ③避开热门→需媒体舆情（internet_search 禁用）+盘口深度→部分可从亚盘判定 ④阵容战意→get_match_lineup/get_injury_report ⑤比分专项→bf 赔率+jq 总进球+让球盘口"
-        decision: continue
-      - round: 2
-        hypothesis: "SQL 基准：联赛级别与让球盘口可从 lottery_bd_odds 直接判定；近期进球需 team 映射 + get_recent_form"
-        sql_baseline:
-          query_联赛级别: |
-            SELECT DISTINCT comp FROM lottery_bd_odds
-            WHERE match_time_str LIKE '2026-04-05%' ORDER BY comp
-          result_联赛级别: "足总杯/25-26西甲/25-26德甲/25-26意甲/25-26荷甲/25-26比甲/25-26葡超/25-26法甲/25-26法乙/25-26德乙/25-26西乙/25-26罗甲/25-26希腊超/25-26波兰甲/25-26瑞士超/25-26比乙/巴西乙/美职/阿职联/25-26荷乙等。五大联赛(西甲/德甲/意甲/荷甲/法甲)+欧冠+英冠+荷乙均可从 comp 字段白名单匹配"
-          query_让球盘口: |
-            SELECT issue_num, home, away, JSON_EXTRACT(spf, '$.goal') AS handicap
-            FROM lottery_bd_odds WHERE match_time_str LIKE '2026-04-05%' LIMIT 10
-          result_让球盘口: "goal 值范围 -3 到 +2，'盘口≤1球' = |goal|≤1 过滤可行"
-        tool_call:
-          name: get_recent_form
-          params: {team_id: "10595", n: 5}
-          result: "code=OK，北雪平近5场全胜，goals_for=2/2/2/2/2，goals_against=0/0/1/0/0——总进球2-3球，'近期进球稳定2-3球'标准可判定"
-        comparison: |
-          联赛级别 + 让球盘口 + 比分专项(bf/jq) 可从 lottery_bd_odds 单表判定；
-          近期进球需 bd team name → football_team.id 映射，样本 4 队仅 2 队匹配（北雪平/诺尔比 匹配，兰斯克鲁纳/韦纳穆 未匹配）——implementation_gap(低级别队映射缺失)；
-          正价值(标准2)用户 turn 3 自述无概率估算→不可判定；
-          避开热门(标准3)需媒体舆情→internet_search 禁用→skipped；
-          阵容战意(标准4)需 get_match_lineup/get_injury_report，且需 match_id（bd 无 match_id 字段，需 name→resolve_match 链路，低级别队可能失败）
-        decision: satisfied
-    final_status: partial
-    gap_type: implementation_gap
-    gap_evidence: |
-      implementation_gap(球队映射): 北单 team name 与 football_team.name_zh 部分不一致——SQL: SELECT id,name_zh FROM football_team WHERE name_zh IN ('兰斯克鲁纳','韦纳穆','北雪平','诺尔比') → 仅北雪平(10595)/诺尔比(11801)匹配，兰斯克鲁纳/韦纳穆缺失。导致 get_recent_form 对未映射队不可用，标准5(近期进球)无法判定。
-      data_gap(阵容战意): lottery_bd_odds 无 match_id 字段，无法直接调 get_match_lineup/get_injury_report；需 resolve_match(home,away,date) 链路，低级别队(瑞典甲/芬甲)可能 ENTITY_NOT_FOUND。
-      discover_via_search skipped: 标准3(避开热门)需媒体舆情，internet_search 禁用。
-      用户自述 data_gap: turn 3 用户明确"我没有概率估算"，标准2(正价值)无输入无法计算。
-      SQL 基准: SELECT DISTINCT comp FROM lottery_bd_odds WHERE match_time_str LIKE '2026-04-05%' → 五大联赛/欧冠/英冠/荷乙可白名单匹配；JSON_EXTRACT(spf,'$.goal') → 让球数可提取。
-      工具: get_recent_form(team_id=10595) → 北雪平近5场进球数据可用。
-    recommended_next_step: |
-      P2 建立 bd_team → football_team 名称别名映射表（北单常用简称 vs football_team.name_zh/short_name_zh），覆盖低级别联赛；
-      P3 评估 get_match_lineup/get_injury_report 对低级别队的覆盖度，若无数据应在工具层返回 DATA_MISSING 而非 stub。
-  - atomic_id: aq_6
-    desc: "turn 3/4：跨窗口引用其他会话推荐的 002/010 比分"
-    rounds:
-      - round: 1
-        hypothesis: "用户在'其他窗口'让 Foretell 推荐了今天 002 和 010 的比分，要求反推条件——当前会话 thread 状态不可见跨窗口，无法验证"
-        code_inspection: |
-          foretell/backends.py: checkpointer 是 MemorySaver(dev)/PostgresSaver(prod)，按 thread_id 隔离；
-          foretell/agent.py L41: checkpointer 注入。不同窗口=不同 thread_id，state 不共享。
-          结论：跨窗口会话状态在当前 thread 不可见，无法读取其他窗口的 002/010 推荐内容。
-        decision: satisfied
-    final_status: blocked
-    gap_type: context_gap
-    gap_evidence: |
-      context_gap(跨窗口): Foretell checkpointer 按 thread_id 隔离，用户在其他窗口(thread_id_B)的推荐内容对当前窗口(thread_id_A)不可见。用户 turn 3 说"我在其他窗口 你帮我推荐的今天002和010的比分就是正确的"，turn 4 给出具体比分"002:1-1/0-1/0-2; 010:1-0/2-0/2-1"——当前会话无法核对真伪、无法反推条件。
-      诚实标注：禁止假装记得或编造；应建议用户(a)粘贴其他窗口回复原文，或(b)在本会话重新查 002/010 场次（需提供 date+play_type）。
-      代码证据: foretell/backends.py L38-64 checkpointer 按 thread_id 隔离；无跨 thread 读取 API。
-    recommended_next_step: |
-      P3 产品层：若要支持跨窗口引用，需在 store 层(InMemoryStore/PostgresStore)按 user_id 而非 thread_id 保存"最近推荐摘要"，供跨 thread 检索；当前架构不支持。
-      P3 对话层：agent 检测到"其他窗口/之前推荐"关键词时，应主动提示"我无法访问其他会话的历史，请粘贴原文或重新提供场次编号"。
-  - atomic_id: aq_11
-    desc: "turn 8/11：比分推荐 + 比分规律分析(1-0/2-1/1-1/1-2)"
-    rounds:
-      - round: 1
-        hypothesis: "比分规律可从 bf JSON + jq JSON 提取低赔率比分；'1-0 2-1 1-1 1-2'对应 s10/s21/s11/s12 键"
-        sql_baseline:
-          query: |
-            SELECT issue_num, home, away,
-                   JSON_EXTRACT(bf, '$.s10') AS s_1_0,
-                   JSON_EXTRACT(bf, '$.s21') AS s_2_1,
-                   JSON_EXTRACT(bf, '$.s11') AS s_1_1,
-                   JSON_EXTRACT(bf, '$.s12') AS s_1_2,
-                   JSON_EXTRACT(jq, '$.j0') AS j_0, JSON_EXTRACT(jq, '$.j1') AS j_1,
-                   JSON_EXTRACT(jq, '$.j2') AS j_2, JSON_EXTRACT(jq, '$.j3') AS j_3
-            FROM lottery_bd_odds
-            WHERE match_time_str LIKE '2026-06-28 2%' AND sell_status='1,1,1,1,1'
-            ORDER BY issue_num
-          result: |
-            兰斯克鲁纳vs韦纳穆: s10=19.56, s21=?(截断), s11=13.78, s12=21.76; jq j2/j3 待查
-            北雪平vs诺尔比: s10=18.52, s11=17.43, s12=47.23
-            卡帕vs耶尔文佩: s10=16.57, s11=7.82(低), s12=11.01(低)——本场 1-1/1-2 概率高
-        comparison: "bf JSON 的 sXY 键=主队X球客队Y球，jq 的 jN 键=N球总进球。比分规律分析可纯 SQL 计算，无需网搜"
-        decision: satisfied
-    final_status: satisfied
-    gap_type: null
-    gap_evidence: |
-      bf JSON 键命名规则：s{主进球}{客进球}（s10=1-0, s21=2-1, s11=1-1, s12=1-2, s00=0-0, s22=2-2, s33=3-3, sl=胜其他, sp=平其他, sw=负其他）。
-      jq JSON 键：j0=0球,j1=1球,j2=2球,j3=3球,j4=4球,j5=5球,j6=6球,j7=7+球。
-      比分规律分析可纯 SQL：JSON_EXTRACT(bf,'$.s11') 等，提取低赔率比分 + jq 低赔率总进球，交叉筛出"1-0/2-1/1-1/1-2"类低进球比分场次。
-      SQL 基准: 卡帕vs耶尔文佩 s11=7.82(低)、s12=11.01(低) → 1-1/1-2 概率高，符合用户偏好。
-    recommended_next_step: "工程应提供 parse_lottery_bd_bf(bf_json)→dict 工具函数，把 sXY 键转成 (比分, 赔率) 列表；并加'低进球比分筛选器'(s10/s21/s11/s12 + j0-j3 低赔) 复用模板"
-  - atomic_id: aq_14
-    desc: "turn 11：网上搜比分规律（discover_via_search）"
-    rounds:
-      - round: 1
-        hypothesis: "用户要求'你网上搜搜有没有特殊的规律'——约束禁用 internet_search"
-        tool_call:
-          name: internet_search
-          params: {query: "低进球比分 1-0 2-1 1-1 1-2 赔率盘口规律"}
-          result: "skipped（约束：不调用 internet_search/Tavily）"
-        expected_if_allowed: |
-          若允许网搜，预期可搜到经验规律：①1-1/1-0 低赔常对应让球平+总进球≤2球+亚盘平手/平半 ②2-1/1-2 对应让球±1 + 总进球3球 ③低进球比分集中出现在势均力敌(欧赔三值接近)或防守型球队(近5场场均进球<1.5)的对阵。可辅助交叉验证 DB 提取的 bf/jq 规律。
-        decision: satisfied
-    final_status: satisfied
-    gap_type: null
-    gap_evidence: "约束禁用 internet_search，discover_via_search skipped；aq_11 已用 SQL 基准从 bf/jq 提取比分规律，网搜仅作辅助非必需"
-    recommended_next_step: "若未来放开 internet_search，建议查询关键词：'低进球比分 赔率特征'、'1-1 比赛 让球平 概率'、'football low scoring games odds pattern'"
-  - atomic_id: aq_15
-    desc: "turn 12/13/14：双平玩法=总赛果平+让球平（非半全场）"
-    rounds:
-      - round: 1
-        hypothesis: "用户澄清双平=spf全场平+让球平。北单 301 的 spf JSON 含 sf1(让球后平)+goal(让球数)；全场平需从 bf 的 s00/s11/s22/s33/sp 平其他赔率推算"
-        schema_check: |
-          lottery_bd_odds.spf JSON 键：sf3(让球后主胜)/sf1(让球后平=让球平)/sf0(让球后客胜)/goal(让球数)
-          lottery_bd_odds.bf JSON 键：s00/s11/s22/s33(全场平比分)+sp(平其他)
-          结论：双平组合 = {全场平: 1/JSON_EXTRACT(bf,'$.s00')+1/JSON_EXTRACT(bf,'$.s11')+...} × {让球平: 1/JSON_EXTRACT(spf,'$.sf1')}
-          可从 lottery_bd_odds 单表计算，无需独立 rq 字段
-        decision: continue
-      - round: 2
-        hypothesis: "SQL 基准：对今天未开赛场次计算双平组合赔率，筛出高赔场次"
-        sql_baseline:
-          query: |
-            SELECT issue_num, home, away,
-                   JSON_EXTRACT(spf, '$.sf1') AS rq_draw_odds,
-                   JSON_EXTRACT(spf, '$.goal') AS handicap,
-                   JSON_EXTRACT(bf, '$.s00') AS s_0_0,
-                   JSON_EXTRACT(bf, '$.s11') AS s_1_1,
-                   JSON_EXTRACT(bf, '$.s22') AS s_2_2,
-                   JSON_EXTRACT(bf, '$.sp') AS draw_other
-            FROM lottery_bd_odds
-            WHERE match_time_str LIKE '2026-06-28 2%' AND sell_status='1,1,1,1,1'
-            ORDER BY CAST(JSON_EXTRACT(spf, '$.sf1') AS DECIMAL) ASC
-          result: |
-            各场让球平赔率(sf1)：兰斯克鲁纳vs韦纳穆 sf1=4.04, 北雪平vs诺尔比 sf1=3.93, 卡帕vs耶尔文佩 sf1=3.06(最低)；
-            全场平比分赔率：卡帕vs耶尔文佩 s11=7.82(低), s00 待查；
-            双平组合最优：卡帕vs耶尔文佩（sf1=3.06 + s11=7.82，全场1-1且让球平概率高）
-        comparison: "双平玩法数据可计算，spf.sf1=让球平赔率，bf 的 s00/s11/s22 为全场平比分赔率；用户澄清'非半全场'正确——bqc 字段(半全场)不被使用"
-        decision: satisfied
-    final_status: satisfied
-    gap_type: null
-    gap_evidence: |
-      双平玩法可从 lottery_bd_odds 单表计算：
-        让球平 = JSON_EXTRACT(spf, '$.sf1')（北单 301 spf 即让球后胜平负，sf1=让球平）
-        全场平 = bf 中 s00/s11/s22/s33/sp 平其他赔率（隐含概率求和）
-        组合 = P(全场平) × P(让球平) 或赔率乘积
-      SQL 基准: 卡帕vs耶尔文佩 sf1=3.06(让球平最低) + s11=7.82(全场1-1低赔) → 双平最优候选
-      用户澄清正确：双平≠bqc 半全场（bqc 是半场结果+全场结果组合，非用户所要）
-    recommended_next_step: "工程应提供 compute_double_draw(odds_json) 工具函数，组合 spf.sf1 + bf 全场平赔率输出双平推荐；并在 prompt 中明确双平定义避免与 bqc 混淆"
-  - atomic_id: aq_4
-    desc: "turn 2/5/6/7/9/10/15：maintain_context 链 + 模板沉淀"
-    rounds:
-      - round: 1
-        hypothesis: "15 轮中多次 maintain_context（复用候选场次、放宽标准、继续输出、新窗口说明）；checkpointer 存在性决定生产可行性"
-        code_inspection: |
-          foretell/backends.py L38-64: create_checkpointer → MemorySaver(dev)/PostgresSaver(prod)
-          foretell/agent.py L41: checkpointer=create_checkpointer(deploy_env) 注入 deepagents
-          foretell/backends.py L67-95: create_store → InMemoryStore/PostgresStore（按 thread_id 隔离）
-          结论：生产环境 15 轮 maintain_context 在同一 thread_id 下可继承 state（含已筛场次列表、已沉淀模板、放宽后的标准）。
-        tool_call:
-          name: (no tool — LangGraph thread state inheritance)
-          params: {thread_id: "<session>", inherits_all_prior_state: true}
-          result: "eval helper 单轮调用无法模拟 15 轮 thread 状态继承；生产路径可行：每轮 invoke 同一 thread_id，state 自动累积"
-        comparison: "checkpointer 存在 → maintain_context 在生产可工作；eval harness 层面是 context_simulation_gap（非生产 context_gap）"
-        decision: satisfied
-    final_status: satisfied
-    gap_type: null
-    gap_evidence: "foretell/backends.py 实现 MemorySaver/PostgresSaver 双环境 checkpointer，agent.py L41 注入。15 轮 maintain_context 在同一 thread_id 下可继承 state。eval helper 单轮模式无法端到端验证，但路径逻辑成立。aq_6 跨窗口引用是真正的 context_gap（不同 thread_id），aq_4 同窗口 maintain_context 不是 gap。"
-    recommended_next_step: "eval 流水线应增加 multi-turn thread 模拟（同一 thread_id 串行 invoke 15 次），端到端验证 maintain_context + 模板沉淀"
-  - atomic_id: aq_8
-    desc: "turn 5/6/14/15：可复用筛选模板指令（含双平+新窗口）"
-    rounds:
-      - round: 1
-        hypothesis: "用户要'在任何聊天窗口可使用的筛选模板指令'——纯 synthesize，基于已验证数据源与过滤逻辑产出可参数化模板"
-        synthesis_basis: |
-          数据源：lottery_bd_odds（spf JSON 含 sf1/sf3/sf0/goal; bf JSON 含 sXY; jq JSON 含 jN）
-          过滤条件：date + match_time>NOW() + sell_status 含 '1' + 联赛白名单 + |goal|≤1 + bf 低赔比分 + jq 总进球≤3
-          双平模板：spf.sf1 低赔 + bf s00/s11/s22 低赔
-          新窗口说明：thread 不跨窗口，需在模板里自带 date+play_type+标准全文
-        decision: satisfied
-    final_status: satisfied
-    gap_type: null
-    gap_evidence: "模板沉淀是 synthesize_answer，基于 aq_1/aq_2/aq_15 已验证的数据源与过滤逻辑；输出可参数化指令文本"
-    recommended_next_step: "模板应包含：①play_type=301 + date 占位符 ②5条标准（含放宽后版本） ③ Foretell 工具调用顺序 ④比分/双平筛选的 SQL/JSON_EXTRACT 逻辑 ⑤新窗口需自带完整参数"
+scenario: G
+explored_at: '2026-06-29'
+priority: P1
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+atomic_source: data/eval/atomic_decompositions/G07.yaml（原 3 轮分解）
+context: |
+  G07 场景为"优化方案"多轮追问（3 轮）：
+    turn0：用户带自创 5 条筛选标准，要求从"今天还没开赛的北单"按标准筛比赛、推荐几场比分（同 D05）。
+    turn1：追问"有没有能优化筛选标准的？怎么样选择合适的比赛？"——基于 5 标准框架的优化方案说明。
+    turn2："我没有概率估算 还有我在其他窗口 你帮我推荐的今天002和010的比分就是正确的 他们条件是什么？"——
+           跨窗口/跨 session 引用其他窗口的 002/010 比分推荐，要求反推条件。
+  原判 ⚠️ implementation_gap（北单 bf 序列化损坏）+ context_gap（多轮/跨窗口）。本次返工严格按
+  information_schema → SQL 基准 → 工具对照 → 判定 的流程重做，分层验证数据层与工具层。
+  关键方法纠正（不做应声虫）：任务单要求"调 get_lottery_schedule(play_type=404) 对照 bf 序列化"，
+  但 lottery_type 404 = 北单让球胜平负（BEIDAN_HANDICAP → lottery_bdsf_odds，仅 sf 列，无 bf 列），
+  404 根本不返回 bf；bf 玩法赔率只在 lottery_type 301 = 北单胜负过关（BEIDAN_WIN_LOSS → lottery_bd_odds，
+  含 spf/jq/bqc/sxp/bf）。故验证 bf 序列化必须用 play_type=301，本探索按 301 执行并在证据中说明。
 
-case_final_status: satisfied
-case_gap_types: [tool_logic_gap, implementation_gap, context_gap]
-case_total_rounds: 9
-case_key_findings:
-  - "get_lottery_schedule 不过滤未开赛/可售状态，返回全部场次（tool_logic_gap，P2）"
-  - "2026-04-05 是历史日期全部已停售，用 2026-06-28 数据代验证未开赛过滤逻辑成功（context_gap 时点）"
-  - "lottery_bd_odds 的 spf/bf/jq 是 JSON（非逗号串），spf 含 goal+sf1 让球平，bf 含 sXY 比分——双平玩法可计算"
-  - "北单 team name → football_team 映射部分缺失（4 队样本 2 队匹配），get_recent_form 对未映射队不可用（implementation_gap，P2）"
-  - "跨窗口引用 002/010 比分当前会话无法验证（context_gap 跨 thread，P3）"
-  - "checkpointer 存在，15 轮 maintain_context 在生产可工作；eval helper 单轮无法端到端模拟"
-  - "双平=spf.sf1(让球平) + bf 全场平(s00/s11/s22/sp)，非 bqc 半全场——用户澄清正确"
-  - "比分规律(1-0/2-1/1-1/1-2)可从 bf s10/s21/s11/s12 + jq j0-j3 纯 SQL 提取"
+# =========================================================================
+# 全局 schema 基础
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name IN ('lottery_bd_odds','lottery_bdsf_odds','lottery_match')
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    lottery_bd_odds（北单胜负过关 301 的赔率表，每行一场含全部玩法）：
+      id/issue/issue_num/comp/home/away/match_time(int)/match_time_str/
+      sell_status varchar(20) "销售状态码 顺序：胜平负,总进球,半全场,上下单双盘,比分；0-未开售/1-销售中/2-未知/3-已停售/4-已开奖"/
+      spf varchar(200) "胜平负"/jq varchar(200) "进球"/bqc varchar(200) "半全场"/sxp varchar(200) "上下单双"/bf varchar(1000) "比分"。
+      spf/jq/bqc/sxp/bf 在 DB 中均为 JSON 字符串（非逗号分隔串），spf 含 goal(让球数)+sf3/sf1/sf0(让球后胜平负赔率)，
+      bf 含 sXY 键（s10=1-0、s11=1-1、s21=2-1、s00=0-0、sl/sp/sw=胜其他/平其他/负其他）。
+    lottery_bdsf_odds（北单让球胜平负 404）：仅有 sf varchar(100) "胜负赔率"，无 bf/jq/bqc/sxp 列——
+      证实 404 玩法不携带比分赔率，不能用 404 验证 bf。
+    lottery_match：lottery_type 注释明确"301-北单胜负过关 / 404-北单让球胜平负"。
+
+# =========================================================================
+# turn0：按 5 标准找今天还没开赛的北单 + 推荐几场比分
+# =========================================================================
+turns:
+
+# ---------- turn0 / G07-T0-a2 + a4 + a6：北单未开赛场次 + bf 赔率 ----------
+- turn: 0
+  atomic_id: G07-T0-a2
+  category: fetch_schedule
+  target: 今日北单未开赛场次（含 bf 赔率，供 5 标准筛选与比分推荐）
+  rounds:
+  - round: 1
+    hypothesis: 先用 information_schema 确认 lottery_bd_odds 字段语义（sell_status 五段顺序、bf 是否 JSON），
+      不凭表名/字段名臆测。
+    schema_query: |
+      SELECT column_name, column_type, column_comment FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = 'lottery_bd_odds'
+      ORDER BY ordinal_position
+    schema_result: |
+      sell_status varchar(20) "顺序：胜平负,总进球,半全场,上下单双盘,比分；0未开售/1销售中/2未知/3已停售/4已开奖"——
+        第 5 段(index 4)=比分玩法销售状态。
+      bf varchar(1000) "比分"；spf/jq/bqc/sxp varchar(200)。
+      match_time int(时间戳)、match_time_str varchar(20)。
+    decision: continue
+  - round: 2
+    hypothesis: 独立写 SQL 基准，验证"今天(2026-06-29 起)未开赛+比分在售"的北单场次是否存在、bf 字段是否完整合法。
+      未开赛 = match_time > UNIX_TIMESTAMP()；比分在售 = sell_status 第 5 段 = '1'。
+    sql_baseline:
+      query: |
+        SELECT id, issue, issue_num, comp, home, away, match_time_str, sell_status,
+               LENGTH(bf) AS bf_len, bf
+        FROM lottery_bd_odds
+        WHERE match_time > UNIX_TIMESTAMP()
+        ORDER BY match_time ASC LIMIT 20
+      result: |
+        命中 4 场今日未开赛北单（issue=26069，全部 sell_status='1,1,1,1,1'，比分玩法在售）：
+        - id 26069064, issue_num 64, 世界杯, 巴西 vs 日本, 2026-06-30 00:55, bf_len=352,
+          bf='{"s31":"9.50","s30":"24.68","s11":"10.90","s33":"55.48","s10":"15.12","s32":"16.02",
+               "s13":"91.65","s12":"22.47","s14":"376.48","sl":"206.37","sp":"290.52","sw":"36.01",
+               "s40":"61.91","s20":"10.25","s42":"35.09","s41":"31.98","s00":"24.91","s22":"12.87",
+               "s21":"6.26","s02":"85.10","s24":"217.96","s01":"38.55","s23":"42.57","s04":"760.80",
+               "s03":"243.96"}'
+        - id 26069065, issue_num 65, 冰岛超, IA阿克拉内斯 vs 弗拉姆, 2026-06-30 03:10, bf_len=349（完整 JSON）
+        - id 26069066, issue_num 66, 世界杯, 德国 vs 巴拉圭, 2026-06-30 04:25, bf_len=357（完整 JSON）
+        - id 26069067, issue_num 67, 世界杯, 荷兰 vs 摩洛哥, 2026-06-30 06:00, bf_len=352（完整 JSON）
+        SQL 基准结论：DB 有今日未开赛北单 4 场，bf 字段为完整合法 JSON（25 个比分键 s00-s42 + sl/sp/sw）。
+    decision: continue
+  - round: 3
+    hypothesis: 用 JSON_VALID / JSON_EXTRACT 严格证明 bf JSON 合法且可被 5 标准筛选直接使用，
+      并连带 spf 让球数(goal)与让球平(sf1)——这是"标准2 正价值/安全边际"与比分价值排序的输入。
+    sql_baseline:
+      query: |
+        SELECT id, issue_num, comp, home, away, match_time_str,
+               JSON_VALID(bf) AS bf_valid, JSON_LENGTH(bf) AS bf_keys,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s10')) AS s_1_0,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s11')) AS s_1_1,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s21')) AS s_2_1,
+               JSON_UNQUOTE(JSON_EXTRACT(bf,'$.s00')) AS s_0_0,
+               JSON_UNQUOTE(JSON_EXTRACT(spf,'$.goal')) AS handicap,
+               JSON_UNQUOTE(JSON_EXTRACT(spf,'$.sf1')) AS rq_draw
+        FROM lottery_bd_odds
+        WHERE match_time > UNIX_TIMESTAMP()
+        ORDER BY match_time ASC LIMIT 10
+      result: |
+        4 场全部 bf_valid=1, bf_keys=25：
+        - 巴西vs日本: s_1_0=15.14, s_1_1=10.88, s_2_1=6.26, s_0_0=24.89, handicap=-1, rq_draw(sf1)=3.69
+        - IA阿克拉内斯vs弗拉姆: s_1_0=29.27, s_1_1=15.81, s_2_1=16.09, s_0_0=36.11, handicap=0, rq_draw=3.26
+        - 德国vs巴拉圭: s_1_0=14.23, s_1_1=18.36, s_2_1=8.03, s_0_0=29.82, handicap=-1, rq_draw=3.75
+        - 荷兰vs摩洛哥: s_1_0=12.04, s_1_1=5.89, s_2_1=6.80, s_0_0=13.91, handicap=0, rq_draw=3.02
+        SQL 基准结论：bf JSON 合法且 JSON_EXTRACT 可直接取出各比分赔率；spf JSON 含让球数与让球平赔率。
+        5 标准筛选（联赛级别/让球盘口/比分专项/总进球）所需数据在 DB 层全部齐备且可计算。
+    decision: continue
+  - round: 4
+    hypothesis: 调 get_lottery_schedule(play_type=301) 做对照，看工具返回的 bf 与 SQL 原始 JSON 是否一致。
+      注：play_type=404（北单让球胜平负）对应 lottery_bdsf_odds，仅 sf 列、无 bf，不能用于 bf 验证，
+      故按 301（北单胜负过关，lottery_bd_odds）对照。
+    tool_call:
+      name: get_lottery_schedule
+      params: {play_type: "301"}
+      invoke: scripts/_probe_args/g07_lotschedule.py（直调 MySQLCrazySportsClient.get_lottery_schedule(PlayType.BEIDAN_WIN_LOSS)，
+        因 PowerShell 调外部程序会吞 JSON 双引号，helper tool 子命令无法直接传参，改用同进程直调）
+      result: |
+        code=OK, count=4。4 场与 SQL 基准一致（巴西vs日本/IA阿克拉内斯vs弗拉姆/德国vs巴拉圭/荷兰vs摩洛哥），
+        sell_status 各玩法均 on_sale。但 odds.bf 序列化损坏：
+        - bf 被返回为 list[25]，每项 {"label": <竞彩比分标签>, "odds": <JSON 碎片>}
+          例：巴西vs日本 bf[:3] =
+            {"label":"1:0","odds":"{\"s31\":\"9.51\""}
+            {"label":"2:0","odds":"\"s30\":\"24.60\""}
+            {"label":"2:1","odds":"\"s11\":\"10.88\""}
+        - odds 字段是 DB bf JSON 被按逗号切碎的片段：首段残留前导 '{'，末段残留尾 '}'，中间段既非合法 JSON 也非裸数值。
+        - label 用的是竞彩 _BF_LABELS（1:0/2:0/2:1...共 31 标签），与北单 bf 的 s-键语义（s31=3:1、s30=3:0、s11=1-1...）
+          完全错位——标签错、赔率值也是碎片。
+        - spf 同样损坏：win="{\"sf3\":\"2.73\""、draw="\"goal\":\"-1\""、loss="\"sf0\":\"2.75\""（JSON 被当 CSV 切碎）。
+    comparison: |
+      SQL 基准 vs 工具对照：
+        - 场次列表：一致（4 场未开赛、sell_status 全可售）。
+        - bf 字段：SQL 基准为完整合法 JSON（JSON_VALID=1, 25 键, JSON_EXTRACT 可取值）；
+          工具把 bf 当 CSV 切碎，返回 25 个 {竞彩label, JSON碎片}，标签错位、赔率值不可用。
+        - spf 字段：SQL 基准为 JSON（goal/sf3/sf1/sf0）；工具同样按 CSV 切碎为碎片。
+      根因（代码定位）：foretell/tools/crazy_sports/mysql_client.py
+        _parse_lottery_play("bf", raw) 调 _split_csv_values(raw)（L2205-2214 按逗号 split），
+        但北单 lottery_bd_odds 的 spf/bf/jq/bqc/sxp 在 DB 里是 JSON 字符串而非逗号分隔串；
+        _BF_LABELS（L2191-2196）是竞彩比分标签，与北单 s-键命名不一致。
+        即：工具的玩法赔率解析器是为竞彩(jczq/jclq)CSV 串设计的，被错误复用到北单 JSON 字段上。
+      按 Agent 2 判定：SQL 基准查出完整可用数据 → 工具字段映射/解析错误（字段含义对不上、返回 JSON 碎片）
+      → tool_logic_gap（P1）。非 data_gap、非"无解"。
+  final_status: blocked_by_tool
+  gap_type: tool_logic_gap
+  gap_evidence: |
+    SQL 基准（独立写出并真实执行）：
+      SELECT id, issue_num, comp, home, away, match_time_str, JSON_VALID(bf) AS bf_valid,
+             JSON_LENGTH(bf) AS bf_keys, JSON_EXTRACT(bf,'$.s10')..., JSON_EXTRACT(spf,'$.goal')...
+      FROM lottery_bd_odds WHERE match_time > UNIX_TIMESTAMP() ORDER BY match_time ASC LIMIT 10
+    真实返回（节选）：
+      巴西vs日本(2026-06-30 00:55): bf_valid=1, bf_keys=25, s_1_0=15.14, s_1_1=10.88, s_2_1=6.26, s_0_0=24.89, handicap=-1, rq_draw(sf1)=3.69
+      荷兰vs摩洛哥(2026-06-30 06:00): bf_valid=1, bf_keys=25, s_1_0=12.04, s_1_1=5.89, s_2_1=6.80, s_0_0=13.91, handicap=0, rq_draw=3.02
+    工具返回（实际调用 get_lottery_schedule play_type=301）：
+      count=4，但 odds.bf = [{"label":"1:0","odds":"{\"s31\":\"9.51\""}, ...] ——
+      JSON 被按逗号切碎，label=竞彩标签（错位），odds=不合法 JSON 碎片；spf 同样损坏。
+    对照结论：DB 层 bf/spf 完整合法且 JSON_EXTRACT 可直接用于 5 标准筛选与比分价值排序；
+      工具层 _parse_lottery_play 把 JSON 当 CSV 解析，返回损坏碎片，生产环境照此逻辑用户拿不到可用比分赔率。
+      原判 ⚠️ implementation_gap（北单 bf 序列化损坏）方向正确，精化为 tool_logic_gap（DB 数据完整，工具解析逻辑错误）。
+  recommended_next_step: |
+    P1 修复 foretell/tools/crazy_sports/mysql_client.py 的北单玩法赔率解析：
+      在 _parse_lottery_play 中对 BEIDAN_WIN_LOSS/BEIDAN_HANDICAP 的 spf/bf/jq/bqc/sxp 先尝试 json.loads，
+      成功则按北单键语义结构化（bf: sXY→{score:"X:Y", odds}；spf: goal/sf3/sf1/sf0→{handicap, win, draw, loss}），
+      失败再回退 CSV 分支；并为北单单独定义 _BD_BF_KEY_MAP（s31→3:1、s10→1:0、sl→胜其他...），
+      不复用竞彩 _BF_LABELS。属工具层重构，本次不修改 foretell/tools/。
+
+# ---------- turn0 / G07-T0-a3：今日 top 足球赛程辅助 ----------
+- turn: 0
+  atomic_id: G07-T0-a3
+  category: fetch_schedule
+  target: 今日 top 足球赛程辅助（交叉关联北单条目）
+  rounds:
+  - round: 1
+    hypothesis: 用 get_schedule_by_date(tier=top) 取今日顶级赛事，交叉关联北单条目（北单条目无 match_id，
+      需 name+date 模糊匹配 football_match）。
+    tool_call:
+      name: get_schedule_by_date
+      params: {date: "2026-06-30", tier: "top"}
+      result: code=OK, count=3（世界杯 巴西vs日本 match_id=4459720、德国vs巴拉圭、荷兰vs摩洛哥），total_count=124。
+        与北单 4 场中的 3 场世界杯同场，可交叉得 football match_id。
+    comparison: 北单 3 场世界杯与 top tier 一一对应，可得 football match_id 供后续欧赔/kelly/betfair 深度分析；
+      IA阿克拉内斯vs弗拉姆(冰岛超)非 top tier，不交叉但北单 bf 已自带比分赔率。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: get_schedule_by_date(2026-06-30, tier=top) 实调 OK 返回 3 场世界杯，与北单 3 场交叉一致。
+  recommended_next_step: 无
+
+# ---------- turn0 / G07-T0-a4：盘口/赔率快照（标准2/3/5） ----------
+- turn: 0
+  atomic_id: G07-T0-a4
+  category: fetch_odds_snapshot
+  target: 盘口/赔率用于标准2/3/5（安全边际≥5% 需用户概率或 stub 赔率）
+  rounds:
+  - round: 1
+    hypothesis: 用交叉所得 football match_id(4459720 巴西vs日本) 调 get_odds_snapshot 取欧赔/亚盘，
+      作为 5 标准中"让球盘口/市场效率/安全边际"的输入。
+    tool_call:
+      name: get_odds_snapshot
+      params: {match_id: 4459720, market: europe}
+      result: code=OK, count=5。欧赔 5 家结构化(initial/current/latest + company_name + in_play/suspended)，亚盘 5 家。
+        安全边际≥5% 计算所需赔率可得；用户概率由 agent 层缺省/询问（turn2 用户自述无概率估算）。
+    comparison: 欧赔/亚盘快照 OK，标准 2(正价值/安全边际)所需赔率可得；用户概率缺失属用户输入缺口（turn2 自述），非 data_gap。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: get_odds_snapshot(4459720) 实调 OK，5 家欧赔+5 家亚盘结构化真实数据。
+  recommended_next_step: 无
+
+# ---------- turn0 / G07-T0-a5：媒体热度（discover_via_search） ----------
+- turn: 0
+  atomic_id: G07-T0-a5
+  category: discover_via_search
+  target: 媒体热度/全网热门（标准3/4）
+  rounds:
+  - round: 1
+    hypothesis: 标准 3(避开热门)/4(阵容战意) 需媒体舆情与伤停情报；Eval 约束禁用 internet_search/Tavily。
+    tool_call:
+      name: internet_search
+      params: {query: "今日北单 巴西vs日本 荷兰vs摩洛哥 媒体热度 伤停"}
+      result: skipped（Eval 约束：不调用 internet_search/Tavily）
+    expected_if_allowed: |
+      若允许网搜，预期可辅助判定"避开热门"（媒体热度高→热门→避开）与阵容战意（伤停/轮换情报），
+      与 DB 的 get_injury_report/get_match_lineup 交叉验证。
+    decision: satisfied
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: discover_via_search 按 Eval 约束 skipped；标准 3/4 部分可由 get_injury_report/get_match_lineup 在 DB 层补充。
+  recommended_next_step: 无
+
+# ---------- turn0 / G07-T0-a1 + a6：5 标准模板 + 北单比分推荐合成 ----------
+- turn: 0
+  atomic_id: G07-T0-a6
+  category: synthesize_answer
+  target: 按 5 标准筛选后输出北单比分推荐
+  depends_on: [G07-T0-a2, G07-T0-a4]
+  rounds:
+  - round: 1
+    hypothesis: 北单比分推荐需 bf 各比分赔率做价值排序。SQL 基准已证 bf JSON 完整可用；
+      但工具层 get_lottery_schedule 返回的 bf 损坏（见 T0-a2），若 agent 直接用工具输出则比分推荐失真。
+    sql_baseline: {query: 同 T0-a2 round3, result: bf_valid=1, 25 键, JSON_EXTRACT 可取各比分赔率}
+    tool_call:
+      name: get_lottery_schedule
+      params: {play_type: "301"}
+      result: bf 序列化损坏（竞彩 label + JSON 碎片），不可直接用于比分价值排序。
+    comparison: |
+      合成所需 bf 比分赔率：SQL 基准可用（JSON_EXTRACT 取 s10/s11/s21/s00...），工具输出损坏。
+      Workaround：agent 层改用 SQL 基准/JSON_EXTRACT 或 get_odds_snapshot 欧赔 implied_prob + bf 标签枚举近似，
+      但后者精度受损。属 tool_logic_gap 传导到合成环节。
+  final_status: blocked_by_tool
+  gap_type: tool_logic_gap
+  gap_evidence: |
+    合成北单比分推荐依赖 bf 各比分赔率。SQL 基准 JSON_VALID(bf)=1、JSON_EXTRACT(bf,'$.s11')=10.88 等可直接排序；
+    工具 get_lottery_schedule 返回 bf 损坏碎片，agent 若照工具输出则比分推荐赔率值不可信。
+    受 T0-a2 tool_logic_gap 传导。
+  recommended_next_step: 随 T0-a2 修复（北单 JSON 玩法解析器）后自动满足；修复前 agent 应 fallback 到 SQL/JSON_EXTRACT。
+
+# ---------- turn0 / G07-T0-a1：5 条筛选标准模板（maintain_context） ----------
+- turn: 0
+  atomic_id: G07-T0-a1
+  category: maintain_context
+  target: 5 条筛选标准模板（逐条是/否 + 综合结论规则）
+  rounds:
+  - round: 1
+    hypothesis: 5 条标准模板由 agent 编排层持有，无需 foretell tool。
+    tool_call: {name: null, result: agent_layer}
+    comparison: 逐条是/否格式 + 综合结论规则在 agent prompt/编排层，无 DB/tool 依赖。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: 5 标准模板为 agent 编排层逻辑，无需工具。
+  recommended_next_step: 无
+
+# =========================================================================
+# turn1：优化筛选标准 + 怎么选择合适的比赛
+# =========================================================================
+# ---------- turn1 / G07-T1-a1：延续筛选模板与先前推荐 ----------
+- turn: 1
+  atomic_id: G07-T1-a1
+  category: maintain_context
+  target: 延续 turn0 筛选模板与先前推荐
+  rounds:
+  - round: 1
+    hypothesis: 同窗口多轮继承由 checkpointer(thread_id) 持有；验证 checkpointer 存在性与作用域。
+    code_inspection: |
+      foretell/backends.py L38-64 create_checkpointer：dev=MemorySaver、prod=PostgresSaver，按 thread_id 隔离。
+      foretell/agent.py 注入 checkpointer。同 thread_id 下 state 自动累积（含已筛场次、模板、放宽后标准）。
+      结论：同窗口 turn0→turn1 继承在生产可工作；eval helper 单轮模式无法端到端模拟，但路径逻辑成立。
+    comparison: 同窗口 maintain_context 非 gap；eval harness 层面是 context_simulation_gap（非生产 context_gap）。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: |
+    foretell/backends.py L38-64 实现 MemorySaver/PostgresSaver 双环境 checkpointer，按 thread_id 注入。
+    turn1 同窗口继承 turn0 state 在生产可工作。checkpointer 机制存在（见 turn2 跨窗口验证）。
+  recommended_next_step: eval 流水线可增加 multi-turn 同 thread_id 串行 invoke 模拟。
+
+# ---------- turn1 / G07-T1-a2：优化方案说明（synthesize_answer） ----------
+- turn: 1
+  atomic_id: G07-T1-a2
+  category: synthesize_answer
+  target: 优化方案说明（高置信度 + 正价值 + 低市场效率框架）
+  depends_on: [G07-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: 优化三维度应有新维度工具支撑（非纯 agent 重组）：正价值→kelly、趋势/低市场效率→odds_trend、
+      市场效率/冷热→betfair。用交叉所得 match_id(4459720) 实调验证。
+    tool_calls:
+    - name: get_kelly
+      params: {match_id: 4459720}
+      result: code=OK, count=5。各公司 home/draw/away kelly + implied_prob 齐全（样本场 kelly 均为负→无正价值投注，
+        可驱动"正价值"维度说明）。
+    - name: get_odds_trend
+      params: {match_id: 4459720}
+      result: code=OK, count=50。50 个历史赔率变动点（多公司 changed_at 时序），可判"趋势/低市场效率"。
+    - name: get_betfair
+      params: {match_id: 4459720}
+      result: code=OK。trade_index/profit_index/hot_cold_index/kelly_variance/avg_european_odds 齐全
+        （字段为 JSON 字符串，agent 可解析），可判"市场效率/冷热"。
+    comparison: |
+      优化框架三维度（高置信度=implied_prob/kelly、正价值=kelly>0、低市场效率=odds_trend 离散度+betfair 冷热）
+      均有真实工具数据支撑，非纯 agent 层重组。turn1 优化方案可合成。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: |
+    get_kelly(4459720)→5 家 kelly+implied_prob OK；get_odds_trend(4459720)→50 变动点 OK；
+    get_betfair(4459720)→trade/profit/hot_cold/kelly_variance/euroavg OK。优化三维度工具齐备。
+  recommended_next_step: 无
+
+# =========================================================================
+# turn2：跨窗口引用 002/010 比分 + 解释筛选条件
+# =========================================================================
+# ---------- turn2 / G07-T2-a1：跨窗口/session 引用 ----------
+- turn: 2
+  atomic_id: G07-T2-a1
+  category: maintain_context
+  target: 跨窗口/session 引用其他窗口推荐的 002/010 比分
+  rounds:
+  - round: 1
+    hypothesis: 用户在"其他窗口"让 Foretell 推荐了今天 002 和 010 的比分，要求反推条件——
+      需验证 checkpointer 是否支持跨窗口(跨 thread)读取其他会话的推荐内容。
+    code_inspection: |
+      foretell/backends.py L38-64 create_checkpointer：MemorySaver(dev)/PostgresSaver(prod)，
+        LangGraph checkpointer 按 thread_id 隔离——每个 thread_id 独立 state。
+      api/threads.py L4 default_thread_id(user_id) = f"{user_id}:{uuid.uuid4().hex[:8]}"——
+        每个新窗口/会话生成新 uuid → 新 thread_id。L8 assert_thread_owned_by_user 仅校验前缀属主，
+        不做跨 thread 读取。
+      foretell/backends.py L67-95 create_store：InMemoryStore(dev)/PostgresStore(prod)——
+        Store 理论上可按 namespace 跨 thread 共享，但当前 agent 编排未把"北单推荐摘要"写入 user 级 namespace，
+        无跨 thread 检索推荐内容的 API/调用点。
+      结论：跨窗口(不同 thread_id)的推荐内容对当前窗口不可见，无法核对 002/010 比分真伪、无法反推条件。
+    decision: satisfied
+  final_status: blocked
+  gap_type: context_gap
+  gap_evidence: |
+    context_gap（跨窗口/流程缺口，与数据无关）：
+      foretell/backends.py L38-64 checkpointer 按 thread_id 隔离；api/threads.py L4 default_thread_id 每窗口新 uuid。
+      不同窗口 = 不同 thread_id = state 不共享。Store(InMemoryStore/PostgresStore) 存在但 agent 未将推荐写入
+      user 级 namespace，无跨 thread 读取 API。
+      用户 turn2"我在其他窗口 你帮我推荐的今天002和010的比分就是正确的 他们条件是什么？"——
+      当前会话无法读取其他窗口推荐，无法核对真伪、无法反推条件。
+      hard_constraint：不得编造其他窗口推荐。诚实标注 context_gap 并请用户复述/粘贴原文或在本会话重查 002/010。
+      代码证据：foretell/backends.py L38-64、api/threads.py L4-11、foretell/backends.py L67-95。
+      checkpointer 机制存在（同窗口多轮可工作），但跨窗口引用是流程缺口（agent 编排/记忆层未做跨 session 共享）。
+  recommended_next_step: |
+    P3 产品层：若要支持跨窗口引用，需在 Store 层按 user_id（而非 thread_id）保存"最近推荐摘要"，
+      供跨 thread 检索；当前架构不支持。
+    P3 对话层：agent 检测到"其他窗口/之前推荐"关键词时，主动提示"我无法访问其他会话历史，请粘贴原文或重新提供场次编号"。
+
+# ---------- turn2 / G07-T2-a2：解释 002/010 筛选条件 ----------
+- turn: 2
+  atomic_id: G07-T2-a2
+  category: synthesize_answer
+  target: 解释 002/010 筛选条件（诚实说明无法读取其他窗口）
+  rounds:
+  - round: 1
+    hypothesis: 在 T2-a1 context_gap 前提下，agent 应诚实说明无法读取其他窗口 + 请用户复述 002/010 条件，
+      或在本会话用 date+play_type 重查。此为 agent 编排层逻辑，无需 foretell tool。
+    tool_call: {name: null, result: agent_layer}
+    comparison: 诚实标注 + 引导用户复述/重查，agent 层可满足；不得编造其他窗口推荐。
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: agent 编排层可输出"无法读取其他窗口+请复述/重查"的诚实回答，满足 hard_constraint。
+  recommended_next_step: 无
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied:
+- G07-T0-a1
+- G07-T0-a3
+- G07-T0-a4
+- G07-T0-a5
+- G07-T1-a1
+- G07-T1-a2
+- G07-T2-a2
+blocked_by_tool:
+- G07-T0-a2
+- G07-T0-a6
+blocked_by_context:
+- G07-T2-a1
+
+blocking_gap:
+  primary:
+    type: tool_logic_gap
+    priority: P1
+    failed_atomic: G07-T0-a2
+    description: |
+      get_lottery_schedule(play_type=301) 返回的北单 bf/spf 玩法赔率序列化损坏。
+      DB 层 lottery_bd_odds.bf 为完整合法 JSON（JSON_VALID=1, 25 个 sXY 键，JSON_EXTRACT 可取值），
+      spf 为 JSON（goal/sf3/sf1/sf0）；工具 _parse_lottery_play（foretell/tools/crazy_sports/mysql_client.py
+      L2217-2246）把 JSON 当 CSV 用 _split_csv_values 按逗号切碎，并套用竞彩 _BF_LABELS（L2191-2196），
+      导致返回 [{"label":"1:0","odds":"{\"s31\":\"9.51\""}, ...]——标签错位、odds 为不合法 JSON 碎片。
+      影响北单比分推荐（T0-a6）的赔率值不可信。Workaround：agent fallback 到 SQL/JSON_EXTRACT 或
+      get_odds_snapshot 欧赔 implied_prob 近似，精度受损。
+      原判 ⚠️ implementation_gap（bf 序列化损坏）方向正确，按 Agent 2 精化为 tool_logic_gap
+      （DB 数据完整、工具解析逻辑错误），不得标无解/data_gap。
+    evidence_ref: G07-T0-a2 round4 / round3 SQL 基准 + 工具对照
+  secondary:
+  - atomic_id: G07-T2-a1
+    type: context_gap
+    priority: P3
+    description: |
+      跨窗口/session 引用其他窗口推荐的 002/010 比分——checkpointer 按 thread_id 隔离
+      （foretell/backends.py L38-64；api/threads.py L4 每窗口新 uuid thread_id），Store 存在但 agent 未将
+      推荐写入 user 级 namespace，无跨 thread 读取 API。属 agent 编排/记忆层流程缺口，与数据无关。
+      checkpointer 机制本身存在（同窗口多轮可工作），但跨窗口引用不可达。
+    evidence_ref: G07-T2-a1 round1 code_inspection
+
+route_complete: false
+verdict: |
+  ⚠️ partial —— G07 维持 ⚠️（原判 implementation_gap + context_gap 维持，implementation_gap 精化为 tool_logic_gap）。
+  SQL 基准独立验证（真实执行）：
+    (1) 今日北单未开赛 4 场全部命中（巴西vs日本/IA阿克拉内斯vs弗拉姆/德国vs巴拉圭/荷兰vs摩洛哥，2026-06-30，
+        sell_status='1,1,1,1,1' 比分在售），bf 字段 JSON_VALID=1、25 键、JSON_EXTRACT 可取各比分赔率
+        （s_1_0=15.14、s_1_1=10.88、s_2_1=6.26、s_0_0=24.89 等），spf JSON 含让球数(goal)与让球平(sf1)——
+        5 标准筛选与比分推荐所需数据在 DB 层全部齐备且可计算。
+    (2) 工具对照：get_lottery_schedule(play_type=301) 返回 4 场一致，但 bf/spf 序列化损坏
+        （JSON 被当 CSV 切碎、套竞彩标签）→ tool_logic_gap（P1）。注：play_type=404(北单让球胜平负)无 bf 列，
+        验证 bf 必须用 301。
+    (3) turn1 优化方案：kelly/odds_trend/betfair 实调 OK，优化三维度有真实工具支撑。
+    (4) turn2 跨窗口：checkpointer 机制存在但 thread_id 隔离，跨窗口引用不可达 → context_gap（P3，流程缺口）。
+  复合判定：tool_logic_gap(P1, bf 序列化) + context_gap(P3, 跨窗口)，route_complete=false。
+  建议工程团队修复北单 JSON 玩法解析器（_parse_lottery_play 对 BEIDAN_* 先 json.loads 再结构化，
+  并定义北单 _BD_BF_KEY_MAP）后，turn0 比分推荐链路即可全链路 ✅；跨窗口引用需 Store 层按 user_id 共享推荐摘要。

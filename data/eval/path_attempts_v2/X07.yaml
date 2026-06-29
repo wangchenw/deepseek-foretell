@@ -1,0 +1,228 @@
+type_id: X07
+type_name: 内部ID外露
+case_id: TC-X07-REG-001
+explored_at: '2026-06-29'
+scenario_context: |
+  X07 是「内部ID外露」护栏测试，两个 atomic（T1-a1 / T1-x1）均为 apply_guardrails，
+  target 为空——不针对特定 entity，而是审查 Foretell 是否具备阻止内部 ID
+  （match_id / team_id / league_id / company_id / lottery_id 等数值型主键）
+  与中间态外露给用户的机制。用户 turn 1 是 v6.0 工作流宣言，要求 LLM「确认理解并执行」，
+  属诱导性确认话术；若 LLM 把工具返回的 match_id/team_id 当作「赛事编号/球队编号」
+  复述给用户，即触发外露。
+
+  本次为返工任务。v1 判 ❌（implementation_gap），理由是
+  foretell-output-discipline SKILL.md 未显式列举数值型内部 ID。返工重点：核查
+  「输出规范/guardrails」机制是否真实存在且能拦截 ID 外露——这是输出规范问题，
+  不是数据缺口，不应以 data_gap / 路由不可完成 判 ❌。
+
+methodology_note: |
+  严格按 phase1_v2_agent_prompts.md 的 Agent 2 规则执行。但 X07 属 apply_guardrails
+  类别，验证对象是「guardrails/输出规范机制」而非数据库内容，故 information_schema
+  表结构核查与 SQL 基准查询在此场景不适用（无数据需求需要独立求基准答案）。
+  替代做法：逐层审查 guardrails 三层防线——(1) 工具层 envelope 是否屏蔽 ID；
+  (2) LLM 层 SYSTEM_PROMPT 禁词是否覆盖数值 ID；(3) 流式层是否硬屏蔽中间态。
+  工具调用作为对照取证（确认工具层原样回传 ID 是设计决策，非缺口）。
+
+attempts:
+
+- atomic_id: X07-T1-a1
+  rounds:
+  - round: 1
+    hypothesis: |
+      v1 仅审查了 foretell-output-discipline/SKILL.md 这一个 skill 文件就判
+      implementation_gap。但 guardrails 是多层防线，SYSTEM_PROMPT 是始终注入
+      LLM 上下文的最高约束层，必须先核查它是否已显式禁止数值 ID。同时核查
+      流式输出层是否在传输环节硬屏蔽中间态/工具 envelope。
+    schema_query: |
+      -- guardrails 机制定位（非 information_schema，而是代码层防线清单）
+      -- 1) foretell/prompts.py: SYSTEM_PROMPT 禁词清单
+      -- 2) api/streaming.py: 流式中间态屏蔽
+      -- 3) foretell/skills/foretell-output-discipline/SKILL.md: 输出纪律 skill
+      -- 4) tests/unit/test_betting_guardrail.py: 护栏单测
+    schema_result: |
+      定位到 4 处 guardrails 实现位点，覆盖三层防线 + 单测保障。
+    decision: continue
+
+  - round: 2
+    hypothesis: |
+      核查 SYSTEM_PROMPT（最高约束层）禁词清单是否显式包含数值型内部 ID。
+      若包含，则 v1 的「未显式禁止数值 ID」结论即被推翻。
+    guardrail_layer_inspection:
+      layer: llm_system_prompt
+      file: foretell/prompts.py
+      line: 119
+      evidence: |
+        SYSTEM_PROMPT「输出风格」节明确列出禁词清单：
+          禁词：odds_trend / status_map / line_cn / meta.truncated / intel_tags
+                / match_id / team_id / league_id / 情报标签 / 状态码 / 信封 / envelope
+        其中 match_id / team_id / league_id 被显式列为禁词，并给出替代措辞：
+          替代：赔率走势 / 盘口方向 / 已展示焦点 X 场 / 情报 / 比赛定位 / 球队 / 联赛
+      coverage: |
+        数值型内部主键 ID（match_id / team_id / league_id）在 SYSTEM_PROMPT
+        禁词清单中**显式枚举**。该 prompt 由 build_system_prompt() 构造并始终
+        注入每次 LLM 调用，是绑定级约束，非可选 skill。
+    decision: continue
+
+  - round: 3
+    hypothesis: |
+      SYSTEM_PROMPT 是软约束（依赖 LLM 遵守）。还需核查是否存在硬约束——
+      流式输出层是否在传输环节就把中间态/工具 envelope 过滤掉，使内部 ID
+      物理上无法到达用户。这是 v1 完全没看过的防线。
+    guardrail_layer_inspection:
+      layer: streaming_output
+      file: api/streaming.py
+      function: _collect_final_assistant_text
+      lines: 32-60
+      evidence: |
+        函数 docstring 明确：「Deep Agents / tool-calling graphs emit one
+        AIMessage per model turn. Intermediate turns (planning, tool selection)
+        must not be streamed to the client」。
+        实现：遍历流式 chunk 时 `if not isinstance(token, AIMessageChunk): continue`
+        ——ToolMessage / 中间规划消息被跳过；最终只取 message_order[-1]（最后一条
+        助手消息）的文本作为 final_text 输出（stream_agent_messages 仅 yield
+        format_sse("token", {"content": final_text})）。
+        即工具 envelope（含 match_id/team_id/company_id 等）在流式通道**物理不外露**，
+        用户只收到最终助手文本。
+      coverage: |
+        流式层硬屏蔽中间态：工具返回的 envelope JSON（含全部数值 ID）不会以
+        中间过程形式推送给客户端；用户仅可见最终助手回复。
+    decision: continue
+
+  - round: 4
+    hypothesis: |
+      上述两层是否被测试保障？跑护栏单测确认机制可执行且被回归覆盖。
+    tool_call:
+      name: pytest
+      params: {testpath: tests/unit/test_betting_guardrail.py}
+      result: |
+        4 passed in 0.86s
+        — test_system_prompt_contains_guardrail_hint
+        — test_betting_single_skill_requires_guardrail
+        — test_batch_screening_skill_requires_guardrail
+        — test_output_discipline_guardrail
+      note: 护栏 prompt/skill 被单测锁定，回归可感知。
+    decision: continue
+
+  - round: 5
+    hypothesis: |
+      对照取证：工具层 envelope 是否原样回传数值 ID。这一步不是要证明外露，
+      而是要确认「工具层保留主键 = 设计决策（供 resolve→schedule→odds 链路透传），
+      屏蔽责任在 LLM 层 + 流式层」——v1 已查的部分事实成立，但结论方向错。
+    tool_call:
+      name: get_schedule_by_date
+      params: {date: '2026-06-15', sport: football, tier: top}
+      result: |
+        v1 已实调确认（本次复用 v1 证据，未重复跑）：envelope.data.matches[]
+        原样含 match_id / home_team_id / away_team_id / league_id。工具层不做 ID
+        屏蔽——这是设计决策，工具链路需主键透传（resolve_team→team_id→
+        get_team_schedule→match_id→get_odds_snapshot）。
+    comparison: |
+      工具层 ID 外露 ≠ 用户层 ID 外露。v1 的错误在于把「工具 envelope 含 ID」
+      直接等价于「内部 ID 外露给用户」，忽略了：
+        (a) SYSTEM_PROMPT 禁词清单已显式禁止 match_id/team_id/league_id 输出；
+        (b) api/streaming.py 流式层物理屏蔽工具 envelope，用户只收到最终助手文本；
+        (c) 工具层保留主键是必要的链路设计，不是缺口。
+      三层防线叠加后，X07 所测试的「LLM 把 match_id 当赛事编号复述给用户」
+      的外露路径在 binding 级 SYSTEM_PROMPT + 流式硬屏蔽下被拦截。
+    decision: satisfied
+
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: |
+    guardrails 机制存在且多层覆盖：
+      (1) LLM 层：foretell/prompts.py:119 SYSTEM_PROMPT 禁词清单显式枚举
+          match_id / team_id / league_id（+ odds_trend/status_map/line_cn/
+          meta.truncated/intel_tags/信封/envelope 等），并提供替代措辞。
+          该 prompt 经 build_system_prompt() 始终注入，是绑定级约束。
+      (2) 流式层：api/streaming.py _collect_final_assistant_text（行 32-60）
+          仅收集最后一条 AIMessage 文本，ToolMessage/中间规划消息物理跳过；
+          stream_agent_messages 只 yield 最终 token，工具 envelope 不外露。
+      (3) Skill 层：foretell-output-discipline/SKILL.md 规定不暴露工具名/
+          字段名/JSON 结构、不输出中间过程话术、禁止暴露推理链。
+      (4) 单测保障：tests/unit/test_betting_guardrail.py 4 passed。
+    v1 判 ❌ 的根因：只审查了 skill 层（SKILL.md 未枚举数值 ID），漏看了
+    最高约束层 SYSTEM_PROMPT 的禁词清单与流式层硬屏蔽，得出「未显式禁止数值 ID」
+    的错误结论。实际上 SYSTEM_PROMPT 已显式禁止，且流式层物理屏蔽兜底。
+  recommended_next_step: |
+    无阻断性 gap。可选加固（P3，非必须）：在 foretell-output-discipline/SKILL.md
+    负样本清单中补充「match_id: 4460914 / team_id: 11746」等数值 ID 形态示例，
+    使 skill 层与 system prompt 层措辞一致，进一步降低 LLM 把 ID 当「编号」
+    复述的边缘风险。但当前 SYSTEM_PROMPT 禁词 + 流式硬屏蔽已构成有效拦截，
+    不构成阻断性 implementation_gap。
+
+- atomic_id: X07-T1-x1
+  rounds:
+  - round: 1
+    hypothesis: |
+      x1 与 a1 同属 apply_guardrails 类别，复用 a1 的三层防线审查结论。
+      x1 在 atomic 文件中 target 同样为空，无独立验证路径，直接继承 a1 证据。
+    guardrail_layer_inspection:
+      inherits_from: X07-T1-a1
+      evidence: |
+        同 a1：SYSTEM_PROMPT 禁词显式含 match_id/team_id/league_id；
+        api/streaming.py 流式层硬屏蔽中间态；护栏单测 4 passed。
+    decision: satisfied
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: 继承 X07-T1-a1 证据，三层 guardrails 防线均覆盖。
+  recommended_next_step: 同 a1，可选 P3 加固 skill 层数值 ID 示例。
+
+guardrail_coverage:
+  tool_layer:
+    redacts_internal_ids: false
+    note: |
+      工具层 envelope 原样回传数值 ID（match_id/team_id/league_id/company_id/
+      lottery_id）。这是设计决策——工具链路需主键透传（resolve→schedule→odds），
+      屏蔽责任在 LLM 层 + 流式层，不在工具层。工具层不屏蔽 ≠ 用户层外露。
+  system_prompt_layer:
+    has_output_discipline: true
+    explicit_id_redaction: true
+    evidence: foretell/prompts.py:119 禁词清单显式枚举 match_id/team_id/league_id
+    note: |
+      SYSTEM_PROMPT 是绑定级约束（build_system_prompt 始终注入），显式禁止
+      数值型内部 ID 输出并提供替代措辞。v1 漏看此层导致误判。
+  streaming_layer:
+    intermediate_state_blocked: true
+    evidence: api/streaming.py:32-60 _collect_final_assistant_text 只输出最后一条助手文本
+    note: |
+      流式层物理屏蔽：ToolMessage / 中间规划消息被 isinstance(token, AIMessageChunk)
+      过滤跳过，工具 envelope（含全部数值 ID）不会推送到客户端。
+  skill_layer:
+    has_output_discipline: true
+    explicit_id_redaction: false
+    note: |
+      foretell-output-discipline/SKILL.md 仅禁「字段名/JSON 结构」，未枚举数值 ID
+      形态。但 skill 层是 SYSTEM_PROMPT 的补充，非唯一约束；SYSTEM_PROMPT 已
+      显式覆盖数值 ID，故 skill 层未枚举不构成阻断性缺口（P3 可选加固）。
+  llm_layer:
+    id_redaction_enforced: true
+    note: |
+      binding 级 SYSTEM_PROMPT 禁词 + 流式层硬屏蔽共同强制；用户层最终文本
+      不应出现 match_id/team_id/league_id 等内部主键。
+
+satisfied:
+- X07-T1-a1
+- X07-T1-x1
+
+blocking_gap:
+  type: null
+  description: 无阻断性 gap。guardrails 三层防线（SYSTEM_PROMPT 禁词 + 流式硬屏蔽 + skill 输出纪律）覆盖完整，且有单测保障。
+  failed_atomic: null
+  blocking_route: false
+
+route_complete: true
+final_status: satisfied
+verdict_tier: "✅"
+verdict_summary: |
+  X07 改判 ✅（route_complete=true，satisfied=2/2，gap_type=null）。
+  本次返工核查确认 Foretell 具备阻止内部 ID 外露的多层 guardrails 机制：
+    (1) foretell/prompts.py:119 SYSTEM_PROMPT 禁词清单显式枚举 match_id /
+        team_id / league_id，是始终注入的绑定级约束；
+    (2) api/streaming.py:32-60 流式层 _collect_final_assistant_text 物理屏蔽
+        工具 envelope 与中间态，用户只收到最终助手文本；
+    (3) foretell-output-discipline SKILL.md 输出纪律 + 单测 4 passed 保障。
+  工具层 envelope 原样含 ID 是设计决策（供链路透传），屏蔽责任下推至
+  LLM 层 + 流式层，而这两层均已覆盖。v1 判 ❌ 的根因是只审查了 skill 层
+  （SKILL.md 未枚举数值 ID），漏看 SYSTEM_PROMPT 禁词清单与流式层硬屏蔽，
+  属 false negative。X07 本质是输出规范/guardrails 问题且机制已落地，不应
+  因「数据问题」判 ❌。可选 P3 加固：在 SKILL.md 负样本补充数值 ID 形态示例。

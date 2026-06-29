@@ -1,11 +1,96 @@
 type_id: C06
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-C06-SYN
+type_name: 焦点战回顾
+entity_entry: match
+priority: P1
+explored_at: '2026-06-29'
+scenario_context: |
+  C06 为合成用例（probe_turns=['[焦点战回顾示例问法]']），atomic 分解仅给出
+  T1-a1 (resolve_entity/match) + T1-a2 (synthesize_answer)。按用户指引的
+  焦点战回顾路径探路：get_schedule_by_date(tier=top) 找焦点战 → 全维度
+  回顾（result/team_stats/incidents/half_stats/player_stats/lineup/tlive）。
+  实查 2026-06-28 tier=top 返回 8 场焦点战，取头条 约旦 vs 阿根廷（世界杯，
+  match_id=4460931，status=finished，full_time 1-3）做全链路验证。
+attempts:
+  # ---- Round 1: get_schedule_by_date tier=top 找焦点战 ----
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_schedule_by_date
+    params: {date: '2026-06-28', tier: top}
+    code: OK
+    count: 8
+    stub: false
+    note: |
+      tier_count=8, truncated=False。返回 8 场焦点战（世界杯为主 + 2 场中超），
+      全部 status=finished。头条 约旦 vs 阿根廷 (match_id=4460931)。
+  # ---- Round 1: 全维度复盘工具链（焦点战 match_id=4460931）----
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_result
+    params: {match_id: 4460931}
+    code: OK
+    stub: false
+    note: full_time=1-3, half_time=0-2, status=finished, match_time=2026-06-28 10:00
+    keys: [match_id, full_time, score_breakdown, match_time, status]
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_team_stats
+    params: {match_id: 4460931}
+    code: OK
+    stub: false
+    count: 2
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_incidents
+    params: {match_id: 4460931}
+    code: OK
+    stub: false
+    count: 24
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_half_stats
+    params: {match_id: 4460931, scope: ft}
+    code: OK
+    stub: false
+    keys: [stats, scope]
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_player_stats
+    params: {match_id: 4460931, limit: 30}
+    code: OK
+    stub: false
+    count: 30
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_lineup
+    params: {match_id: 4460931}
+    code: OK
+    stub: false
+    keys: [confirmed, home_formation, away_formation, home_coach_id, away_coach_id, home, away]
+  - round: 1
+    atomic_id: T1-a1
+    tool: get_match_tlive
+    params: {match_id: 4460931, limit: 100}
+    code: OK
+    stub: false
+    count: 55
+  # ---- T1-a2: synthesize_answer ----
+  - round: 1
+    atomic_id: T1-a2
+    tool: none
+    params: {}
+    code: OK
+    stub: false
+    note: |
+      7 类复盘数据全部 OK（赛果/球队统计/事件/半场统计/球员统计/阵容/文字直播），
+      可综合呈现焦点战全维度回顾。无需 fallback，路径单轮即完成。
+satisfied: [T1-a1, T1-a2]
 blocking_gap:
-  type: data_gap
-  description: 探针问法为占位，需人工补 probe_turns
+  type: none
+  description: |
+    无 blocking gap。get_schedule_by_date(tier=top) 一次返回 8 场焦点战且
+    全部已完场；选取头条焦点战后，7 个复盘工具全部 OK 返回非空数据。
+    路径单轮完成，无需 fallback。
   failed_atomic: null
-route_complete: false
+route_complete: true
+overall_tendency: verified

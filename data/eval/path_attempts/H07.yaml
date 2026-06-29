@@ -1,11 +1,70 @@
 type_id: H07
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
-blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
-route_complete: false
+case_id: TC-H07-001
+explored_at: '2026-06-29'
+attempts:
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_league
+  params:
+    name: 世界杯
+  code: OK
+  count: 10
+  stub: false
+  note: 候选 league_id=1 世界杯(FIFA World Cup) 首选命中；另含世欧预/世亚预/世南美预/世非预/世中北美预/世大洋预/世界杯附/女世界杯/U20世界杯
+- round: 1
+  atomic_id: T1-a1
+  tool: sql
+  params:
+    query: SELECT id,name_zh,type FROM football_competition WHERE id=1
+  code: OK
+  count: 1
+  stub: false
+  note: football_competition id=1=世界杯, type=2(杯赛), 佐证 resolve_league
+- round: 1
+  atomic_id: T1-a1
+  tool: get_seasons
+  params:
+    competition_id: 1
+  code: OK
+  count: 10
+  stub: false
+  note: 当前赛季 season_id=13776(year=2026, is_current=1, has_table=1)；历史赛季 2002/1998/1994... 顺带返回
+  fallback: competition_id (非 league_id)
+- round: 1
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: SELECT id,season_id,name_zh,name_en,mode,group_count,round_count FROM football_stage WHERE season_id=13776 ORDER BY id
+  code: OK
+  count: 7
+  stub: false
+  note: 2026 世界杯阶段 小组赛(mode=1,12组3轮)/1/16/1/8/1/4/半决赛/季军赛/决赛(mode=2)；football_stage 无"当前轮"标识，需结合比赛 status 判定
+- round: 1
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: GROUP BY round_stage_id, status_id 统计 competition_id=1 AND season_id=13776 比赛状态
+  code: OK
+  count: 8
+  stub: false
+  note: 小组赛 72 场全 status_id=8(完赛,末场 2026-06-28 10:00)；1/16 决赛 1 场 status_id=8(2026-06-29 03:00 已完赛)+15 场 status_id=1(未开赛, 2026-06-30 起)；1/8 及以后全 status_id=1。判定当前进行到 1/16 决赛(三十二强)阶段
+- round: 2
+  atomic_id: T1-a2
+  category: cross_validation
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-29'
+    tier: top
+  code: OK
+  count: 1
+  stub: false
+  note: 返回世界杯 1/16 决赛 南非 vs 加拿大 2026-06-29 03:00 finished(league_id=1)，交叉验证 1/16 决赛已于今日开打
+satisfied:
+- T1-a1
+- T1-a2
+blocking_gap: null
+route_complete: true
+notes:
+- data_inconsistency: atomic 文件 user 文案为"中乙"但 type_name="世界杯进程"，probe_cases.yaml 中 H07 同样 probe_turns=["中乙"] 与 type_name 矛盾；本路径按任务方法论以"世界杯进程"(competition_id=1) 为探索目标。"中乙"文案与 type_name 不匹配属于 eval 夹具生成缺陷，非路由 gap。
+- current_round_derivation: football_stage 表无当前轮次标识字段(order 仅排序)，"打到哪一轮"必须 JOIN football_match 按 status_id(8=完赛 / 1=未开赛) 与 match_time 综合判定——已完成阶段全 8、当前阶段 8与1 混合、未来阶段全 1。
+- verdict_lean: pass — resolve_league + get_seasons + football_stage + football_match(可 SQL 或 get_schedule_by_date 交叉) 三步即可回答"世界杯打到哪一轮"，数据齐全且新鲜(2026-06-29 当日 1/16 决赛已开打)。

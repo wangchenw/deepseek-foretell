@@ -1,11 +1,169 @@
 type_id: G17
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G17-001
+explored_at: '2026-06-29'
+scenario_note: 多场比赛追问；entity_entry=context，sport=any，tags=[follow_up]。turn0 批量分析今日所有体彩足球比赛；turn1 在批量上下文中追问单场（"荷兰这场/摩洛哥这场"），验证从批量切换到单场的能力。
+turns:
+- turn: 0
+  intent: 批量拉取今日竞彩足球（体彩足球）全部比赛
+  attempts:
+  - round: 1
+    atomic_id: T1-g0
+    tool: get_lottery_schedule
+    params:
+      play_type: '101'
+    code: OK
+    count: 15
+    stub: false
+    note: play_type=101 为竞彩足球；返回 15 场世界杯（lottery_code 周一074..周五088），含 spf/rq/bf/jq/bqc 全玩法赔率与 sell_status；entries 中 match_id 为 null，需 turn1 用 resolve_lottery_match 锁定底层 football_match
+- turn: 1
+  intent: 多场追问单场——maintain_context 保持批量上下文 + 锁定被追问单场 match_id + 单场深度工具链
+  attempts:
+  - round: 1
+    atomic_id: T1-g0
+    category: maintain_context
+    tool: agent_orchestration
+    params:
+      batch_context: get_lottery_schedule(101) 15 entries
+      target_lottery_code: 周一076
+    code: OK
+    stub: false
+    note: 编排层维持 turn0 批量列表上下文，按用户"荷兰这场/摩洛哥这场"锁定 lottery_code=周一076；maintain_context 属 agent 编排层，非工具调用
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_lottery_match
+    params:
+      play_type: '101'
+      code: 周一076
+      date: '2026-06-30'
+    code: OK
+    count: 1
+    stub: false
+    note: code 需完整格式"周X###"（短码"076"返回 ENTITY_NOT_FOUND，已 fallback）；match_candidates[0] 给出 match_id=4459719（荷兰10870 vs 摩洛哥11763，世界杯，neutral=true，status=not_started，09:00 开赛，含环境温度湿度风气压）+ 竞彩全玩法赔率
+    fallback_from:
+      round: 0
+      failed_params:
+        play_type: '101'
+        code: '076'
+        date: '2026-06-30'
+      failed_code: ENTITY_NOT_FOUND
+      reason: code 必须带星期前缀
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_odds_snapshot
+    params:
+      match_id: 4459719
+    code: OK
+    count: 10
+    stub: false
+    note: 5 家欧赔（利记/盈禾/10bet/明陞/平均）+ 5 家亚盘；初盘→即时→最新三段；亚盘 handicap -0.25/-0.5
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_odds_trend
+    params:
+      match_id: 4459719
+    code: OK
+    count: 50
+    stub: false
+    note: 50 个赔率变动点，覆盖 Bet365/皇冠/澳门/明陞/盈禾/威廉希尔等，支持阻盘诱盘/升降分析
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_kelly
+    params:
+      match_id: 4459719
+    code: OK
+    count: 5
+    stub: false
+    note: 5 家凯利值 + 隐含概率；主胜隐含 ~0.40-0.43，三向 kelly 均为负值（无显著价值方向）
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_intel_tags
+    params:
+      match_id: 4459719
+    code: OK
+    count: 5
+    stub: false
+    note: 主/客/中立三侧正负面情报 5 条；含历史交锋（2次交手荷兰全胜）、小组赛状态、旅途差距（荷兰1580km vs 摩洛哥3250km）、加克波家庭变故、阿什拉夫场外法律纠纷、裁判桑帕约风格、双方大名单身价
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_injury_report
+    params:
+      match_id: 4459719
+    code: OK
+    count: 0
+    stub: false
+    note: 结构化伤停 home/away 均空；但 intel_tags 叙事已覆盖伤停/场外（加克波、廷贝尔伤退顶替、阿什拉夫纠纷），综合分析不阻塞
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_h2h
+    params:
+      team_a: 荷兰
+      team_b: 摩洛哥
+      n: 5
+    code: DATA_MISSING
+    count: 0
+    stub: false
+    note: 结构化 H2H 表无该对阵行；intel_tags 叙事给出"2次交手荷兰2胜0平0负、世界杯2-1"作为替代，不阻塞
+  - round: 1
+    atomic_id: T1-a2
+    tool: resolve_team
+    params:
+      name: 荷兰
+    code: OK
+    count: 10
+    stub: false
+    note: 首候选 team_id=10870 national=1 sport=football；无跨运动碰撞
+  - round: 1
+    atomic_id: T1-a2
+    tool: resolve_team
+    params:
+      name: 摩洛哥
+    code: OK
+    count: 10
+    stub: false
+    note: 首候选 team_id=11763 national=1 sport=football；与 match_candidates 一致
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_team_schedule
+    params:
+      team_id: 10870
+      direction: all
+      limit: 6
+    code: OK
+    count: 6
+    stub: false
+    note: 荷兰返回 6 场未来欧国联（direction=all 混入未来赛程）；近期世界杯小组赛战绩由 intel_tags 叙事补足
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_team_schedule
+    params:
+      team_id: 11763
+      direction: all
+      limit: 6
+    code: OK
+    count: 6
+    stub: false
+    note: 摩洛哥返回本场 + 5 场近期完赛（世界杯小组赛 + 国际友谊），含状态/比分可读
+satisfied:
+- T1-g0
+- T1-a1
+- T1-a2
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
+  type: none
+  description: 路径完整。turn0 get_lottery_schedule(101) 批量 15 场 → turn1 resolve_lottery_match(周一076) 锁定 match_id=4459719 → 单场深度链 odds_snapshot/odds_trend/kelly/intel_tags/injury/h2h + 双队 resolve_team/team_schedule 全部实调成功。软缺口：get_h2h 结构化 DATA_MISSING、get_injury_report 结构化空，但 intel_tags 叙事已覆盖 H2H（2战全胜）与伤停/场外事件，综合分析可完成。maintain_context 属 agent 编排层，已通过批量→单场的 match_id 锁定验证。
   failed_atomic: null
-route_complete: false
+soft_gaps:
+- tool: get_h2h
+  issue: 结构化 H2H 表无荷兰 vs 摩洛哥对阵行（DATA_MISSING）
+  compensation: intel_tags 含历史交锋叙事（2次交手荷兰全胜、世界杯2-1）
+- tool: get_injury_report
+  issue: 结构化伤停表空
+  compensation: intel_tags 叙事含加克波家庭变故、廷贝尔伤退顶替、阿什拉夫场外纠纷
+- tool: get_team_schedule
+  issue: direction=all 对荷兰返回未来欧国联而非近期世界杯小组赛
+  compensation: 摩洛哥侧返回近期完赛；荷兰近期状态由 intel_tags 叙事补足
+route_complete: true
+verdict: pass
+key_findings:
+- 批量→单场上下文切换验证成功：get_lottery_schedule(101) 出 15 场竞彩足球，按用户追问的"荷兰这场"用 resolve_lottery_match(周一076, date=2026-06-30) 锁定 match_id=4459719；关键 fallback 为 code 必须带星期前缀（短码"076"返回 ENTITY_NOT_FOUND）。
+- 单场深度链全覆盖：odds_snapshot(5欧5亚)、odds_trend(50变动点)、kelly(5公司+隐含概率)、intel_tags(5条主/客/中立情报)、双队 team_schedule(各6场)；冷热比值=主胜/客胜=2.35/3.22≈0.73 落在 0.7~1.2 五五开区间，符合用户"别猜"判定。
+- 软数据缺口由情报叙事补偿：结构化 get_h2h（DATA_MISSING）与 get_injury_report（空）虽无行数据，但 intel_tags 已提供 H2H（2战全胜）、伤停/场外（加克波、廷贝尔、阿什拉夫）、旅途、裁判等，综合分析不阻塞；无跨运动 ID 碰撞（荷兰/摩洛哥 resolve_team 首候选均为 football national=1）。

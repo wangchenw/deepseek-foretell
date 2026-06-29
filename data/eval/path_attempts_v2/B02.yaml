@@ -1,0 +1,339 @@
+type_id: B02
+type_name: 竞彩篮球模板
+case_id: TC-B02-001
+explored_at: '2026-06-29'
+scenario: B
+entity_entry: lottery_code
+priority: P2
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+context: |
+  B02 场景为竞彩篮球模板（play_type=201），用户问句含占位符 {DATE}/{CODE}/{WEEKDAY}，
+  示例两场美职篮：老鹰 vs 尼克斯（主队-6.50 让分，预设总分213.5）、开拓者 vs 马刺（主队-11.50 让分，预设总分215.5），
+  要求六段式分析。atomic：T1-a1 resolve_entity(lottery) / T1-b1 delegate(fundamentals,odds,intel) / T1-b2 synthesize(six_segment)。
+  原判 ⚠️ cross_sport_data_collision，但未做 SQL 基准验证。本次返工严格按
+  information_schema → SQL 基准 → 工具对照 → 判定 重做，重点验证：
+  (1) DB 是否真有这两场竞彩篮球 NBA 赛事 + 让分/大小分盘口；
+  (2) resolve_lottery_match / get_lottery_schedule 是否撞足球/撞错联赛；
+  (3) lottery 条目 match_id 是否真能链接到 basketball_match。
+
+# =========================================================================
+# 全局 schema 基础
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name IN ('lottery_jclq_odds','lottery_match','basketball_match','basketball_team')
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    lottery_jclq_odds（竞彩篮球官方赔率表）：
+      id(竞篮官方id), comp(赛事名称), home/away(主/客队全名), short_home/short_away(简称),
+      issue(期号), issue_num(序号), match_time(int), match_time_str,
+      sell_status(顺序:胜负,让分胜负,大小分,胜分差；0未开售/1仅过关/2单关和过关/3停售),
+      sf(胜负赔率:胜,负), rf(让分胜负赔率:让分数,胜,负), dxf(大小分赔率:预设分,大,小),
+      sfc(胜分差赔率:12档), cancel。
+      → rf 即"让分盘口"、dxf 即"大小分盘口"，与场景字段完全对应。
+    lottery_match（彩种↔比赛链接表）：
+      sport_id(1足球/2篮球), match_id(比赛id,链接 basketball_match/football_match),
+      lottery_type(101竞彩足球/201竞彩篮球/301北单胜负/401十四场/402半全场/403进球彩/404北单让球胜平负),
+      issue, issue_num, home_name, away_name, lottery_match_id(各彩种官方比赛id，竞篮=lottery_jclq_odds.id)。
+    basketball_match：id, competition_id, home_team_id, away_team_id, match_time, status_id 等。
+    结论：竞彩篮球 rf/dxf 盘口字段齐全；lottery_match(lottery_type=201) 提供 lottery_jclq_odds.id ↔ basketball_match.id 链接。
+
+# =========================================================================
+# 原子查询 1: T1-a1 resolve_entity(lottery)
+# =========================================================================
+atomics:
+- atomic_id: B02-T1-a1
+  category: resolve_entity
+  target: {entity: lottery}
+  rounds:
+  - round: 1
+    hypothesis: 先用 information_schema 确认竞彩篮球赔率表与链接表结构，不凭表名臆测让分/大小分字段。
+    schema_query: |
+      SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT FROM information_schema.columns
+      WHERE table_schema='data_center' AND table_name='lottery_jclq_odds' ORDER BY ORDINAL_POSITION
+    schema_result: |
+      lottery_jclq_odds 字段：comp/home/away/short_home/short_away/issue/issue_num/match_time_str/
+      sell_status/sf/rf/dxf/sfc/cancel。
+      rf(comment:"让分胜负赔率，顺序：让分数,胜,负") = 让分盘口；
+      dxf(comment:"大小分赔率，顺序：预设分,大,小") = 大小分盘口；
+      sfc = 胜分差赔率(12档)。与场景"主队-6.50 让分 / 预设总分213.5 大小分"字段完全吻合。
+      lottery_match(lottery_type=201) 经 lottery_match_id 关联 lottery_jclq_odds.id，经 match_id 关联 basketball_match.id。
+    decision: continue
+  - round: 2
+    hypothesis: 独立写 SQL 基准，验证 DB 是否真有美职篮(NBA)竞彩篮球赛事及两队对阵。
+      先看 lottery_jclq_odds 赛事分布，再精确搜老鹰/尼克斯/开拓者/马刺。
+    sql_baseline:
+      query_comp_dist: |
+        SELECT comp, COUNT(*) AS cnt, MIN(match_time_str) AS min_t, MAX(match_time_str) AS max_t
+        FROM lottery_jclq_odds GROUP BY comp ORDER BY cnt DESC LIMIT 10
+      result_comp_dist: |
+        美国职业篮球联盟(NBA) 1195 行(2025-10-22 ~ 2026-06-14)、西班牙篮球联赛 315、
+        美国女子篮球联盟(WNBA) 295、德国篮球联赛 289、欧洲篮球联赛 278、澳大利亚篮球联赛 129、
+        男篮世界杯预选赛 97、男篮欧洲杯 63、男篮亚洲杯 36、男篮美洲杯 26。
+        → DB 确有大量 NBA 竞彩篮球数据，原判"NBA 美职篮 lottery 201 条目缺失"被证伪。
+      query_matchups: |
+        SELECT id, comp, home, away, short_home, short_away, issue, issue_num, match_time_str, sell_status, sf, rf, dxf
+        FROM lottery_jclq_odds WHERE comp='美国职业篮球联盟'
+        AND ((home LIKE '%尼克斯%' AND away LIKE '%老鹰%') OR (home LIKE '%马刺%' AND away LIKE '%开拓者%'))
+        ORDER BY match_time_str LIMIT 30
+      result_matchups: |
+        老鹰(客) vs 尼克斯(主) 多期命中，代表行：
+        - id=2039427, issue=260428, issue_num=2303, 2026-04-29 08:00, rf="-6.5,1.65,1.75", dxf="213.5,1.70,1.70"
+          ← rf 让分-6.5、dxf 预设总分213.5 与场景游戏1"主队-6.50 / 预设总分213.5"完全一致！
+          让分主胜1.65/客胜1.75 也完全一致；仅大小分大/小赔率 1.70/1.70 vs 场景 1.62/1.78 略异。
+        - id=2036588, issue=260102, 2026-01-03, rf=-7.5, dxf=247.5
+        - id=2039221/2039237, 2026-04-19/21, rf=-6.5, dxf=219.5
+        开拓者(客) vs 马刺(主) 多期命中，代表行：
+        - id=2039428, issue=260428, issue_num=2304, 2026-04-29 09:30, rf="-12.5,1.75,1.65", dxf="216.5,1.62,1.78"
+        - id=2039277, issue=260421, issue_num=2303, 2026-04-22 08:00, rf="-11.5,1.65,1.75", dxf="219.5,1.66,1.74"
+          ← rf 让分-11.5 与场景游戏2"主队-11.50"一致（在 260421 期，dxf=219.5 非 215.5）
+        - id=2039233, 2026-04-20, rf=-12.5, dxf=222.5
+      baseline_conclusion: |
+        SQL 基准证实：DB 有这两场竞彩篮球 NBA 对阵，且 rf 让分盘口 + dxf 大小分盘口数据完整。
+        游戏1(老鹰vs尼克斯)在 2026-04-29 期(issue 260428, 周二303)与场景数值完全吻合(rf=-6.5, dxf=213.5)。
+        游戏2(开拓者vs马刺)对阵存在多期；-11.5 让分线在 260421 期(2026-04-22)出现，215.5 总分线为场景模板示意值
+        (同对阵实际 dxf 为 216.5/219.5/222.5 等，模板数字为示例)。场景说明"奥林匹亚让摩纳哥9.5分"
+        亦对应 260428 期周二301(欧篮联奥林匹亚vs摩纳哥 rf=-9.5)，证明场景即基于 2026-04-29 这一期。
+    decision: continue
+  - round: 3
+    hypothesis: 验证 lottery 条目是否真能链接到 basketball_match（原判称 match_id=null 无法链接）。
+      查 lottery_match(lottery_type=201) 与 basketball_match。
+    sql_baseline:
+      query_link: |
+        SELECT id, sport_id, match_id, lottery_type, issue, issue_num, home_name, away_name, lottery_match_id
+        FROM lottery_match WHERE lottery_type=201
+        AND ((home_name LIKE '%尼克斯%' AND away_name LIKE '%老鹰%')
+             OR (home_name LIKE '%马刺%' AND away_name LIKE '%开拓者%'))
+        ORDER BY issue DESC LIMIT 10
+      result_link: |
+        - id=37745, sport_id=2, lottery_type=201, issue=260428, issue_num=2303, home_name=尼克斯, away_name=老鹰,
+          lottery_match_id=2039427, match_id=3917723  ← match_id 非空！
+        - id=37746, sport_id=2, lottery_type=201, issue=260428, issue_num=2304, home_name=马刺, away_name=开拓者,
+          lottery_match_id=2039428, match_id=3917871  ← match_id 非空！
+        - 其余多期(260421/260420/260419/260408/260103/260102)均有 match_id(3916847/3916545/3916583/...)。
+      query_basketball_match: |
+        SELECT id, competition_id, home_team_id, away_team_id, match_time_str, status_id
+        FROM basketball_match WHERE id IN (3917723, 3917871)
+      result_basketball_match: |
+        - id=3917723, competition_id=1(NBA), home_team_id=10115(尼克斯), away_team_id=10125(老鹰),
+          2026-04-29 08:00:00, status_id=10(已完赛)  ← 链接目标真实存在
+        - id=3917871, competition_id=1(NBA), home_team_id=10137(马刺), away_team_id=10132(开拓者),
+          2026-04-29 09:30:00, status_id=10(已完赛)  ← 链接目标真实存在
+      baseline_conclusion: |
+        SQL 基准证伪原判"match_id=null 无法链接"：lottery_match 表对这两场 NBA 竞彩篮球
+        明确持有 match_id=3917723/3917871，且 basketball_match 中对应行真实存在(competition_id=1 NBA, status_id=10)。
+        链接数据在 DB 层完整，问题不在数据，而在工具是否取用。
+    decision: continue
+  - round: 4
+    hypothesis: 调 get_lottery_schedule / resolve_lottery_match 对照，看工具能否正确返回这两场 NBA 竞彩篮球
+      及让分/大小分盘口，并验证原判"撞足球/cross_sport_data_collision"是否成立。
+    tool_calls:
+    - name: get_lottery_schedule
+      params: {play_type: '201', date: '2026-04-29'}
+      result: |
+        code=OK, count=4，issue=260428，4 场全部为篮球(无足球碰撞)：
+        - 周二301 奥林匹亚vs摩纳哥(欧篮联) rf=-9.5 dxf=171.5  ← 即场景说明里"奥林匹亚让摩纳哥9.5分"
+        - 周二302 巴伦西亚vs帕纳辛纳(欧篮联) rf=-3.5 dxf=174.5
+        - 周二303 尼克斯vs老鹰(美职篮) rf=-6.5/1.65/1.75 dxf=213.5/1.70/1.70  ← 与场景游戏1完全一致
+        - 周二304 马刺vs开拓者(美职篮) rf=-12.5/1.75/1.65 dxf=216.5/1.62/1.78
+        所有条目均含完整 sf/rf/dxf/sfc 赔率结构；但 match_id=null(4 条全部)。
+    - name: resolve_lottery_match
+      params: {play_type: '201', code: '周二303', date: '2026-04-29'}
+      result: |
+        code=OK，lottery_id=2039427, issue=260428, issue_num=2303, home_name=尼克斯, away_name=老鹰,
+        league_name=美职篮, date=2026-04-29, match_id=null,
+        rf={handicap:-6.5, home_win:1.65, away_win:1.75}, dxf={total:213.5, over:1.7, under:1.7},
+        含完整 sfc 12 档。与 SQL 基准 id=2039427 行完全一致，与场景游戏1数值完全吻合。
+    - name: resolve_lottery_match
+      params: {play_type: '201', code: '周二303', date: '2026-04-28'}
+      result: code=ENTITY_NOT_FOUND（用 issue 期号日期 2026-04-28 查不到，因比赛实际开打时间 match_time 为 2026-04-29 08:00）。
+    - name: resolve_lottery_match
+      params: {play_type: '201', code: '周二303', date: null}
+      result: |
+        code=OK 但返回最新期 issue=260609(2026-06-10) 美职女篮 天空vs梦想(league_name=美职女篮)，
+        rf=+9.5 dxf=164.5 —— 跨联赛撞错(美职女篮 WNBA 而非美职篮 NBA)，非用户所指 NBA 场次。
+    comparison: |
+      SQL 基准 vs 工具对照：
+      (1) 让分/大小分盘口：SQL 基准 rf/dxf 与工具返回完全一致(周二303 rf=-6.5/1.65/1.75, dxf=213.5)，
+          工具在给定正确比赛开打日期(2026-04-29)时能正确返回 NBA 竞彩篮球赛事 + 完整盘口，无足球碰撞。
+          → 原判"cross_sport_data_collision"在 lottery 主路径上不成立(撞的是 WNBA 而非足球，且仅出现在缺 date 时)。
+      (2) match_id 链接：SQL 基准证明 lottery_match.match_id=3917723/3917871 非空且 basketball_match 行真实存在；
+          但工具(get_lottery_schedule/resolve_lottery_match)返回 match_id=null —— 工具仅查 lottery_jclq_odds，
+          未 JOIN lottery_match 表取 match_id。属 implementation_gap(数据有，工具未取)。
+      (3) date 语义：resolve_lottery_match 对 date 极敏感——用期号日期(2026-04-28)→ENTITY_NOT_FOUND；
+          缺 date → 返回最新期 WNBA(撞错联赛)；用比赛开打日期(2026-04-29)→正确返回 NBA。
+          属 parameter_gap(date 须用 match_time 日期而非 issue 日期，且不可省略)。
+    decision: satisfied_with_caveats
+  final_status: satisfied_with_caveats
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 基准（独立写出并真实执行）：
+      SELECT id, comp, home, away, issue, issue_num, match_time_str, rf, dxf FROM lottery_jclq_odds
+      WHERE comp='美国职业篮球联盟' AND ((home LIKE '%尼克斯%' AND away LIKE '%老鹰%') OR (home LIKE '%马刺%' AND away LIKE '%开拓者%'))
+      → id=2039427(尼克斯vs老鹰, 2026-04-29, rf=-6.5/1.65/1.75, dxf=213.5/1.70/1.70)
+        id=2039428(马刺vs开拓者, 2026-04-29, rf=-12.5/1.75/1.65, dxf=216.5/1.62/1.78)
+      SELECT match_id, lottery_match_id FROM lottery_match WHERE lottery_type=201 AND ... →
+        lottery_match_id=2039427→match_id=3917723; lottery_match_id=2039428→match_id=3917871（均非空）
+      SELECT id, competition_id FROM basketball_match WHERE id IN (3917723,3917871) →
+        3917723(comp=1 NBA, 尼克斯vs老鹰, status=10); 3917871(comp=1 NBA, 马刺vs开拓者, status=10) 真实存在。
+    工具返回（实际调用）：
+      get_lottery_schedule{201, 2026-04-29} → 4 场全篮球，含周二303 尼克斯vs老鹰(rf=-6.5,dxf=213.5)、
+        周二304 马刺vs开拓者(rf=-12.5,dxf=216.5)，但 4 条 match_id 均为 null。
+      resolve_lottery_match{201, 周二303, 2026-04-29} → OK，尼克斯vs老鹰，rf=-6.5/1.65/1.75, dxf=213.5，match_id=null。
+      resolve_lottery_match{201, 周二303, 2026-04-28} → ENTITY_NOT_FOUND（date 用错期号日期）。
+      resolve_lottery_match{201, 周二303, 无date} → 返回最新期 WNBA 天空vs梦想（跨联赛撞错）。
+    对照结论：
+      SQL 基准查到两场 NBA 竞彩篮球 + 完整让分/大小分盘口 + lottery_match.match_id 链接 + basketball_match 行；
+      工具在给定正确比赛开打日期时能正确返回赛事+盘口(与 SQL 基准一致)，无足球碰撞。
+      按 Agent 2 判定规则：SQL 基准查出数据 → 不得标 data_gap/无解。
+      真实 gap 为 implementation_gap(lottery 工具未 JOIN lottery_match 取 match_id，导致深度分析工具无法串接)
+      + parameter_gap(date 须用 match_time 日期、不可省略，否则 ENTITY_NOT_FOUND 或撞 WNBA)。
+      原判 ⚠️ cross_sport_data_collision 在 lottery 主路径上被证伪(撞的是 WNBA 而非足球，且仅缺 date 时出现)。
+  recommended_next_step: |
+    工程团队在 resolve_lottery_match / get_lottery_schedule 的 SQL 中 LEFT JOIN lottery_match
+    ON lottery_match.lottery_type=201 AND lottery_match.lottery_match_id=lottery_jclq_odds.id
+    取 match_id，以便串接 get_intel_tags/get_injury_report/get_match_lineup/get_match_team_stats；
+    并在工具文档明确 date 应传"比赛开打日期"(match_time 当日)而非"期号日期"，无 date 时应按 issue+issue_num
+    精确定位而非 ORDER BY match_time DESC 取最新。属 Phase 2 工具层修复，本次不修改 foretell/tools/。
+
+# =========================================================================
+# 原子查询 2: T1-b1 delegate_subagent(fundamentals/odds/intel)
+# =========================================================================
+- atomic_id: B02-T1-b1
+  category: delegate_subagent
+  target: {agents: [fundamentals, odds, intel]}
+  depends_on: [B02-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: T1-a1 已确认两场 NBA 竞彩篮球可解析且盘口完整。分别验证 fundamentals/odds/intel 三子智能体的数据可达性。
+    sql_baseline:
+      query_team_ids: |
+        NBA 球队 team_id（来自原判记录 + SQL 验证）：
+        老鹰=10125, 尼克斯=10115, 开拓者=10132, 马刺=10137（basketball_team, competition_id=1 NBA）。
+        basketball_match 确认：3917723 home=10115 away=10125；3917871 home=10137 away=10132。
+      query_match_link: |
+        SELECT match_id FROM lottery_match WHERE lottery_type=201 AND issue=260428 AND issue_num IN ('2303','2304')
+        → 3917723(尼克斯vs老鹰), 3917871(马刺vs开拓者)
+    tool_calls:
+    - name: resolve_basketball_team
+      params: {name: 老鹰}
+      result: code=OK, top=10125 亚特兰大老鹰(NBA)。原判已验证(4 队均 OK)。
+    - name: get_basketball_standings
+      params: {league_id: 1}
+      result: code=OK, 30 行(NBA 积分榜，含老鹰/尼克斯/马刺；开拓者数据质量瑕疵)。原判已验证。
+    - name: get_lottery_schedule  # odds 子智能体主数据源
+      params: {play_type: '201', date: '2026-04-29'}
+      result: |
+        code=OK, 4 场全篮球含完整 sf/rf/dxf/sfc。周二303 rf=-6.5/1.65/1.75 dxf=213.5；
+        周二304 rf=-12.5/1.75/1.65 dxf=216.5/1.62/1.78。让分盘口 + 大小分盘口 + 胜分差盘口齐全。
+    - name: get_intel_tags  # intel 子智能体
+      params: {match_id: null}
+      result: code=BLOCKED — lottery 工具返回 match_id=null，无法链接 basketball_match，进而无法调用
+              get_intel_tags/get_injury_report/get_match_team_stats/get_match_lineup。
+    - name: get_team_schedule  # fundamentals 子智能体备选路径
+      params: {team_id: 10125, direction: all, limit: 5}
+      result: |
+        code=OK 但跨运动碰撞——get_team_schedule 查 football_match/football_team，传篮球 team_id=10125
+        返回的是法兰克福(足球)比赛。无篮球版 team_schedule 工具(implementation_gap，原判已记录)。
+    comparison: |
+      odds 子智能体：✅ satisfied — get_lottery_schedule/resolve_lottery_match 在正确 date 下返回
+        两场 NBA 完整让分/大小分/胜分差盘口，与 SQL 基准完全一致。
+      fundamentals 子智能体：partial — resolve_basketball_team(4队 OK)、get_basketball_standings(30行 OK) 可用；
+        但 get_team_schedule 传篮球 team_id 撞足球(implementation_gap)，NBA 球队赛程只能经 lottery schedule 间接获得
+        (已覆盖这两场)，无法按球队过滤历史赛程。
+      intel 子智能体：❌ blocked — 工具返回 match_id=null(实际 lottery_match 表有 match_id=3917723/3917871)，
+        导致 get_intel_tags/get_injury_report/get_match_lineup/get_match_team_stats 全部无法触发。
+        SQL 基准证明 match_id 链接数据真实存在 → implementation_gap(工具未 JOIN lottery_match)。
+  final_status: partial
+  gap_type: implementation_gap
+  gap_evidence: |
+    odds 完全可用(让分/大小分盘口 SQL 基准+工具一致)；fundamentals 部分(get_team_schedule 跨运动碰撞，
+    但 standings/team resolve + lottery schedule 已覆盖这两场赛事)；intel 全部 blocked。
+    intel blocked 的根因不是 data_gap——SQL 基准证明 lottery_match(lottery_type=201, issue=260428)
+    持有 match_id=3917723/3917871 且 basketball_match 行真实存在(competition_id=1 NBA, status_id=10)，
+    而是 resolve_lottery_match/get_lottery_schedule 未 JOIN lottery_match 表，返回 match_id=null。
+    属 implementation_gap(数据+链接都在，工具未取 match_id)。
+  recommended_next_step: |
+    lottery 工具 JOIN lottery_match 取 match_id 后，intel 子智能体即可用 match_id=3917723/3917871
+    串接 get_intel_tags/get_injury_report/get_match_lineup/get_match_team_stats；fundamentals 的
+    get_team_schedule 跨运动碰撞建议新增 basketball 版 team_schedule(或按 sport 路由)。
+
+# =========================================================================
+# 原子查询 3: T1-b2 synthesize_answer(six_segment)
+# =========================================================================
+- atomic_id: B02-T1-b2
+  category: synthesize_answer
+  target: {format: six_segment}
+  depends_on: [B02-T1-a1, B02-T1-b1]
+  rounds:
+  - round: 1
+    hypothesis: 六段式分析依赖 T1-a1 解析 + T1-b1 周边数据。评估各段数据齐备性。
+    sql_baseline: {query: 同 T1-a1/T1-b1, result: 两场 NBA 赛事 + 让分/大小分盘口 + match_id 链接齐备}
+    tool_call: {name: N/A, result: 合成步骤无独立工具}
+    comparison: |
+      六段中：赔率段(让分/大小分/胜分差) ✅ 数据齐备；基本面段(积分榜/球队解析) ✅ 部分；
+      交锋/近期/情报/阵容段 ❌ 受 match_id=null 阻断(get_team_schedule 跨运动碰撞 + intel 工具无法触发)。
+      可产出"以赔率盘口为主、基本面为辅"的六段式回答，但交锋史/情报/阵容段缺失或需经 SQL 基准补 match_id 后人工串接。
+  final_status: partial
+  gap_type: implementation_gap
+  gap_evidence: 合成所需核心盘口数据 OK，但情报/阵容/交锋段受 match_id=null(implementation_gap)传导阻断。
+  recommended_next_step: 随 lottery 工具补 match_id 链接后，六段可全链路满足。
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied: [B02-T1-a1]
+satisfied_note: |
+  B02-T1-a1 在给定正确比赛开打日期(2026-04-29)时 satisfied——get_lottery_schedule + resolve_lottery_match
+  正确返回两场 NBA 竞彩篮球(周二303 尼克斯vs老鹰 rf=-6.5 dxf=213.5、周二304 马刺vs开拓者 rf=-12.5 dxf=216.5)
+  及完整让分/大小分/胜分差盘口，与 SQL 基准完全一致，无足球碰撞。
+  B02-T1-b1 partial(odds ✅ / fundamentals 部分 / intel ❌)；B02-T1-b2 partial(盘口段 ✅ / 情报阵容段 ❌)。
+blocking_gap:
+  type: implementation_gap
+  description: |
+    主要 gap：resolve_lottery_match / get_lottery_schedule 仅查 lottery_jclq_odds，未 LEFT JOIN lottery_match
+    取 match_id，导致返回 match_id=null。SQL 基准证明 lottery_match(lottery_type=201, issue=260428)
+    持有 match_id=3917723(尼克斯vs老鹰)/3917871(马刺vs开拓者)，且 basketball_match 对应行真实存在
+    (competition_id=1 NBA, status_id=10 已完赛)。match_id 缺失使 intel 子智能体(get_intel_tags/
+    get_injury_report/get_match_lineup/get_match_team_stats)无法触发，六段式中情报/阵容/交锋段阻断。
+    次要 gap 1(parameter_gap)：resolve_lottery_match 的 date 须传"比赛开打日期"(match_time 当日=2026-04-29)，
+      传期号日期(2026-04-28)→ENTITY_NOT_FOUND；缺 date→ORDER BY match_time DESC 取最新期，撞美职女篮(WNBA)
+      而非美职篮(NBA)。原判所称 cross_sport_data_collision 实为"缺 date 时跨联赛撞 WNBA"，非撞足球，
+      且仅在主路径缺 date 时出现，给定正确 date 即消除。
+    次要 gap 2(implementation_gap)：get_team_schedule 查 football_* 表，传篮球 team_id 撞足球
+      (team_id=10125→法兰克福)，无篮球版 team_schedule。该 gap 不阻断 lottery 主路径
+      (lottery schedule 已覆盖这两场赛事+盘口)，仅影响按球队过滤的历史赛程补全。
+  failed_atomic: B02-T1-b1
+  secondary_gaps:
+  - type: parameter_gap
+    description: resolve_lottery_match date 须用 match_time 当日而非 issue 期号日期，且不可省略
+  - type: implementation_gap
+    description: get_team_schedule 跨运动碰撞(篮球 team_id→足球)，无篮球版 team_schedule
+  suggested_fix: |
+    (1) lottery 工具 SQL 增加 LEFT JOIN lottery_match ON lottery_match.lottery_type=201
+        AND lottery_match.lottery_match_id=lottery_jclq_odds.id 取 match_id；
+    (2) 文档明确 date=比赛开打日期，无 date 时按 issue+issue_num 精确定位而非取最新期；
+    (3) 新增 basketball 版 team_schedule 或按 sport 路由。
+    属 Phase 2 工具层修复，本次不修改 foretell/tools/。
+route_complete: false
+verdict: |
+  ⚠️ partial —— B02 维持 ⚠️（原判 ⚠️ cross_sport_data_collision 的结论等级不变，但 gap_type 重定性）。
+  SQL 基准独立验证（证伪原判 data_gap 假设）：
+    - lottery_jclq_odds 中美国职业篮球联盟(NBA)有 1195 行；老鹰vs尼克斯、开拓者vs马刺 多期命中；
+      2026-04-29(issue 260428) 周二303 尼克斯vs老鹰 rf=-6.5/1.65/1.75 dxf=213.5 与场景游戏1完全一致；
+      周二304 马刺vs开拓者 rf=-12.5 dxf=216.5(同对阵 -11.5 让分线在 260421 期出现)；
+      场景说明"奥林匹亚让摩纳哥9.5分"对应同期周二301(欧篮联 rf=-9.5)。
+    - lottery_match(lottery_type=201) 持有 match_id=3917723/3917871(非空)，basketball_match 行真实存在(NBA, 已完赛)。
+  工具对照（实际调用）：
+    - get_lottery_schedule{201,2026-04-29} 与 resolve_lottery_match{201,周二303,2026-04-29} 均正确返回
+      NBA 赛事 + 完整让分/大小分盘口，与 SQL 基准一致，无足球碰撞 → 原判 cross_sport_data_collision
+      在 lottery 主路径上被证伪(撞 WNBA 而非足球，且仅缺 date 时出现)。
+    - 工具返回 match_id=null，但 SQL 证明链接数据存在 → implementation_gap(工具未 JOIN lottery_match)。
+  判定：SQL 基准查到两场竞彩篮球 NBA 赛事 + 让分/大小分盘口 + match_id 链接 → 不得标 data_gap/无解。
+  真实阻断为 implementation_gap(lottery 工具未取 match_id，致 intel 深度分析无法串接) +
+  parameter_gap(date 须用比赛开打日期、不可省略)。故维持 ⚠️ partial，
+  gap_type 由 cross_sport_data_collision 重定为 implementation_gap(主) + parameter_gap(次)。
+  建议工程团队为 lottery 工具 JOIN lottery_match 取 match_id 并规范 date 语义后，六段式可全链路 ✅。

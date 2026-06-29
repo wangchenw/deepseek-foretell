@@ -1,17 +1,81 @@
 type_id: F05
 case_id: TC-F05-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+
 attempts:
 - round: 1
-  atomic_id: F05-probe-1
+  atomic_id: F05-T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 德国
+    away: 芬兰
   code: OK
-  count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  count: 10
+  note: >-
+    成年国家队顶级候选为 match_id=4512464（home_team_id=11746 德国 / away_team_id=10304 芬兰），
+    date=2026-06-01，league=国际友谊(id=34)，status=finished，主队排名10/客队排名73，
+    含气温/湿度/风/气压环境字段。其余候选为 U17/U19/女足等梯队及 2016 历史交锋，
+    均为 football，未触发跨运动碰撞。T1-a1（resolve_entity match）satisfied。
+
+- round: 1
+  atomic_id: F05-T1-a1
+  tool: get_odds_trend
+  params:
+    match_id: 4512464
+  code: OK
+  stub: false
+  count: 50
+  note: >-
+    赔率时间线完整返回 50 个时间点，覆盖 5 个盘口来源：onex(8)、Interwetten(9)、
+    立博(1)、10bet(11)、company_id=0 均赔/匿名(21)。changed_at 时间跨度
+    2026-05-09T11:20 ~ 2026-05-26T04:36（开赛前约一周盘口稳定期）。
+    初盘 onex 主胜1.03/和9.15/客胜17.0 → 末点均赔 主胜1.15/和8.21/客胜14.65，
+    主胜赔率上调、客胜下调，体现盘口对芬兰赔率的温和修正。
+    odd-month 分区路由正常工作（比赛 6-1，赔率记录落在 5 月分区，无 ENTITY_NOT_FOUND）。
+    字段已结构化 odds:{home_win,draw,away_win} + in_play/suspended 布尔 + company_name。
+
+- round: 1
+  atomic_id: F05-T1-a1
+  tool: get_same_odds_history
+  params:
+    match_id: 4512464
+  code: OK
+  stub: false
+  count: 10
+  note: >-
+    同赔历史返回 10 条同初指赛果（均 league_id=34 国际友谊），含 match_id/主客 team_id/
+    比分/initial_odds/current_odds，可用于"同赔历史赛果分布"辅助预测。非 stub。
+
+satisfied:
+- F05-T1-a1
+
+blocking_gap:
+  type: null
+  description: 无
+  failed_atomic: null
+
 route_complete: true
+
+caveats:
+- id: F05-T1-a2
+  category: synthesize_answer
+  note: >-
+    "比分预测"答案合成（结合赔率时间线趋势 + 同赔历史赛果分布 + 球队排名/环境）属答案合成层，
+    依赖 a1 已获取的 odds_trend(50点) + same_odds_history(10条) 数据；数据路径已通，
+    合成质量由上层 LLM 决定，非 foretell MySQL 工具链探路范围。
+- 跨运动碰撞: 德国/芬兰均为足球国家队名，resolve_match 候选全部 sport=football，
+  未触发与 basketball_team 的 ID 碰撞。
+- 时效性: 该场比赛 status=finished（2026-06-01 已完赛，今日 2026-06-29），
+    "比分预测"语义上指向赛前预测；odds_trend/same_odds_history 取自开赛前盘口分区，
+    仍可还原赛前赔率时间线，路径成立。
+
+verdict_lean: pass
+key_findings:
+- F05 核心数据路径一遍跑通：resolve_match(德国,芬兰)→真实 match_id=4512464→
+  get_odds_trend 返回 50 个赔率时间点（5 家公司，跨 2026-05-09~05-26）+
+  get_same_odds_history 返回 10 条同赔赛果。odd-month 分区路由正常，无 stub、无 gap。
+- odds_trend 字段已结构化（odds:{home_win,draw,away_win} + in_play/suspended +
+  company_name），可直接支撑"赔率时间线"展示；盘口呈主胜上调/客胜下调的温和修正趋势。
+- resolve_match 候选均为 football，无跨运动碰撞；a2 合成层属上层 LLM 职责，
+  非数据路径阻塞项。route_complete=true，verdict 倾向 pass。

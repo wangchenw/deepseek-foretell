@@ -1,11 +1,181 @@
 type_id: G09
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G09-001
+explored_at: '2026-06-29'
+scenario: G
+type_name: 换场追问
+entity_entry: context
+sport: any
+tags: [follow_up]
+multi_turn: true
+
+# 路径探索按 turn 分组。G09 = 同会话换一场比赛追问("这场呢/那边呢")。
+# turn0 首轮同 G01/E05 模式拉竞彩批量作为会话上下文;
+# turn1 换场追问: maintain_context(编排层) + resolve 新场真实 match_id + 同套维度工具复用。
+
+attempts:
+
+# ============ turn0 首轮: 竞彩足球本期批量(会话上下文) ============
+- turn: 0
+  round: 1
+  atomic_id: T1-g0          # maintain_context: 会话上下文 = 本期 15 场名单
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  stub: false
+  count: 15
+  note: >-
+    竞彩足球(101) 本期 issue=260629 共 15 场,均为 2026 世界杯场次(巴西vs日本、
+    德国vs巴拉圭、荷兰vs摩洛哥 ...)。每条 entry 含 home_name/away_name/
+    league_name/date/lottery_code(格式"周一074") + 完整赔率 spf/rq/bf/jq/bqc。
+    ⚠️ entry.match_id 字段为 null(play_type 101 不回填真实 football_match.id),
+    sell_status 全部 suspended(已停售)。该列表即作为追问轮 maintain_context 的会话上下文。
+
+# ============ turn1 换场追问 ============
+
+- turn: 1
+  round: 1
+  atomic_id: T1-a1          # maintain_context + resolve 新场: short code 路径
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '005'
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: >-
+    用户追问用 short code "005" 指代某场,resolve_lottery_match(101, 005) 返回
+    ENTITY_NOT_FOUND —— 与 G01(004)/E05 同根: short code 无法命中。lottery_schedule
+    返回的 lottery_code 是"周一074"格式而非"005",short code 路由断裂。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a1          # fallback: resolve_match(主+客+date) 取真实 match_id
+  tool: resolve_match
+  params:
+    home: 巴西
+    away: 日本
+    date: '2026-06-30'
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    换场追问规避路径: 用上下文中的球队名 + date 重新 resolve,得到真实
+    football_match.id=4459720(世界杯, status=not_started, neutral=中立场,
+    含主场温度/湿度/风等环境数据)。resolve_match 不依赖 short code,正确命中。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a2          # synthesize_answer: 同套维度工具复用 — 赔率
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  note: >-
+    用真实 match_id 拉赔率 OK: 欧赔(12bet/利记 等 home_win 1.72-1.77 / draw 3.5-3.64
+    / away_win 4.7-4.94) + 亚盘(利记/平博/易胜博 handicap -0.75)。换场后工具链复用成功。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a1          # 换场: 再换一场 德国vs巴拉圭 验证复用
+  tool: resolve_match
+  params:
+    home: 德国
+    away: 巴拉圭
+    date: '2026-06-30'
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    第二次换场: resolve_match(德国,巴拉圭,2026-06-30) → match_id=4459718(世界杯,
+    not_started, neutral)。验证换场追问可对会话上下文中任意一场重复 resolve。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a2          # 同套维度工具复用 — 第二场赔率
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459718
+  code: OK
+  stub: false
+  note: >-
+    德国vs巴拉圭 赔率 OK: 欧赔(home_win 1.34-1.40 / draw 4.8-5.07 / away_win 7.8-9.3)
+    + 亚盘(handicap -1.25)。换场后同套工具链稳定复用。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a2          # 同套维度工具复用 — 基本面(resolve_team → get_recent_form)
+  tool: resolve_team
+  params:
+    name: 巴西
+  code: OK
+  stub: false
+  count: 10
+  note: >-
+    resolve_team(巴西) 返回 10 候选(巴西国家队 team_id=10477 national=1 / 巴西国际 /
+    巴西U20 ...)。需 national=1 过滤取国家队,避免俱乐部碰撞。
+
+- turn: 1
+  round: 2
+  atomic_id: T1-a2          # 基本面: 近期战绩
+  tool: get_recent_form
+  params:
+    team_id: 10477
+    limit: 5
+  code: OK
+  stub: false
+  count: 5
+  note: >-
+    get_recent_form(巴西=10477, limit=5) OK: 近 5 场含日期/胜负/进失球/主客
+    (2026-06-25 客 3:0 胜 / 06-20 主 3:0 胜 / 06-14 主 1:1 平 ...)。
+    非 stub,换场追问基本面路径通畅。
+
+satisfied:
+- T1-a2                      # synthesize_answer 数据层: resolve+odds+form 全 OK,可支撑换场分析
+- T1-a1-resolve              # 换场 resolve 新场 match_id 路径(fallback round2)
+
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
-route_complete: false
+  type: routing_gap
+  description: >-
+    换场追问用 short code(如 "005")调 resolve_lottery_match → ENTITY_NOT_FOUND,
+    与 G01(004)/E05 同根: get_lottery_schedule(101) 返回的 lottery_code 是"周一074"
+    格式且 match_id=null,short code 路由断裂,无法直接按用户口中"005"定位比赛。
+    但已验证规避路径: 从会话上下文取球队名 + date,用 resolve_match(home,away,date)
+    取真实 football_match.id,再 get_odds_snapshot/get_recent_form —— 换场复用工具链
+    全部 OK。故为 routing_gap(有可用规避)而非 data_gap,DB 数据完整。
+  failed_atomic: T1-a1
+  workaround: >-
+    忽略 short code,用 resolve_match(主队+客队+date) 重解析真实 match_id;
+    基本面用 resolve_team(球队名,national=1 过滤) → team_id → get_recent_form。
+
+route_complete: true
+
+caveats:
+- id: T1-g0
+  category: maintain_context
+  note: >-
+    首轮会话上下文 = get_lottery_schedule(101) 返回的 15 场名单。maintain_context
+    属 agent 编排层(checkpointer/会话状态保持),非 foretell MySQL 工具链数据路径,
+    不在探路范围;数据齐备后由上层 agent 在追问轮引用上下文中的球队名/日期。
+- id: T1-a1
+  category: maintain_context
+  note: >-
+    追问轮"换场"指代消解(把用户口中的"005/006"映射到上下文某场)属 agent 编排层
+    语义理解;数据层只验证: 给定球队名+date 能否 resolve 新场并复用工具链(已通过)。
+- 跨运动碰撞: 本期 15 场全为足球世界杯国家队,resolve_team(巴西) 候选含
+  巴西国际/巴西U20 等俱乐部,需 national=1 过滤;未触发篮球 ID 碰撞(sport=any
+  但本期实体均为 football)。
+- LangSmith 429 追踪限流噪音不影响工具结果,所有 envelope code 均来自实调 stdout。
+
+verdict_lean: pass_with_caveat
+key_findings:
+- 换场追问数据路径已验证通畅: get_lottery_schedule(101) 拿 15 场名单(会话上下文) →
+  追问轮 resolve_match(主+客+date) 取真实 match_id(4459720 巴西vs日本 / 4459718
+  德国vs巴拉圭) → get_odds_snapshot OK(欧赔+亚盘) + resolve_team(national=1)→
+  get_recent_form OK(近5场)。换场可对上下文任意一场重复 resolve,工具链稳定复用。
+- short code 路由断裂同 G01/E05: resolve_lottery_match(101, "005") → ENTITY_NOT_FOUND,
+  get_lottery_schedule(101) 的 lottery_code 是"周一074"格式且 match_id=null,用户口中
+  "005"无法直接命中。须用 resolve_match(球队名+date) 规避,routing_gap 而非 data_gap。
+- maintain_context(T1-g0/T1-a1)属 agent 编排层(checkpointer/指代消解),非数据路径;
+  数据层仅验证换场 resolve + 维度工具复用,均已通过。route_complete=true,
+  verdict=pass_with_caveat。

@@ -1,17 +1,262 @@
 type_id: C03
 case_id: TC-C03-001
-explored_at: '2026-06-28'
-source: probe_results
+type_name: 对阵复盘
+entity_entry: match_pair
+priority: P2
+explored_at: '2026-06-29'
+scenario_context: |
+  2026-06-18 世界杯四场（北京时间 6/19 凌晨）：捷克 VS 南非、瑞士 VS 波黑、
+  加拿大 VS 卡塔尔、墨西哥 VS 韩国。用户口径日期与 DB 北京时间日历日相差 1 天。
 attempts:
-- round: 1
-  atomic_id: C03-probe-1
-  tool: resolve_match
-  params:
-    home: 利物浦
-    away: 热刺
-  code: OK
-  count: 10
-  stub: false
-satisfied: []
-blocking_gap: null
+  # ---- Round 1: resolve_match 带 date=2026-06-18 ----
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 捷克, away: 南非, date: '2026-06-18'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 用户口语 6/18，DB match_time_beijing 落在 6/19 00:00
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 瑞士, away: 波黑, date: '2026-06-18'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 加拿大, away: 卡塔尔, date: '2026-06-18'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 墨西哥, away: 韩国, date: '2026-06-18'}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+  # ---- Round 2: fallback 去 date ----
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 捷克, away: 南非}
+    code: OK
+    count: 2
+    stub: false
+    resolved_match_id: 4460939
+    resolved_match_time: '2026-06-19 00:00:00'
+    resolved_status: finished
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 瑞士, away: 波黑}
+    code: OK
+    count: 7
+    stub: false
+    resolved_match_id: 4460942
+    resolved_match_time: '2026-06-19 03:00:00'
+    resolved_status: finished
+    note: 多候选，首位即 2026 世界杯场，按 time 优先即正确
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 加拿大, away: 卡塔尔}
+    code: OK
+    count: 1
+    stub: false
+    resolved_match_id: 4459825
+    resolved_match_time: '2026-06-19 06:00:00'
+    resolved_status: finished
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_match
+    params: {home: 墨西哥, away: 韩国}
+    code: OK
+    count: 10
+    stub: false
+    resolved_match_id: 4459821
+    resolved_match_time: '2026-06-19 09:00:00'
+    resolved_status: finished
+    note: 多候选，首位即 2026 世界杯场
+  # ---- 复盘工具链（4 场 × 6 工具，全部 OK）----
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_result
+    params: {match_id: 4460939}
+    code: OK
+    stub: false
+    keys: [match_id, full_time, score_breakdown, match_time, status]
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_team_stats
+    params: {match_id: 4460939}
+    code: OK
+    stub: false
+    count: 2
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_incidents
+    params: {match_id: 4460939}
+    code: OK
+    stub: false
+    count: 19
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_half_stats
+    params: {match_id: 4460939, scope: ft}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_player_stats
+    params: {match_id: 4460939, limit: 30}
+    code: OK
+    stub: false
+    count: 30
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_lineup
+    params: {match_id: 4460939}
+    code: OK
+    stub: false
+    keys: [confirmed, home_formation, away_formation, home_coach_id, away_coach_id, home, away]
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_result
+    params: {match_id: 4460942}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_team_stats
+    params: {match_id: 4460942}
+    code: OK
+    stub: false
+    count: 2
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_incidents
+    params: {match_id: 4460942}
+    code: OK
+    stub: false
+    count: 26
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_half_stats
+    params: {match_id: 4460942, scope: ft}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_player_stats
+    params: {match_id: 4460942, limit: 30}
+    code: OK
+    stub: false
+    count: 30
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_lineup
+    params: {match_id: 4460942}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_result
+    params: {match_id: 4459825}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_team_stats
+    params: {match_id: 4459825}
+    code: OK
+    stub: false
+    count: 2
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_incidents
+    params: {match_id: 4459825}
+    code: OK
+    stub: false
+    count: 28
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_half_stats
+    params: {match_id: 4459825, scope: ft}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_player_stats
+    params: {match_id: 4459825, limit: 30}
+    code: OK
+    stub: false
+    count: 30
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_lineup
+    params: {match_id: 4459825}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_result
+    params: {match_id: 4459821}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_team_stats
+    params: {match_id: 4459821}
+    code: OK
+    stub: false
+    count: 2
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_incidents
+    params: {match_id: 4459821}
+    code: OK
+    stub: false
+    count: 19
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_half_stats
+    params: {match_id: 4459821, scope: ft}
+    code: OK
+    stub: false
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_player_stats
+    params: {match_id: 4459821, limit: 30}
+    code: OK
+    stub: false
+    count: 30
+  - round: 2
+    atomic_id: T1-a1
+    tool: get_match_lineup
+    params: {match_id: 4459821}
+    code: OK
+    stub: false
+  # ---- T1-a2: synthesize_answer ----
+  - round: 2
+    atomic_id: T1-a2
+    tool: none
+    params: {}
+    code: OK
+    stub: false
+    note: 6 类复盘数据全部 OK，可综合赛果/统计/事件/半场/球员/阵容
+satisfied: [T1-a1, T1-a2]
+blocking_gap:
+  type: routing_gap
+  description: |
+    用户口语日期 "6/18" 与 DB 北京时间日历日不一致——4 场 0:00/3:00/6:00/9:00
+    实际落在 2026-06-19。带 date=2026-06-18 的 resolve_match 全部 ENTITY_NOT_FOUND；
+    去 date 后首位候选即正确 match（status=finished）。
+    此 gap 已通过 round-2 fallback 解决，不影响 route_complete。
+  failed_atomic: T1-a1
+  resolved_via_fallback: true
 route_complete: true
+overall_tendency: verified

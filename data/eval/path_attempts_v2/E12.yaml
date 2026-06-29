@@ -1,0 +1,239 @@
+type_id: E12
+type_name: 在售方案
+case_id: TC-E12-001
+explored_at: '2026-06-29'
+entity_entry: batch
+scenario: E
+verdict_lean: satisfied   # SQL 基准 + 工具均查到世界杯在售方案，推翻旧 data_gap 判决
+rework_note: |
+  旧判决（path_attempts/E12.yaml）判 ❌ data_gap，理由是 Nami 上游无世界杯已发布方案数据。
+  但旧判决仅查 data_macao_recommend（心水推荐）表，把"在售方案"等同于"心水推荐"，
+  未查 lottery_*_odds 表的 sell_status（销售状态）维度。本次按 Agent 2 SQL 优先方法
+  穷举 recommend/方案/plan/scheme/prediction/lottery/cms_news 全部候选表，确认"在售方案"
+  的正确语义映射是 lottery_bd_odds/jczq_odds 的 sell_status='1'（销售中），SQL 基准查到
+  3 条世界杯在售方案，工具 get_lottery_schedule(404/301, 2026-06-30) 同步返回 3 条 on_sale
+  世界杯方案，与 SQL 基准完全一致。改判 ✅ satisfied。
+
+---
+atomic_id: T1-a1
+category: resolve_entity
+target: {entity: match, keyword: 世界杯}
+rounds:
+  - round: 1
+    hypothesis: "用户问『世界杯在售方案』，需先解析『世界杯』实体。世界杯既可能落在
+      football_competition/football_match（competition_id=1，旧记录 424 场），也可能落在
+      lottery_*_odds 表的 comp 字段（comp='世界杯'）。先 schema 确认相关表结构。"
+    schema_query: |
+      -- 候选"方案/推荐/发布"相关表全量扫描
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema='data_center'
+        AND (table_name LIKE 'lottery%' OR table_name LIKE 'cms%'
+             OR table_name LIKE 'data_macao%' OR table_name LIKE '%recommend%'
+             OR table_name LIKE '%publish%' OR table_name LIKE '%plan%'
+             OR table_name LIKE '%scheme%' OR table_name LIKE '%prediction%')
+      ORDER BY table_name
+    schema_result: |
+      命中表：cms_news / data_macao_recommend / football_cms_news / lottery_bd_odds /
+      lottery_bd_result / lottery_bdsf_odds / lottery_bdsf_result / lottery_jclq_odds /
+      lottery_jclq_result / lottery_jczq_odds / lottery_jczq_result / lottery_match /
+      lottery_sfc_star / lottery_zc_issue / lottery_zc_match。
+      无独立 plan/scheme/prediction/proposal 表——"方案"非独立实体表，而是 lottery 在售场次
+      或 data_macao_recommend 心水。data_macao_recommend 字段：id(心水id)/confidence_factor/
+      predict_msg/source_match_id/create_time/update_time，【无 competition/league 字段、
+      无 sell_status 字段】，只能经 source_match_id 关联 football_match 间接定位赛事。
+      lottery_bd_odds / lottery_jczq_odds 有 comp(赛事名称) + sell_status(销售状态码) 字段。
+    decision: continue
+  - round: 2
+    hypothesis: "用 SQL 验证『世界杯』实体在 lottery 表 comp 字段与 football_match 表的可解析性，
+      作为 resolve_entity 基准。"
+    sql_baseline:
+      query: |
+        SELECT 'lottery_bd_odds' AS tbl, comp, COUNT(*) AS cnt FROM lottery_bd_odds WHERE comp LIKE '%世界杯%' GROUP BY comp
+        UNION ALL
+        SELECT 'lottery_jczq_odds', comp, COUNT(*) FROM lottery_jczq_odds WHERE comp LIKE '%世界杯%' GROUP BY comp
+        UNION ALL
+        SELECT 'lottery_zc_match', comp, COUNT(*) FROM lottery_zc_match WHERE comp LIKE '%世界杯%' GROUP BY comp
+      result: |
+        lottery_bd_odds: 世界杯 76 条 + U20世界杯 14 条
+        lottery_jczq_odds: 世界杯 88 条 + 世界杯预选赛 147 条
+        lottery_zc_match: 世界杯 288 条
+        → 『世界杯』实体在 lottery 三表均可解析，comp='世界杯' 精确匹配 2026 世界杯正赛。
+    tool_call:
+      name: get_lottery_schedule
+      params: {play_type: "404", date: "2026-06-30"}
+      result:
+        code: OK
+        count: 4
+        world_cup_entries: 3
+        sample: "entries 含 league_name='世界杯' 的 巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥，
+          league_name 字段直接承载世界杯实体，无需额外 resolve_team"
+    comparison: "SQL 基准（comp='世界杯' 大量存在）与工具返回（league_name='世界杯' entries）
+      一致。世界杯实体可经 lottery comp/league_name 字段直接解析，亦可经 football_match
+      competition_id=1 解析。resolve_entity 满足。"
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: |
+  SQL 基准：lottery_bd_odds/jczq_odds/zc_match 三表 comp='世界杯' 均有大量记录（76/88/288）。
+  工具 get_lottery_schedule(404, 2026-06-30) 返回 entries[].league_name='世界杯'，世界杯实体
+  可直接解析。旧判决称"世界杯维度无已发布方案数据"仅在 data_macao_recommend 心水表成立，
+  在 lottery 在售场次表不成立。
+recommended_next_step: "无。世界杯实体解析已打通。"
+
+---
+atomic_id: T1-a2
+category: synthesize_answer
+target: {}
+rounds:
+  - round: 1
+    hypothesis: "先确认 lottery_bd_odds / lottery_jczq_odds 的 sell_status 字段语义，
+      明确『在售』对应的状态码。"
+    schema_query: |
+      SELECT table_name, column_name, column_comment
+      FROM information_schema.columns
+      WHERE table_schema='data_center'
+        AND table_name IN ('lottery_bd_odds','lottery_jczq_odds')
+        AND column_name='sell_status'
+    schema_result: |
+      lottery_bd_odds.sell_status：销售状态码 顺序：胜平负,总进球,半全场,上下单双盘,比分
+        状态码：0-未开售、1-销售中、2-未知状态、3-已停售、4-已开奖 → 『在售』=含 '1'
+      lottery_jczq_odds.sell_status：销售状态码 顺序：胜平负,让球,比分,进球数,半全场
+        状态码：0-未开售、1-仅过关、2-单关和过关、3-无/停售 → 『在售』=含 '1' 或 '2'
+    decision: continue
+  - round: 2
+    hypothesis: "SQL 基准：查世界杯在售方案（sell_status 含 '1'），今天是 2026-06-29，
+      2026 世界杯 6/30 起有比赛，应在售。同时查 jczq 竞彩足球世界杯在售情况作交叉。"
+    sql_baseline:
+      query_bd_onsale: |
+        SELECT id, comp, home, away, issue, issue_num, match_time_str, sell_status, spf
+        FROM lottery_bd_odds
+        WHERE comp='世界杯' AND sell_status LIKE '1%'
+        ORDER BY match_time_str LIMIT 20
+      result_bd_onsale: |
+        命中 3 条世界杯在售方案（北单 sell_status='1,1,1,1,1' 五玩法全销售中）：
+        ① id=26069064 巴西 vs 日本  2026-06-30 00:55  issue=26069 issue_num=64
+           spf={"sf3":"2.76","goal":"-1","sf0":"2.71","sf1":"3.71"}
+        ② id=26069066 德国 vs 巴拉圭 2026-06-30 04:25  issue=26069 issue_num=66
+           spf={"sf3":"1.75","goal":"-1","sf0":"6.23","sf1":"3.72"}
+        ③ id=26069067 荷兰 vs 摩洛哥 2026-06-30 06:00  issue=26069 issue_num=67
+           spf={"sf3":"1.98","goal":"0","sf0":"5.76","sf1":"3.09"}
+        三条均含完整 spf/jq/bqc/sxp/bf 赔率，是真实可售方案。
+      query_jczq_dist: |
+        SELECT sell_status, COUNT(*) AS c, MAX(match_time_str) AS latest
+        FROM lottery_jczq_odds WHERE comp='世界杯' GROUP BY sell_status
+      result_jczq_dist: |
+        jczq 竞彩足球世界杯 88 条：sell_status='3,3,3,3,3'(已停售) 82 条 + '0,0,0,0,0'(未开售) 6 条。
+        【竞彩足球当前无世界杯在售方案】（6/27-6/30 期已停售，7/2-7/4 期未开售）。
+        但北单（bd）有 3 条在售——彩种差异，北单销售窗口与竞彩不同。
+      query_bd_dist: |
+        SELECT sell_status, COUNT(*) AS c, MAX(match_time_str) AS latest
+        FROM lottery_bd_odds WHERE comp='世界杯' GROUP BY sell_status
+      result_bd_dist: |
+        bd 北单世界杯 76 条：'3,3,3,3,3'(已停售) 72 条 + '1,1,1,1,1'(销售中) 3 条
+        + '3,4,4,4,4' 1 条。在售 3 条全部为 2026-06-30 开赛场次。
+    decision: continue
+  - round: 3
+    hypothesis: "调工具 get_lottery_schedule(404 北单让球胜平负 + 301 北单胜负过关,
+      date=2026-06-30) 对照 SQL 基准的 3 条在售世界杯方案。"
+    tool_call:
+      name: get_lottery_schedule
+      params_404: {play_type: "404", date: "2026-06-30"}
+      params_301: {play_type: "301", date: "2026-06-30"}
+      result_404: |
+        code: OK, count: 4
+        entries 中 3 条 league_name='世界杯' + sell_status.sf=on_sale（sell_status_raw='1'）：
+        - lottery_id=26069064 巴西 vs 日本   issue=26069 issue_num=64 sf on_sale
+        - lottery_id=26069066 德国 vs 巴拉圭  issue=26069 issue_num=66 sf on_sale
+        - lottery_id=26069067 荷兰 vs 摩洛哥  issue=26069 issue_num=67 sf on_sale
+        （第 4 条为冰岛超 IA阿克拉内斯 vs 弗拉姆，非世界杯）
+      result_301: |
+        code: OK, count: 4
+        entries 中 3 条 league_name='世界杯' + sell_status 全 on_sale（spf/jq/bqc/sxp/bf 五玩法）：
+        - 巴西 vs 日本   全 on_sale
+        - 德国 vs 巴拉圭 全 on_sale
+        - 荷兰 vs 摩洛哥 全 on_sale
+    comparison: |
+      完全一致。SQL 基准的 3 条世界杯在售方案（lottery_bd_odds id=26069064/66/67,
+      sell_status='1,1,1,1,1'）与工具 get_lottery_schedule(404/301, 2026-06-30) 返回的
+      3 条 league_name='世界杯' on_sale entries 在 lottery_id/home/away/issue/issue_num
+      上逐一对齐。工具可信，路径打通。
+      注意：工具 404 返回的 odds.sf.home_win 字段只解析了部分 JSON（如 "{\"sf3\":\"1.62\""），
+      是 client 赔率字段序列化问题，不影响"在售方案列表"本身（sell_status/对阵/期号正确）。
+    decision: satisfied
+  - round: 4
+    hypothesis: "复核旧判决依据：旧判决调 get_recommendations(match_id=4459800 世界杯)
+      返回 DATA_MISSING，据此判 data_gap。验证『在售方案』是否应走 get_recommendations 维度。"
+    sql_baseline:
+      query: |
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN EXISTS(SELECT 1 FROM football_match fm
+                 WHERE fm.competition_id=1 AND fm.id=d.source_match_id) THEN 1 ELSE 0 END) AS wc_linked
+        FROM data_macao_recommend d
+      result: |
+        data_macao_recommend 全表 8583 条心水推荐，关联世界杯(competition_id=1) 0 条（旧判决结论复核成立）。
+        但 data_macao_recommend 是『心水推荐』（predict_msg 文案 + confidence_factor），
+        【无 sell_status 字段、无 competition 字段、无在售概念】，不是『在售方案』的承载表。
+    tool_call:
+      name: get_recommendations
+      params: {match_id: 4459800}
+      result:
+        code: DATA_MISSING
+        note: "工具单场心水维度，对世界杯 match_id 返回 DATA_MISSING（旧判决已验证，复核确认）"
+    comparison: |
+      旧判决误把『在售方案』映射为 get_recommendations（心水推荐）维度。
+      实际语义：『你发布的在售方案』= 平台当前可购买的竞彩/北单方案 = lottery_*_odds 中
+      sell_status='1'(销售中) 的场次。SQL 基准 + get_lottery_schedule 均查到 3 条世界杯在售方案。
+      get_recommendations 心水维度对世界杯无数据是事实，但与"在售方案"需求无关，不构成 gap。
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: |
+  SQL 基准（真实行，非空）：
+    SELECT id,comp,home,away,match_time_str,sell_status FROM lottery_bd_odds
+    WHERE comp='世界杯' AND sell_status LIKE '1%'
+    → 3 条：巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥（2026-06-30, sell_status='1,1,1,1,1'）
+  工具对照（与 SQL 一致）：
+    get_lottery_schedule(play_type=404, date=2026-06-30) → code=OK, 3 条世界杯 on_sale entries
+    get_lottery_schedule(play_type=301, date=2026-06-30) → code=OK, 3 条世界杯 on_sale entries
+    lottery_id 26069064/66/67 与 SQL id 完全对齐。
+  旧 data_gap 判决纠正：旧判决仅查 data_macao_recommend（心水，无世界杯 0/8583），
+    未查 lottery 在售维度。"在售方案"正确映射是 lottery_bd_odds sell_status='1'，
+    数据库有 3 条世界杯在售方案，工具亦能返回。非 data_gap、非 implementation_gap。
+  残留轻量项（不阻塞，非 gap）：
+    1. get_lottery_schedule 无 competition/league 过滤参数，返回当天全部彩种场次，
+       需 agent 后端按 league_name='世界杯' 筛选 entries（本例 4 条中筛 3 条）。
+    2. get_recommendations（心水）对世界杯无数据，但"在售方案"不走该维度。
+    3. 工具 404 odds.sf 字段 JSON 解析不完整（呈现问题，不影响在售列表判定）。
+recommended_next_step: |
+  主路径已打通，无需修工具即可回答"世界杯在售方案"。
+  建议轻量增强（P3）：get_lottery_schedule 增加可选 competition/league_name 过滤参数，
+  避免 agent 端后筛选；并修复 _row_lottery_entry 对 bd/jczq 赔率 JSON 字段的解析。
+  注意：北单 entries 的 match_id 字段为 null（lottery_bd_odds 表本身无 match_id 字段），
+  与 E05 十四场（401）的合成 ID 假命中问题不同，本 case 不受该 bug 影响。
+
+---
+case_summary:
+  total_rounds: 6
+  final_status: satisfied
+  primary_gap_type: null
+  secondary_gaps: []
+  old_verdict: data_gap (❌ 无解)
+  new_verdict: satisfied (✅ 改判)
+  rework_reason: "旧判决把『在售方案』误映射为 data_macao_recommend 心水维度，未查 lottery sell_status 维度"
+  key_evidence:
+    - "lottery_bd_odds comp='世界杯' AND sell_status LIKE '1%' → 3 条在售方案（巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥, 2026-06-30）"
+    - "get_lottery_schedule(404, 2026-06-30) → OK count=4 含 3 条世界杯 on_sale；get_lottery_schedule(301, 2026-06-30) → OK count=4 含 3 条世界杯 on_sale"
+    - "SQL 基准与工具返回在 lottery_id/home/away/issue/issue_num 上完全对齐"
+    - "data_macao_recommend 心水表世界杯 0/8583 属实，但该表无 sell_status/无在售概念，非『在售方案』承载表"
+    - "jczq 竞彩足球世界杯当前无在售（82 停售+6 未开售），北单有 3 条在售——彩种销售窗口差异，非数据缺口"
+  sql_attempts_full_list:
+    - "SELECT table_name FROM information_schema.tables WHERE ... LIKE 'lottery%' OR 'cms%' OR 'data_macao%' OR 'recommend' OR 'plan' OR 'scheme' OR 'prediction' → 命中 15 表，无独立方案表"
+    - "schema recommend/lottery/方案/plan/scheme/prediction/news → 确认 sell_status 字段语义"
+    - "SELECT comp,COUNT(*) FROM lottery_bd_odds WHERE comp LIKE '%世界杯%' → 世界杯 76 + U20世界杯 14"
+    - "SELECT comp,COUNT(*) FROM lottery_jczq_odds WHERE comp LIKE '%世界杯%' → 世界杯 88 + 世界杯预选赛 147"
+    - "SELECT comp,COUNT(*) FROM lottery_zc_match WHERE comp LIKE '%世界杯%' → 世界杯 288"
+    - "SELECT sell_status,COUNT(*),MAX(match_time_str) FROM lottery_jczq_odds WHERE comp='世界杯' GROUP BY sell_status → 3,3,3,3,3(82) + 0,0,0,0,0(6)，无在售"
+    - "SELECT sell_status,COUNT(*),MAX(match_time_str) FROM lottery_bd_odds WHERE comp='世界杯' GROUP BY sell_status → 3,3,3,3,3(72) + 1,1,1,1,1(3 在售) + 3,4,4,4,4(1)"
+    - "SELECT id,comp,home,away,match_time_str,sell_status,spf FROM lottery_bd_odds WHERE comp='世界杯' AND sell_status LIKE '1%' → 3 条完整在售方案含赔率"
+    - "SELECT COUNT(*), SUM(世界杯关联) FROM data_macao_recommend → 8583 条心水，世界杯关联 0（旧判决依据复核）"
+  route_complete: true

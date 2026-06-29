@@ -1,11 +1,132 @@
 type_id: G04
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+type_name: 上半场进球概率
+case_id: TC-G04-001
+explored_at: '2026-06-29'
+probe_match: 巴西 vs 日本 (2026 世界杯, match_id=4459720, status_id=1 未开赛) — 复用 E05 已验证的真实 football_match.id
+
+attempts:
+
+# ===== turn1: 追问"上半场进球概率/时段概率" =====
+
+# --- 核心数据源 1: get_goals_lost_rate (7 时段进失球概率, 含上半场) ---
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  tool: get_goals_lost_rate
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 7
+  note: >-
+    返回 7 个时段的进/失球概率(host_jin 进球%/host_shi 失球%/guest_jin/guest_shi + name 时段标签):
+    1~15(type3)、16~30(type4)、31~45(type5)、46~60(type6)、61~75(type7)、76~90(type8)、90+(type9)。
+    上半场 = 1~15 + 16~30 + 31~45 三段求和即可得上半场进球/失球概率。
+    关键: 该表为赛前概率数据, 未开赛比赛(status_id=1)即有数据, 是"上半场进球概率"赛前预判的核心数据源, 路径通畅。
+
+# --- 核心数据源 2: get_match_half_stats (half scope, 上半场实际统计) ---
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  tool: get_match_half_stats
+  params:
+    match_id: 4293697
+    scope: p1
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    已完赛比赛(match_id=4293697) scope=p1 返回上半场实际统计: home_goals=1/away_goals=0、
+    射正、控球率(58/42)、进攻/危险进攻等。scope 取值 ft/p1/p2/o1/o2, p1=上半场、p2=下半场。
+    用于"上半场实际进球/射门/控球"维度的历史或赛后复盘。
+
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  tool: get_match_half_stats
+  params:
+    match_id: 4459720
+    scope: p1
+  code: DATA_MISSING
+  stub: false
+  count: 0
+  note: >-
+    未开赛比赛(4459720) scope=p1 返回 DATA_MISSING — 赛前无实际半场统计, 属合理数据缺失而非 bug。
+    赛前场景的"上半场进球概率"由 get_goals_lost_rate 兜底, 赛中/赛后场景才由 half_stats 提供实际值。
+
+# --- 辅助数据源 3: get_h2h (历史交锋, 含 half_time 上半场比分) ---
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  tool: get_h2h
+  params:
+    team_a: 10477
+    team_b: 14529
+    n: 5
+  code: OK
+  stub: false
+  count: 3
+  note: >-
+    巴西(10477) vs 日本(14529) 历史交锋 OK, 返回 score_breakdown.half_time 上半场比分
+    (2025-10-14 半场 0-2 / 2022-06-06 半场 0-0 / 2017-11-10 ...)。可直接统计交锋上半场进球分布,
+    作为"上半场进球概率"的交锋侧佐证。team_id 取自 football_match.home_team_id/away_team_id。
+
+# --- team_id 解析路径 (context 比赛定位) ---
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  tool: sql
+  params:
+    query: SELECT home_team_id, away_team_id FROM football_match WHERE id=4459720
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    context 型追问需先定位 turn0 比赛实体; 已验证路径: resolve_match(home=巴西, away=日本, date=2026-06-30)
+    取真实 match_id(E05 已验证), 再 SQL 取 home/away team_id 喂 h2h 与 half_stats。
+    注意 resolve_team("日本") 仅返回日本各级 U 系列/明星队候选, 未命中成年国家队, 故 h2h 的 team_id
+    应从 football_match 主客列直接取(14529=日本成年国家队), 不依赖 resolve_team。
+
+satisfied:
+- T1-a2
+
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
+  type: null
+  description: >-
+    无数据层阻塞。"上半场进球概率"三类核心数据源均实调通过: get_goals_lost_rate(赛前 7 时段概率, 含上半场,
+    未开赛即有) + get_match_half_stats(scope=p1, 上半场实际统计, 已完赛可用/未开赛 DATA_MISSING 合理) +
+    get_h2h(历史交锋含 half_time 上半场比分)。
   failed_atomic: null
-route_complete: false
+
+route_complete: true
+
+caveats:
+- id: T1-g0
+  category: maintain_context
+  note: >-
+    maintain_context(turn0 7.0 框架上下文传递到 turn1 追问)属 agent 编排层(checkpointer/上下文窗口),
+    不在 foretell MySQL 工具链探路范围; 依赖上层 agent 在多轮中保留 turn0 比赛实体与已答维度,
+    再据此为 turn1 取 goals_lost_rate/half_stats/h2h。
+- id: T1-a1
+  category: maintain_context
+  note: >-
+    T1-a1 同为 maintain_context, 编排层职责, 非数据路径; 数据齐备后由上层 agent 完成上下文衔接。
+- id: T1-a2
+  category: synthesize_answer
+  note: >-
+    "上半场进球概率"答案合成由 LLM 将 get_goals_lost_rate 上半场三段(1-15/16-30/31-45)进失球概率
+    汇总, 叠加 h2h 上半场比分分布与(赛中)half_stats p1 实际值综合给出; 数据层已通, 合成质量由 LLM 决定。
+- 跨运动碰撞: G04 type_name="上半场进球概率"为足球术语, sport=any 但实际仅足球有"上半场/7时段进失球概率"
+  语义; 篮球为节而非半场, football_match_goals_lost_rate/football_match_half_team_stats 均为足球表,
+  若 context 比赛为篮球则无对应数据(需走篮球节维度, 非本 type 覆盖)。本次足球探针未触发篮球 ID 碰撞。
+
+verdict_lean: pass_with_caveat
+key_findings:
+- 三类核心数据源实调通过且互补: get_goals_lost_rate(match_id=4459720 未开赛)返回 7 时段进失球概率
+  (上半场=1~15+16~30+31~45 三段, 赛前即有)是"上半场进球概率"赛前预判主源; get_match_half_stats(scope=p1)
+  提供上半场实际统计(已完赛可用, 未开赛 DATA_MISSING 合理); get_h2h 提供交锋上半场比分分布佐证。
+- 赛前/赛中/赛后场景数据可达性差异需在合成层处理: 赛前靠 goals_lost_rate 概率, 赛中/赛后叠加 half_stats
+  实际值。route_complete=true, 数据层无 blocking_gap。
+- maintain_context(T1-g0/T1-a1)与 synthesize_answer(T1-a2)中合成部分属 agent 编排/答案合成层, 不在数据
+  探路范围; 另 resolve_team("日本")未命中成年国家队, h2h 的 team_id 应直接取自 football_match 主客列(14529),
+  避免依赖 resolve_team 模糊匹配。

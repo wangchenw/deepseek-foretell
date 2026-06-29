@@ -1,17 +1,63 @@
 type_id: F02
 case_id: TC-F02-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: path_explorer_agent
 attempts:
 - round: 1
-  atomic_id: F02-probe-1
+  atomic_id: F02-T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 艾阿利
+    away: 席特拉
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 用户文案"艾阿利"为 Al-Ahli(Manama) 的口语译名,DB 无该别名,resolve_match 直接返回 ENTITY_NOT_FOUND
+- round: 2
+  atomic_id: F02-T1-a1
+  tool: sql
+  params:
+    query: SELECT id,name_zh,name_en,competition_id FROM football_team WHERE name_zh
+      LIKE '%艾阿利%' OR name_zh LIKE '%席特拉%' LIMIT 30
+  code: OK
+  count: 3
+  stub: false
+  note: 命中席特拉(id=22220, competition_id=641 巴林超);艾阿利未命中。再列 competition_id=641
+    球队,定位 Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263)
+- round: 3
+  atomic_id: F02-T1-a1
+  tool: resolve_match
+  params:
+    home: 麦纳麦国民
+    away: 席特拉
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 用 DB 规范名解析成功,count=10(ambiguous 多历史对阵),sport=football 无跨运动碰撞。候选含
+    4440177(2025-12-29 艾阿利主)与 4536558(2026-05-06 席特拉主)
+- round: 3
+  atomic_id: F02-T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4536558
+  code: OK
+  count: 50
+  stub: false
+  note: 赔率走势返回 50 个时点(初盘→即时),odd-month 分区路由 2026-05→football_odds_europe_change_202605
+    正常命中;覆盖平博/Bet365/皇冠/威廉希尔/10bet/18Bet/Interwetten/盈禾/onex/韦德 等多家公司主胜/和/客胜变动轨迹。odds_trend
+    维度数据完整可用
+satisfied:
+- F02-T1-a1
+- F02-T1-a2
+blocking_gap:
+  type: routing_gap
+  description: 用户口语队名"艾阿利"未在 football_team 别名表中,resolve_match 首轮返回 ENTITY_NOT_FOUND;但
+    DB 存在规范名"麦纳麦国民"(Al-Ahli(Manama), id=15263),经 SQL 直查/规范名 fallback 可解析,属路由别名问题而非数据缺失。get_odds_trend
+    核心能力在解析出的 match_id 上完全可用。
+  failed_atomic: F02-T1-a1
 route_complete: true
+verdict_lean: verified
+key_findings:
+- F02 核心能力 get_odds_trend 实测可用:match 4536558 返回 50 个时点,odd-month 月分区路由(2026-05→football_odds_europe_change_202605)正常,多家公司欧赔变动轨迹完整,无 stub。
+- 阻塞仅是队名别名 routing_gap:"艾阿利"=Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263),resolve_match 用规范名即 OK(count=10),无需 3 轮以上。
+- 无跨运动碰撞:巴林超(competition_id=641)为足球,team_id 15263/22220 未与 basketball_team 整数空间冲突;两队均 status_id=8 完赛,赔率走势为盘口历史复盘维度。

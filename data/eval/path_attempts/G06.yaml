@@ -1,11 +1,150 @@
 type_id: G06
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+type_name: 复述原文
+case_id: TC-G06-001
+entity_entry: context
+sport: any
+tags: [follow_up]
+explored_at: '2026-06-29'
+
+# G06 = 多轮追问"复述原文"。turn0 隐含首轮建立 session 上下文（方法论同 G01），
+# turn1 要求"原样再发一遍"，纯依赖前序上下文重放，验证 agent 层 session/context 能力。
+# atomic 分解仅给出 turn1（T1-g0/T1-a1 maintain_context + T1-a2 synthesize_answer），
+# 故 turn0 用隐含 resolve 建立上下文，turn1 标注 agent_layer_covered。
+
+attempts:
+# ===== turn0: 隐含首轮 — 建立 session 上下文（清水 vs 大阪钢巴）=====
+- turn: 0
+  round: 1
+  atomic_id: G06-T0-ctx (implicit, per G01 pattern)
+  tool: resolve_team
+  params: {name: 清水鼓动}
+  code: OK
+  count: 1
+  stub: false
+  note: 命中清水鼓动U23(team_id=40916)，一线队未直接命中（DB 一线队规范名为"清水心跳"id=10337）
+- turn: 0
+  round: 1
+  atomic_id: G06-T0-ctx
+  tool: resolve_team
+  params: {name: 大阪钢巴}
+  code: OK
+  count: 6
+  stub: false
+  note: 第一候选大阪钢巴一线队 team_id=10071
+- turn: 0
+  round: 1
+  atomic_id: G06-T0-ctx
+  tool: resolve_match
+  params: {home: 清水鼓动, away: 大阪钢巴}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 无 date + 用户用名"清水鼓动"未匹配一线队"清水心跳"
+- turn: 0
+  round: 2
+  atomic_id: G06-T0-ctx
+  fallback: sql_confirm_team
+  tool: sql
+  params: {query: "SELECT id,name_zh FROM football_team WHERE name_zh LIKE '%清水%' OR name_en LIKE '%Shimizu%'"}
+  code: OK
+  count: 10
+  stub: false
+  note: 确认清水一线队=清水心跳(id=10337, competition_id=567 日职联)
+- turn: 0
+  round: 2
+  atomic_id: G06-T0-ctx
+  fallback: sql_match_lookup
+  tool: sql
+  params: {query: "football_match WHERE home_team_id=10071 OR away_team_id=10071 ORDER BY match_time DESC"}
+  code: OK
+  count: 10
+  stub: false
+  note: 发现对阵 id=4555499 home=大阪钢巴(10071) away=清水心跳(10337) @2027-05-29 J1 第37轮
+- turn: 0
+  round: 2
+  atomic_id: G06-T0-ctx
+  fallback: resolve_match_canonical_user_order
+  tool: resolve_match
+  params: {home: 清水心跳, away: 大阪钢巴, date: '2027-05-29'}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 用户顺序（清水主）与 DB 相反，未命中
+- turn: 0
+  round: 3
+  atomic_id: G06-T0-ctx
+  fallback: resolve_match_swap
+  tool: resolve_match
+  params: {home: 大阪钢巴, away: 清水心跳, date: '2027-05-29'}
+  code: OK
+  count: 1
+  stub: false
+  match_id: 4555499
+  note: swap 后命中；league=日职联(567) round_num=37 home_position=5 away_position=7 status=not_started
+- turn: 0
+  round: 3
+  atomic_id: G06-T0-ctx
+  fallback: schedule_cross_verify
+  tool: get_team_schedule
+  params: {team_id: 10337, direction: all, limit: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 清水心跳赛程交叉验证对阵 4555499 存在
+
+# ===== turn1: 复述原文 — maintain_context + synthesize（agent 编排层）=====
+- turn: 1
+  round: 1
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  agent_layer_covered: true
+  note: 复述无新数据需求，纯依赖 checkpointer/session 重放 turn0 上下文；工具层无调用
+- turn: 1
+  round: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  agent_layer_covered: true
+  note: 维持同场（大阪钢巴 vs 清水心跳 match_id=4555499）上下文，不重新定位
+- turn: 1
+  round: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  agent_layer_covered: true
+  note: 原样复述上一轮输出，无新数据需求；synthesize 纯重放，不需工具
+
+satisfied:
+- G06-T0-ctx (resolve_match swap fallback + schedule 交叉验证)
+- T1-g0
+- T1-a1
+- T1-a2
+
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
-route_complete: false
+  type: routing_gap
+  description: |
+    两处 routing 风险已通过 fallback 解决，但依赖 LLM 识别：
+    1) 命名歧义——"清水鼓动"在 DB 仅匹配 U23(40916)，一线队规范名为"清水心跳"(10337)，
+       resolve_team 别名表未覆盖一线队中文名，LLM 需据上下文/J1 联赛甄别选清水心跳；
+    2) 主客顺序反转——用户表述"清水对大阪"为清水主，DB 实际为大阪主/清水客，
+       resolve_match 按 user order 返回 ENTITY_NOT_FOUND，swap home-away 后命中（同 X12 模式）。
+    turn1 maintain_context/复述属 agent 编排层（checkpointer/session），工具层无新调用需求，
+    该能力未在 foretell 工具层测试，需 Phase 2 agent 编排验证。
+  failed_atomic: G06-T0-ctx (round 1)
+
+route_complete: true
+verdict: conditional_pass
+# 工具层路径完整（fallback swap + 交叉验证可建立 turn0 上下文，turn1 无工具需求）；
+# 复述能力本身是 agent 编排层职责，工具层不阻塞，但需 Phase 2 验证 session/context 保持。
+key_findings:
+- 清水一线队 DB 规范名"清水心跳"(id=10337)，"清水鼓动"仅命中 U23，resolve_team 别名表存在命名歧义缺口
+- 大阪钢巴 vs 清水心跳 对阵真实存在（match_id=4555499，2027-05-29 J1 第37轮，大阪主/清水客，未开赛），主客顺序与用户表述相反，swap fallback 已解
+- turn1 复述原文为纯 agent 编排层能力（maintain_context + synthesize 重放），工具层无新调用需求，agent_layer_covered

@@ -1,23 +1,111 @@
 type_id: H05
+type_name: 保级形势
+scenario: H
+entity_entry: league
+sport: any
 case_id: TC-H05-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+note: |
+  atomic 文件文案实际是多场 3串1/2串1 综合推荐(与"保级形势"语义不符),
+  且 atomics 仅 T1-a1(resolve_entity: match)+ T1-a2(synthesize_answer)。
+  按用户 query 方法论,以 type_name="保级形势" 语义为准,
+  走 resolve_league + get_standings(榜尾分差+保级线+剩余轮次+赛程难度) 路径。
+  sport=any,选足球联赛西甲(120)/德甲(129)做保级分析样本。
 attempts:
-- round: 1
-  atomic_id: H05-probe-1
-  tool: resolve_league
-  params:
-    name: 英超
-  code: OK
-  stub: false
-- round: 2
-  atomic_id: H05-probe-2
-  tool: get_standings
-  params:
-    league_id: 82
-  code: OK
-  count: 30
-  stub: false
-satisfied: []
-blocking_gap: null
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_league
+    params: {name: 西甲}
+    code: OK
+    count: 7
+    stub: false
+    note: 候选含西甲(120)/巴西甲(435)/墨西甲(466)等,首候选 league_id=120 即西班牙甲级联赛
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_league
+    params: {name: 德甲}
+    code: OK
+    count: 1
+    stub: false
+    note: 唯一候选 league_id=129(Bundesliga),跨联赛验证保级路径通用性
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_standings
+    params: {league_id: 120}
+    code: OK
+    count: 20
+    stub: false
+    note: |
+      返回完整 20 队积分榜(含 position/points/won/draw/loss/goals/goals_against/goal_diff + 主客分列)。
+      关键:全队 played=38(西甲满轮 38),赛季已结束。
+      榜尾:18 马略卡(42,-10)、19 赫罗纳(41,-16)、20 皇家奥维耶多(29,-34)→降级区。
+      保级安全线=17 奥萨苏纳(42,-6),与 18 马略卡同分按净胜球/其它序排,分差 0;
+      16 莱万特(42)与 17/18 同分团,榜尾分差极小但赛季已定局。
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_standings
+    params: {league_id: 129}
+    code: OK
+    count: 18
+    stub: false
+    note: |
+      德甲完整 18 队榜,全队 played=34(满轮),赛季已结束。
+      榜尾:16 沃尔夫斯堡(29,-24,附加赛位)、17 海登海姆(26,-31)、18 圣保利(26,-31)→降级区。
+      安全线=15 云达不莱梅(32),分差 3;附加赛线=16(29)与 17(26)差 3。
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_seasons
+    params: {competition_id: 120}
+    code: OK
+    count: 10
+    stub: false
+    note: 当前赛季 2025-2026(season_id=13355, is_current=1),has_table=1;与满轮 38 一致,确认刚结束。
+  - round: 1
+    atomic_id: T1-a2
+    tool: sql
+    params:
+      query: SELECT competition_id, COUNT(*) upcoming FROM football_match WHERE competition_id
+        IN (120,129) AND status_id IN (1,2,3,4,5,9) AND match_time >= UNIX_TIMESTAMP() GROUP
+        BY competition_id
+    code: OK
+    count: 0
+    stub: false
+    note: |
+      两联赛均无未开赛/进行中比赛,确认 2026-06-29 时点赛季已收官、2026-27 未开赛。
+      → "剩余轮次=0"、"赛程难度=N/A",无法构成进行中的保级悬念。
+fallback_triggered: false
+fallback_note: |
+  方法论预设 fallback "get_standings group 过滤失效→SQL 直查 football_points_table_team"
+  未触发:西甲/德甲均为单组联赛,get_standings 返回完整榜(position/points/主客分列齐全),
+  无需 SQL 兜底。工具层 get_standings 已 Phase 2 修复(MAX season_id 过滤 + 结构化返回),正常工作。
+satisfied:
+  - T1-a1
+  - T1-a2
+satisfied_note: |
+  T1-a1(resolve_entity):resolve_league 西甲/德甲均 OK,league_id 候选明确 → satisfied。
+  T1-a2(synthesize_answer):保级形势合成——"榜尾分差+保级线(降级区)+降级名单"数据完整可得 → 部分满足;
+  但"剩余轮次+赛程难度"因当前赛季刚结束(满轮、无 upcoming)而退化为 0/N/A,
+  合成结果为"最终降级定局"而非"进行中保级形势"。仍计入 satisfied(合成语义可基于现有数据交付)。
+blocking_gap:
+  type: context_gap
+  description: |
+    时点导致"保级形势"语义退化为"降级定局"。当前 2026-06-29 处于 2025-26 赛季刚结束、
+    2026-27 未开赛的间歇期,所有联赛满轮、无 upcoming 比赛,无法提供"剩余轮次/赛程难度"
+    这两项进行中形势维度。非路径/数据/实现 gap:数据路径完整(resolve_league+get_standings+get_seasons 全 OK),
+    数据库有完整积分榜;换赛季中时点(如 4 月)同一路径可完整回答保级形势。
+  failed_atomic: T1-a2
 route_complete: true
+route_complete_note: |
+  工具路径完整无阻塞:resolve_league → get_standings → (get_seasons/SQL 验证时点) 全部 OK,
+  无 routing/data/implementation gap。唯一限制是时点(context),不构成路径阻塞。
+verdict: partial_pass
+verdict_reason: |
+  数据路径完整且能交付"降级区+榜尾分差+最终降级名单",correctness/completeness 对"已定局"语境充分;
+  但当前时点赛季已结束,"保级形势"所需的剩余轮次与赛程难度维度为 0/N/A,
+  scenario_compliance(进行中形势)打折。若用户实际意图是"赛季中保级悬念",
+  当前时点数据无法满足;若是"回顾本赛季降级结果",则路径完备。
+  综合倾向 partial_pass,需结合用户真实时点意图判定。
+key_findings:
+  - get_standings(Phase 2 修复后)对单组联赛返回完整结构化积分榜(含主客分列+净胜球),保级路径工具层无 stub、无 group 过滤问题,无需 SQL 兜底。
+  - 时点陷阱:2026-06-29 处于赛季间歇期,西甲/德甲当前赛季满轮(38/34)且无 upcoming 比赛,"保级形势"退化为"降级定局",剩余轮次与赛程难度维度不可得——属 context_gap 而非数据缺失。
+  - atomic 分解与 type_name 语义不匹配:文件文案实为多场 3串1 推荐,atomics 为 resolve_entity:match+synthesize;按方法论以"保级形势"语义走 league 路径而非 match 路径,建议后续修正 H05 atomic 文案与 atomics 目标(entity 应为 league)。

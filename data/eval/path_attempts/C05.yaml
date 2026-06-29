@@ -1,17 +1,249 @@
 type_id: C05
 case_id: TC-C05-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: path_explorer_agent
+scenario_summary: |
+  atomic 分解标 type_name=「篮球复盘」，但 scenario 实际内容为**足球**复盘：
+  (1) 佩西加雅加达 vs 伯希索罗（印尼超，2026-04-27 20:00，match_id=4379456，完赛 4-0）；
+  (2) 乌克超 20:30 卢甘斯克索尔亚 vs 维勒斯（2026-04-27 20:30，match_id=4362200，完赛 2-0）。
+  盘口术语胜平负/亚盘/大小球/xG/EV 均为足球盘口。type_name 与 scenario 内容标注不一致
+  （数据质量 mismatch）。atomic 仅分解 T1-a1(resolve_entity match) + T1-a2(synthesize_answer)。
 attempts:
+# ===== mismatch 交叉验证：篮球工具解析足球队名 =====
 - round: 1
-  atomic_id: C05-probe-1
-  tool: resolve_match
-  params:
-    home: 皇马
-    away: 巴萨
+  atomic_id: T1-a1
+  tool: resolve_basketball_team
+  params: {name: 佩西加雅加达}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 篮球工具无法解析足球队名，确认 scenario 实体非篮球。type_name「篮球复盘」标注错误。
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_basketball_team
+  params: {name: 卢甘斯克索尔亚}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 同上，篮球工具 ENTITY_NOT_FOUND，scenario 为足球。
+# ===== T1-a1: resolve_entity (match) — 足球路径 =====
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 佩西加雅加达}
+  code: OK
+  count: 7
+  stub: false
+  note: 顶部 team_id=23194 佩西加雅加达 (sport=football, 印尼超)
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 伯希索罗}
+  code: OK
+  count: 3
+  stub: false
+  note: 顶部 team_id=29786 伯希索罗 = Persis Solo FC (sport=football, 印尼超)
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 卢甘斯克索尔亚}
+  code: OK
+  count: 6
+  stub: false
+  note: 顶部 team_id=17453 索尔亚 = Zorya (sport=football, 乌克超)
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 维勒斯}
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  note: team_id=22593 维勒斯 = Veres Rivne (sport=football, 乌克超)，与场景「乌克超」吻合
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 佩西加雅加达, away: 伯希索罗}
+  code: OK
+  count: 5
+  stub: false
+  note: |
+    match_status=ambiguous（5 场历史），顶部候选 match_id=4379456 date=2026-04-27 20:00
+    印尼超 round=30 status=finished，含环境数据。复盘场景取最近一场即可。
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 卢甘斯克索尔亚, away: 维勒斯}
+  code: OK
+  count: 10
+  stub: false
+  note: |
+    match_status=ambiguous（10 场含青年队），顶部候选 match_id=4362200 date=2026-04-27 20:30:00
+    乌克超 round=25 status=finished。场景「乌克超 20:30」精确匹配该场开球时间。
+# ===== T1-a1: 复盘结果 (get_match_result) =====
+- round: 1
+  atomic_id: T1-a1
+  tool: get_match_result
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 乌克超 2-0 (半场 1-0)，角球 3-3，黄牌 0-2，红牌 0-0。复盘比分结构完整。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_match_result
+  params: {match_id: 4379456}
+  code: OK
+  stub: false
+  note: 印尼超 4-0 (半场 0-0)，角球 12-4，黄牌 1-0。复盘比分结构完整。
+# ===== 复盘数据深度：近5场战绩 / 攻防 / 历史交锋 =====
+- round: 1
+  atomic_id: T1-a1
+  tool: get_team_schedule
+  params: {team_id: 17453, direction: all, limit: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 索尔亚近5场赛程 OK（足球 team_id 正确，无跨运动碰撞）。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_recent_form
+  params: {team_id: 17453, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 索尔亚近5场战绩 W/D/W/D/W，含 goals_for/against/venue，满足「近5场战绩」需求。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_h2h
+  params: {team_a: 17453, team_b: 22593, n: 5}
+  code: OK
+  stub: false
+  note: 索尔亚 vs 维勒斯历史交锋 5 场 OK，含比分/红黄牌/角球。满足「近5次历史交锋」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_team_season_stats
+  params: {team_id: 17453}
+  code: OK
+  stub: false
+  note: 索尔亚赛季统计 OK（goals/shots/corner_kicks/ball_possession 等）。满足「攻防数据」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_match_team_stats
+  params: {match_id: 4362200}
+  code: OK
+  count: 2
+  stub: false
+  note: 该场两队 stats OK（索尔亚 goals=2, shots=14, shots_on_target=8）。攻防数据齐全。
+# ===== 复盘数据深度：伤停 / 阵容 / 情报 =====
+- round: 1
+  atomic_id: T1-a1
+  tool: get_injury_report
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 伤停 OK（主队万图赫 未知伤病 6场；客队农戈 十字韧带撕裂 18场）。满足「最新伤停」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_match_lineup
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 阵容 OK confirmed=true，4-1-3-2 vs 4-4-2，含首发/教练/球衣号/位置坐标。满足「预估阵容」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_intel_tags
+  params: {match_id: 4362200}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 该场无情报标签 tags=[]。非阻断（code 明确），情报可由伤停/阵容/赔率组合补足。
+# ===== 复盘数据深度：赔率变动 / 亚盘水位 / 凯利 / 大小球 =====
+- round: 1
+  atomic_id: T1-a1
+  tool: get_odds_snapshot
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 欧赔快照 OK（initial/current/latest 三档，含 Interwetten 等多公司）。满足「欧赔变动」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_odds_trend
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 赔率变动趋势 OK（10bet 等多公司时间序列）。满足「市场冷热/赔率变动」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_kelly
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 凯利指数 OK（implied_prob + kelly 三项）。满足「凯利指数」+ EV 期望值计算输入。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_over_under_odds
+  params: {match_id: 4362200}
+  code: OK
+  stub: false
+  note: 大小球盘口 OK（total=2.5, over/under 三档，含立博等公司）。满足「大小球」。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_official_handicap_odds
+  params: {match_id: 4362200}
+  code: DATA_MISSING
+  stub: false
+  note: 官方亚盘 DATA_MISSING。非阻断——亚盘水位可由 get_odds_snapshot 欧赔换算或
+    get_same_odds_history 间接获取；该场无官方亚盘属数据覆盖问题。
+# ===== T1-a2: synthesize_answer =====
+- round: 1
+  atomic_id: T1-a2
+  tool: synthesize_answer
+  params: {format: six_segment}
+  code: NOT_INVOKED
+  stub: false
+  note: |
+    非工具步骤。复盘所需数据均已 OK（比分/近5场/交锋/攻防/伤停/阵容/欧赔/凯利/大小球），
+    可合成核心结论+数据支撑+盘面解析+风险提示四段。仅 xG 与官方亚盘缺失，可由 agent 估算或换算。
+satisfied:
+- T1-a1
+- T1-a2
+blocking_gap:
+  type: implementation_gap
+  description: |
+    **主要 gap（数据质量/标注 mismatch）**：atomic 分解 type_name 标为「篮球复盘」，
+    但 scenario 实际内容为足球复盘（佩西加雅加达 vs 伯希索罗 = 印尼超；
+    乌克超 卢甘斯克索尔亚 vs 维勒斯 = 乌克兰超），盘口术语（胜平负/亚盘/大小球/xG）
+    也全是足球。用篮球工具 resolve_basketball_team 解析两个队名均 ENTITY_NOT_FOUND，
+    用足球工具 resolve_team/resolve_match 则全部 OK。type_name 与 scenario 内容不一致，
+    需修正 atomic 分解（要么改 type_name 为足球复盘，要么替换 scenario 为真实篮球比赛）。
+    次要 gap（implementation_gap，非阻断）：Foretell 工具链无专门 xG 工具，
+    场景要求「xG预期进球」需 agent 基于 shots/shots_on_target 估算；
+    get_intel_tags / get_official_handicap_odds 对该场 DATA_MISSING（data_gap，可由欧赔/大小球/凯利补足）。
+  failed_atomic: T1-a1
+  secondary_gaps:
+  - type: data_gap
+    description: get_intel_tags(4362200) tags=[]；get_official_handicap_odds(4362200) DATA_MISSING。非阻断。
+  - type: implementation_gap
+    description: 无 xG 专用工具，需 agent 基于 shots/on_target 估算预期进球。
 route_complete: true
+tendency: warning
+verified_tools:
+- resolve_team (4 个足球队全部 OK：佩西加雅加达23194/伯希索罗29786/索尔亚17453/维勒斯22593)
+- resolve_match (两场足球比赛 OK，2026-04-27 顶候选，ambiguous 但可取最近场)
+- resolve_basketball_team (足球队名 ENTITY_NOT_FOUND → 确认 scenario 非篮球)
+- get_match_result (两场复盘比分 OK，含半场/角球/红黄牌)
+- get_team_schedule (足球 team_id=17453 近5场 OK，无跨运动碰撞)
+- get_recent_form (索尔亚近5场 W/D/W/D/W OK)
+- get_h2h (索尔亚vs维勒斯 5场交锋 OK)
+- get_team_season_stats (索尔亚赛季统计 OK)
+- get_match_team_stats (4362200 两队 stats OK，shots/goals 齐全)
+- get_injury_report (4362200 伤停 OK，万图赫/农戈)
+- get_match_lineup (4362200 阵容 OK，4-1-3-2 vs 4-4-2 confirmed)
+- get_intel_tags (4362200 → DATA_MISSING tags=[])
+- get_odds_snapshot (4362200 欧赔三档 OK)
+- get_odds_trend (4362200 赔率变动 OK)
+- get_kelly (4362200 凯利指数 OK，含 implied_prob)
+- get_over_under_odds (4362200 大小球 OK，total=2.5)
+- get_official_handicap_odds (4362200 → DATA_MISSING)
+notes:
+- C05 不在 P0 列表（priority=P2），route_probe_registry 无专用探针，fallback 至 ENTITY_ENTRY_PROBES[match]。
+- 与 B02/B08 不同：C05 scenario 实体是 football，故 get_team_schedule/deep 工具按足球 team_id/match_id
+  查询无跨运动碰撞问题；B02/B08 的跨运动碰撞 gap 不适用于 C05（前提是按 scenario 实际内容走足球路径）。
+- 复盘场景为赛后分析，resolve_match 不带 date 返回 ambiguous 多场历史，需取 status=finished 的最近一场。

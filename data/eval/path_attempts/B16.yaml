@@ -1,17 +1,283 @@
 type_id: B16
 case_id: TC-B16-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: path_explorer_phase1
+scenario_summary: 明天四场世界杯按每个国家战意/攻击/防守/节奏/伤病/天气/首发/战术打法对比（实力对比，无明确购彩）
+entity_entry: match_pair
+priority: P2
+match:
+  match_id: 4460914
+  home_team_id: 11746
+  away_team_id: 33203
+  home_name: 德国
+  away_name: 库拉索
+  date: '2026-06-15'
+  league_id: 1
+  league_name: 世界杯
+  status: finished
+  neutral: true
+  home_position: '10'
+  away_position: '82'
+  environment: {temperature: 31°C, humidity: 75%, wind: 5.1m/s, pressure: 762mmHg}
+
 attempts:
+# ===== T1-a1: resolve_entity(match) =====
 - round: 1
-  atomic_id: B16-probe-1
-  tool: resolve_match
-  params:
-    home: 利物浦
-    away: 热刺
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 德国}
   code: OK
   count: 10
   stub: false
-satisfied: []
+  note: 命中 team_id=11746（Germany, national=1），其余候选为 U16/U17/U18/特选队等
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_team
+  params: {name: 库拉索}
+  code: OK
+  count: 7
+  stub: false
+  note: 命中 team_id=33203（Curacao, national=1）
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 德国, away: 库拉索, date: '2026-06-15'}
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4460914，世界杯 league_id=1，neutral=true，附带 home_position=10/away_position=82（FIFA 排名）+ environment 天气字段
+
+# ===== T1-b1 delegate fundamentals: 实力对比核心多维数据 =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_standings
+  params: {league_id: 1}
+  code: OK
+  count: 30
+  stub: false
+  note: 世界杯积分榜 30 行，含 position/points/won/draw/loss/goals/goal_diff（西班牙领跑 7 分）
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_fifa_ranking
+  params: {gender: 1, limit: 50}
+  code: OK
+  count: 50
+  stub: false
+  note: FIFA 男足排名 50 行（含 ranking/team_id/points/previous_points/position_changed）；工具无 team_id 过滤参数，需客户端按 team_id 匹配；resolve_match 已直接返回 home_position=10/away_position=82
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_club_ranking
+  params: {limit: 10}
+  code: OK
+  count: 10
+  stub: false
+  note: 俱乐部排名 OK 但对国家队场景 NOT_APPLICABLE（世界杯为国家队赛事，此工具在 B16 不适用，仅作兼容性验证）
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_team_season_stats
+  params: {team_id: 11746}
+  code: OK
+  count: 1
+  stub: false
+  note: 德国赛季统计（competition=国际友谊 season_id=13814，4 场，goals=12/shots=74/shots_on_target=31/ball_possession=59/tackles=79/passes_accuracy=2148/crosses=70/duels_won=168 等），覆盖攻击/防守/节奏维度
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_team_season_stats
+  params: {team_id: 33203}
+  code: OK
+  count: 1
+  stub: false
+  note: 库拉索赛季统计（competition=FIFA系列赛 season_id=13923，2 场，goals=1/shots=9/shots_on_target=4/passes=1078/ball_possession 待补），数据量小但工具可用
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_recent_form
+  params: {team_id: 11746, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 德国近 5 场含 venue（26日客负、21日主胜、15日7-1大胜库拉索等）
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_recent_form
+  params: {team_id: 33203, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 库拉索近 5 场含 venue
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_h2h
+  params: {team_a: 11746, team_b: 33203, n: 5}
+  code: OK
+  count: 1
+  stub: false
+  note: H2H 仅 1 条（即本场 7-1，半场 3-1，角球 8-1）；参数名为 team_a/team_b
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_team_honors
+  params: {team_id: 11746}
+  code: OK
+  stub: false
+  note: 德国国家队荣誉历史（世界杯冠军等），可佐证底蕴维度
+
+# ===== T1-b1 delegate intel: 战意/伤病/首发/战术 =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_intel_tags
+  params: {match_id: 4460914}
+  code: OK
+  count: 5
+  stub: false
+  note: 5 类情报（主正/主负/客正/客负/中立），含"德国近5场正赛连续进球场均3.6球""德国10场正赛场均失球<1且5场零封""德国身价≥库拉索10倍"等实力对比要点
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_match_lineup
+  params: {match_id: 4460914}
+  code: OK
+  stub: false
+  note: confirmed=true，主队 4-2-3-1（home_coach_id=2752），客队 4-2-3-1（away_coach_id=1208），含 11 首发坐标；满足"首发战术打法"维度
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_coach
+  params: {coach_id: 2752}
+  code: OK
+  stub: false
+  note: 纳格尔斯曼（Julian Nagelsmann，38岁，preferred_formation=4-2-3-1，国籍德国，team_id=11746）；coach_id 来自 get_match_lineup，满足"战术打法思路"维度
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_injury_report
+  params: {match_id: 4460914}
+  code: OK
+  count: 2
+  stub: false
+  note: 德国 2 伤停（布朗内收肌损伤、施洛特贝克韧带拉伤），库拉索无；满足"伤病"维度
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_match_team_stats
+  params: {match_id: 4460914}
+  code: OK
+  count: 2
+  stub: false
+  note: 全场队伍统计（德国 26射门12射正6助/库拉索 8射门2射正，控球/角球/传球/抢断/解围等），覆盖攻击/防守/控场
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_match_half_stats
+  params: {match_id: 4460914, scope: p1}
+  code: OK
+  stub: false
+  note: 上半场统计（home_goals=3/away_goals=1，控球70/30，射门16/4），可佐证"慢快节奏"维度
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_goals_lost_rate
+  params: {match_id: 4460914}
+  code: OK
+  stub: false
+  note: 进失球时段分布（1-15/16-30/... 段 host_jin/host_shi/guest_jin/guest_shi），可佐证"偷球定位球/节奏"维度
+
+# ===== T1-b1 delegate odds: 实力对比场景作盘口交叉参考 =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_odds_snapshot
+  params: {match_id: 4460914}
+  code: OK
+  stub: false
+  note: 欧赔 5 家（Interwetten home_win 1.02→1.05 等）+ 亚盘，可佐证机构实力评估（B16 无购彩但 atomic 仍 delegate odds 做交叉验证）
+
+# ===== T1-a2 / T1-b2 synthesize_answer (LLM 综合，无工具) =====
+- round: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  tool: none
+  params: {}
+  code: SKIPPED
+  stub: false
+  note: synthesize_answer 为 LLM 综合任务，无工具调用；前置数据已齐
+- round: 1
+  atomic_id: T1-b2
+  category: synthesize_answer
+  target: {format: six_segment}
+  tool: none
+  params: {}
+  code: SKIPPED
+  stub: false
+  note: 六段式（战意/攻击/防守/节奏/伤病天气/首发战术）合成由 LLM 基于 fundamentals+odds+intel 多维数据产出
+
+satisfied: [T1-a1, T1-a2, T1-b1, T1-b2]
 blocking_gap: null
+minor_gaps:
+- type: implementation_gap
+  description: get_fifa_ranking 仅接受 gender+limit，无 team_id 过滤参数；需客户端按 team_id 在返回列表中自行匹配（resolve_match 已直接回填 home_position/away_position=FIFA 排名，可绕过）
+- type: implementation_gap
+  description: get_player_market_value 要求 player_id，无 team 级身价聚合；"身价对比"维度由 intel_tags 文本含"德国身价≥库拉索10倍"间接覆盖
+- type: routing_gap
+  description: get_referee/get_coach 均需 referee_id/coach_id；resolve_match 不返回 referee_id（裁判风格维度无法直接定位），但 get_coach 可经 get_match_lineup.home_coach_id/away_coach_id 间接调用（已验证）
+- type: data_gap
+  description: get_club_ranking 对国家队赛事 NOT_APPLICABLE；国家队实力对比应使用 get_fifa_ranking 而非 get_club_ranking
 route_complete: true
+verdict: pass
+verdict_emoji: ✅
+summary: |
+  B16「实力对比」路径完整。以 2026-06-15 世界杯 德国 VS 库拉索（match_id=4460914，national teams）为样本，
+  resolve_team + resolve_match 命中实体并附带 FIFA 排名（home=10/away=82）+ 天气环境。
+  fundamentals 链：get_standings(世界杯积分榜30行)、get_fifa_ranking(50行)、get_team_season_stats(两队赛季多维统计)、
+    get_recent_form(两队近5场)、get_h2h(交锋)、get_team_honors(底蕴) — 全部 OK。
+  intel 链：get_intel_tags(5类情报含身价对比/战意/近况)、get_match_lineup(4-2-3-1双阵+coach_id)、
+    get_coach(纳格尔斯曼战术偏好)、get_injury_report(德国2伤停)、get_match_team_stats(全场对比)、
+    get_match_half_stats(上半场控球70/30)、get_goals_lost_rate(时段进失球分布) — 全部 OK。
+  odds 链：get_odds_snapshot OK（B16 无购彩，作机构实力评估交叉参考）。
+  覆盖用户文案中"战意/攻击能力/防守能力/慢快节奏/伤病/天气/首发/战术打法思路/进攻强还是防守固还是定位球"全部维度。
+  synthesize_answer/six_segment 为 LLM 综合环节，前置数据齐备，无 blocking_gap。
+notes:
+- 国家队场景应优先 get_fifa_ranking 而非 get_standings（世界杯积分榜仅本届决赛圈，FIFA 排名反映长期实力）
+- get_club_ranking 对国家队 NOT_APPLICABLE，调用方需按 national 字段分流
+- get_coach 不可直查 team_id，须先经 get_match_lineup 取 coach_id 再调用（已验证两步链路）
+- intel_tags 已内含"身价≥10倍"等文本化实力对比结论，可作为 LLM 综合的事实依据
+phase2_verification:
+  strength_comparison_tools:
+  - get_standings: OK (30 rows, 世界杯积分榜)
+  - get_fifa_ranking: OK (50 rows, 男足排名)
+  - get_club_ranking: OK 但 NOT_APPLICABLE for national teams
+  - get_team_season_stats: OK (两队赛季多维统计，覆盖攻击/防守/控球/抢断/传中/对抗)
+  - get_h2h: OK (1 交锋)
+  - get_recent_form: OK (两队近5场)
+  - get_team_honors: OK (荣誉底蕴)
+  - get_intel_tags: OK (5 类情报含身价/战意/近况文本)
+  - get_match_team_stats: OK (全场对比)
+  - get_match_half_stats: OK (半场节奏)
+  - get_goals_lost_rate: OK (时段进失球)
+  - get_match_lineup: OK (阵型+coach_id)
+  - get_coach: OK (经 lineup coach_id 间接调用)
+  - get_injury_report: OK (2 伤停)
+  - get_odds_snapshot: OK (机构盘口实力评估)
+  dimension_coverage:
+    战意: get_intel_tags ✅
+    攻击能力: get_team_season_stats(goals/shots/shots_on_target) + get_match_team_stats ✅
+    防守能力: get_team_season_stats(goals_against/interceptions/tackles/clearances) + get_match_team_stats ✅
+    慢快节奏: get_match_half_stats(scope=p1/p2) + get_goals_lost_rate(时段分布) ✅
+    伤病: get_injury_report ✅
+    天气: resolve_match.environment ✅
+    首发: get_match_lineup ✅
+    战术打法: get_match_lineup(formation) + get_coach(preferred_formation) ✅
+    身价: intel_tags 文本覆盖（无 team 级身价工具，minor gap）
+    定位球: get_match_team_stats(corner_kicks) + get_team_season_stats(corner_kicks) ✅
+known_gap_status:
+  previous: 未探查
+  current: route_complete (4/4 atomic satisfied，无 blocking_gap)
+  resolution: Phase 2 工具链完整覆盖 B16 实力对比全维度

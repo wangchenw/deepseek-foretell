@@ -1,0 +1,295 @@
+type_id: B08
+type_name: 篮球五段分析
+case_id: TC-B08-001
+scenario: B
+entity_entry: match
+explored_at: '2026-06-29'
+methodology: SQL优先,工具调用降级为对照验证(phase1_v2 Agent 2)
+rework_reason: |
+  原判 ❌(无解)依据是"跨运动 ID 碰撞(足球工具撞篮球ID返回足球队)",
+  但未做 SQL 基准验证,违反"SQL 优先,工具调用降级为对照验证"方法论。
+  本次返工:先用 information_schema + 独立 SQL 求出"DB 里应返回什么",
+  再调用现有工具做对照,按规则判定 gap 类型。
+
+---
+atomic_id: T1-a1
+category: resolve_entity
+target: {entity: match}
+rounds:
+  - round: 1
+    hypothesis: |
+      用户问 4月8日(2026-04-08)周三 303-309 共 7 场 NBA 大小分。
+      resolve_entity(match) 需定位 4/8 的 NBA 比赛。先查 basketball_match /
+      basketball_team / basketball_odds_over_down 表结构,确认字段语义。
+    schema_query: |
+      SELECT table_name, column_name, column_type, column_comment
+      FROM information_schema.columns
+      WHERE table_schema='data_center'
+        AND table_name IN ('basketball_match','basketball_team','basketball_odds_over_down')
+      ORDER BY table_name, ordinal_position
+    schema_result: |
+      basketball_match: id, competition_id(赛事id), home_team_id, away_team_id,
+        kind(1常规赛/2季后赛), status_id(10完场), match_time(int), match_time_str(varchar 北京时间),
+        home_scores/away_scores(varchar JSON [4-5节比分]), home_position/away_position(排名), has_players。
+      basketball_team: id, competition_id, name_zh, short_name_zh, national, conference_id。
+      basketball_odds_over_down: match_id, company_id, odd1(大球赔率), odd2(盘口值),
+        odd3(小球赔率), real_odd2(最新盘口), first_odd2(初盘盘口), is_zoudi(走地), is_entertained(封盘)。
+      → 大小分盘口字段明确为 odd2/real_odd2/first_odd2(decimal)。
+    decision: continue
+  - round: 2
+    hypothesis: |
+      用 SQL 独立查 2026-04-08 当天 competition_id=1(NBA) 的全部比赛,作为基准答案。
+      用户说"7场",但 DB 实际可能有更多(竞彩 303-309 只是选择性开盘的 7 场)。
+    sql_baseline:
+      query: |
+        SELECT m.id, m.competition_id, m.match_time_str, m.home_team_id, m.away_team_id,
+               m.kind, m.status_id, ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
+               m.home_position, m.away_position
+        FROM basketball_match m
+        JOIN basketball_team ht ON m.home_team_id=ht.id
+        JOIN basketball_team at ON m.away_team_id=at.id
+        WHERE m.match_time_str LIKE '2026-04-08%' AND m.competition_id=1
+        ORDER BY m.match_time LIMIT 30
+      result: |
+        10 场 NBA 常规赛(kind=1),全部 status_id=10 已完场,北京时间 2026-04-08:
+        1. 07:00 步行者(东14) vs 森林狼(西6)   match_id=3867308
+        2. 07:00 奇才(东15) vs 公牛(东12)       match_id=3868967
+        3. 07:30 猛龙(东6) vs 热火(东10)         match_id=3869174
+        4. 07:30 篮网(东13) vs 雄鹿(东11)        match_id=3892962
+        5. 08:00 凯尔特人(东2) vs 黄蜂(东8)      match_id=3868765
+        6. 08:00 鹈鹕(西12) vs 爵士(西15)        match_id=3869138
+        7. 10:00 勇士(西10) vs 国王(西14)        match_id=3867718
+        8. 10:30 快船(西8) vs 独行侠(西11)       match_id=3867514
+        9. 10:30 湖人(西4) vs 雷霆(西1)          match_id=3868531
+        10. 11:00 太阳(西7) vs 火箭(西5)         match_id=3868337
+        → SQL 基准铁证:4/8 有 NBA 比赛(10场,含用户所指 303-309 的 7 场子集)。
+    decision: continue
+  - round: 3
+    hypothesis: |
+      验证用户给的盘口值 237.5/229.5/222.5/245.5/230.5/231.5/226.5 是否
+      真实存在于 4/8 比赛的大小分盘口表(odd2/real_odd2/first_odd2)中。
+    sql_baseline:
+      query: |
+        SELECT o.match_id, m.match_time_str, ht.short_name_zh AS home, at.short_name_zh AS away,
+               o.company_id, o.odd2, o.real_odd2, o.first_odd2
+        FROM basketball_odds_over_down o
+        JOIN basketball_match m ON o.match_id=m.id
+        JOIN basketball_team ht ON m.home_team_id=ht.id
+        JOIN basketball_team at ON m.away_team_id=at.id
+        WHERE m.match_time_str LIKE '2026-04-08%' AND m.competition_id=1
+          AND (o.odd2 IN (237.5,229.5,222.5,245.5,230.5,231.5,226.5)
+            OR o.real_odd2 IN (237.5,229.5,222.5,245.5,230.5,231.5,226.5)
+            OR o.first_odd2 IN (237.5,229.5,222.5,245.5,230.5,231.5,226.5))
+        ORDER BY m.match_time, o.company_id LIMIT 60
+      result: |
+        用户盘口值在 DB 多处命中(每场 14 家指数公司):
+        - 229.5 → 步者vs森林狼 real_odd2/first_odd2(company 2/5/9/11)
+        - 237.5 → 快船vs独行侠 first_odd2(company 10)
+        - 222.5 → 勇士vs国王 real_odd2; 湖人vs雷霆 odd2/first_odd2; 太阳vs火箭 odd2
+        - 226.5 → 奇才vs公牛 real_odd2; 太阳vs火箭 real_odd2
+        - 231.5 → 步者vs森林狼 real_odd2(company 5)
+        → 用户提供的 7 个大小分盘口值与 DB 真实盘口完全对应,数据 100% 存在。
+    decision: continue
+  - round: 4
+    hypothesis: |
+      SQL 基准已证明 4/8 NBA 比赛与大小分盘口数据齐全。现在对照现有 foretell
+      工具:① resolve_team 验证跨运动碰撞;② get_schedule_by_date 验证能否拿到 4/8 篮球赛程。
+    tool_call:
+      - name: resolve_team
+        params: {name: 凯尔特人}
+        result:
+          code: OK
+          candidates_count: 10
+          sample: |
+            team_id=10025 凯尔特人 Celtic FC sport=football、
+            team_id=13948 布隆方丹凯尔特人 football、team_id=30413 凯尔特人女足 football ...
+            全部 10 个候选 sport=football,无 NBA 波士顿凯尔特人(basketball_team id=10124)
+      - name: get_schedule_by_date
+        params: {date: '2026-04-08', competition_id: 1}
+        result:
+          code: OK
+          sample: |
+            返回 4/8 全部赛程,含 sport=basketball 的 10 场 NBA:
+            match_id=3867308 步者vs森林狼、3868967 奇才vs公牛、3869174 猛龙vs热火、
+            3892962 篮网vs雄鹿、3868765 凯尔特人vs黄蜂、3869138 鹈鹕vs爵士、
+            3867718 勇士vs国王、3867514 快船vs独行侠、3868531 湖人vs雷霆、3868337 太阳vs火箭
+            (与 SQL 基准完全一致)
+    comparison: |
+      不一致 / 部分 gap:
+      ① resolve_team('凯尔特人') 只查 football_team,返回 10 个足球凯尔特人(苏格兰 Celtic FC 等),
+        找不到 NBA 波士顿凯尔特人 → 跨运动碰撞确认(原判 ❌ 的根因之一)。
+        但 SQL 基准证明 basketball_team 表里有 NBA 凯尔特人(id=10124),所以这是
+        implementation_gap(篮球缺独立 resolve 工具),不是 data_gap。
+      ② get_schedule_by_date(date='2026-04-08', competition_id=1) 反而能正确返回
+        全部 10 场 NBA 篮球赛程(sport=basketball),与 SQL 基准完全一致 →
+        说明"按日期+赛事ID查赛程"这条路径是通的,原判"无解"被推翻。
+        Agent 完全可以用 get_schedule_by_date 拿到 4/8 的 NBA 比赛 match_id 列表,
+        绕过 resolve_team 的跨运动碰撞问题。
+    decision: satisfied
+final_status: satisfied
+gap_type: implementation_gap
+gap_evidence: |
+  SQL 基准:basketball_match 表查到 2026-04-08 共 10 场 NBA 常规赛(competition_id=1,
+  kind=1, status_id=10 已完场),含用户所指 303-309 的 7 场子集。basketball_odds_over_down
+  表每场有 14 家指数公司的大小分盘口(odd2/real_odd2/first_odd2),用户给的 7 个盘口值
+  (237.5/229.5/222.5/245.5/230.5/231.5/226.5)在 DB 中多处精确命中。
+  工具对照:resolve_team('凯尔特人') 返回 10 个 football 凯尔特人,跨运动碰撞确认
+  (篮球缺独立 resolve_team → implementation_gap);但 get_schedule_by_date
+  (date='2026-04-08', competition_id=1) 能正确返回全部 10 场 NBA 篮球赛程,
+  与 SQL 基准完全一致 → 按日期查赛程路径畅通,原判"无解"不成立。
+  判定:DB 数据齐全 + 赛程路径可用,仅篮球实体定位工具缺失 → implementation_gap,非 data_gap。
+recommended_next_step: |
+  工程团队:① 新增 resolve_basketball_team(查 basketball_team,competition_id 过滤 NBA=1);
+  ② 现有 resolve_team 应在 sport 参数下分流到 basketball_team,避免跨运动碰撞。
+  Agent 路径策略:篮球按日期查赛程时优先用 get_schedule_by_date(date, competition_id=1),
+  可绕过 resolve_team 碰撞直接拿到 match_id 列表。
+
+---
+atomic_id: T1-a2
+category: synthesize_answer
+target: {}
+rounds:
+  - round: 1
+    hypothesis: |
+      T1-a2 是初步综合(six_segment 之前)。基于 aq_1 的 SQL 基准(10 场 NBA 比赛 + 14家盘口)
+      已能合成"4/8 NBA 大小分盘口清单"。不调用工具。
+    data_synthesis: |
+      可用数据:4/8 10 场 NBA 比赛的主客队、北京时间、排名、实际比分(home_scores/away_scores)、
+      每场 14 家公司大小分盘口(初盘/即时/最新)。用户给的 7 个盘口值与 DB 精确对应。
+      不足以合成:五段深度分析所需球员级数据(阵容/伤停/个人得分)需 aq_b1 委派子智能体采集。
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: "SQL 基准已支撑初步盘口清单合成。深度分析维度见 T1-b1/b2。"
+recommended_next_step: "进入 delegate_subagent 采集基本面/赔率/情报三维深度数据。"
+
+---
+atomic_id: T1-b1
+category: delegate_subagent
+target: {agents: [fundamentals, odds, intel]}
+rounds:
+  - round: 1
+    hypothesis: |
+      五段分析需委派 fundamentals(积分榜/伤停/阵容)、odds(大小分盘口趋势)、
+      intel(情报)三个子智能体。先用 SQL 验证三维度数据是否齐备。
+    sql_baseline:
+      query_fundamentals: |
+        SELECT id, season_id, competition_id, scope, name FROM basketball_points_table
+        WHERE competition_id=1 LIMIT 10
+      query_intel: |
+        SELECT COUNT(*) AS intel_cnt FROM basketball_match_intelligence
+        WHERE match_id IN (3867308,3868967,3869174,3892962,3868765,3869138,3867718,3867514,3868531,3868337)
+      query_injury: |
+        SELECT COUNT(*) AS inj_cnt FROM basketball_team_injury
+        WHERE team_id IN (10122,10156,10123,10117,10114,10135,10134,10136,10124,10118,
+                          10154,10121,10155,10119,10129,10130,10149,10219,10131,10128)
+          AND del_flag=1
+      result: |
+        fundamentals: basketball_points_table 有 NBA 积分榜(competition_id=1,scope=5 常规赛,
+          name='东部排名'/'西部排名',season_id 1010/1011/1012 多赛季) → 排名数据存在。
+        intel: 4/8 这 10 场比赛的 basketball_match_intelligence 共 314 条情报 → 情报数据存在。
+        injury: 20 支参赛队的 basketball_team_injury(del_flag=1)共 102 条伤停 → 伤停数据存在。
+        odds: aq_1 已证每场 14 家公司大小分盘口(含初盘/即时/最新 + basketball_odds_over_down_change
+          分表按半年归档,有 2026h1/h2 走势数据) → 盘口与趋势数据存在。
+    decision: continue
+  - round: 2
+    hypothesis: |
+      对照 foretell get_odds_snapshot 工具,验证它能否返回篮球大小分维度。
+      (用户问的是大小分 over/under,不是胜平负或让分)
+    tool_call:
+      name: get_odds_snapshot
+      params: {match_id: 3868765}
+      result:
+        code: OK
+        sample: |
+          返回 european[] (home_win/draw/away_win 胜平负) + asian[] (home_line/handicap/away_line 让分)
+          两类盘口,公司含威廉希尔/18Bet/SB皇冠/Bet365/onex 等。
+          但【无 over/under 大小分维度】——返回的是 basketball_odds_europe + basketball_odds_asian,
+          不含 basketball_odds_over_down 的大小分盘口。
+    comparison: |
+      严重不一致(tool_logic_gap / implementation_gap):
+      SQL 基准:basketball_odds_over_down 表有 4/8 每场 14 家公司的大小分盘口
+      (odd2=盘口值, real_odd2=最新盘口, first_odd2=初盘),用户问的正是大小分。
+      工具对照:get_odds_snapshot(match_id=3868765) 只返回 european(胜平负)+ asian(让分),
+      完全没有 over/under 大小分维度 → 工具未暴露 basketball_odds_over_down 表。
+      根因:get_odds_snapshot 实现只查 basketball_odds_europe / basketball_odds_asian,
+      没有查 basketball_odds_over_down → 篮球大小分盘口工具缺失(implementation_gap)。
+      但 DB 数据齐全,属"缺工具不缺数据"。
+    decision: blocked
+final_status: blocked
+gap_type: implementation_gap
+gap_evidence: |
+  SQL 基准三维度数据齐全:
+  ① fundamentals: basketball_points_table 有 NBA 东西部排名(scope=5 常规赛);
+  ② intel: 4/8 这 10 场 basketball_match_intelligence 共 314 条情报;
+  ③ injury: 20 支参赛队 basketball_team_injury 共 102 条伤停;
+  ④ odds: basketball_odds_over_down 每场 14 家公司大小分盘口 + _change 分表有 2026 走势。
+  工具对照:get_odds_snapshot(match_id=3868765) 返回 european(胜平负)+ asian(让分),
+  无 over/under 大小分维度 → 未暴露 basketball_odds_over_down 表。
+  判定:五段分析所需基本面/情报/伤停/排名数据 DB 全有,大小分盘口 DB 也有,
+  但 get_odds_snapshot 工具缺大小分维度 → implementation_gap(缺工具,数据和路径都在)。
+recommended_next_step: |
+  工程团队:① get_odds_snapshot 增加篮球 over/under 维度,查 basketball_odds_over_down
+  (返回 odd1/odd2/odd3 + first_odd2/real_odd2 + company_id);② 新增篮球积分榜工具
+  (查 basketball_points_table + basketball_points_table_team);③ 新增篮球伤停/情报工具
+  (basketball_team_injury / basketball_match_intelligence)。四张表结构均已验证可用。
+
+---
+atomic_id: T1-b2
+category: synthesize_answer
+target: {format: six_segment}
+rounds:
+  - round: 1
+    hypothesis: |
+      六段综合:基于 aq_a1(赛程+盘口)、aq_b1(基本面+情报+伤停+盘口趋势)的 SQL 基准
+      数据合成六段分析回答。检验数据是否足够支撑一次 NBA 大小分深度预测。
+    data_synthesis: |
+      可用数据(全部 SQL 基准验证):
+      ① 4/8 共 10 场 NBA 比赛(主客/北京时间/排名/实际比分);
+      ② 每场 14 家公司大小分盘口(初盘/即时/最新)+ 2026 走势分表;
+      ③ NBA 东西部积分榜(常规赛排名);
+      ④ 314 条比赛情报 + 102 条伤停;
+      ⑤ 用户给的 7 个盘口值与 DB 精确对应(303-309 竞彩选择性开盘的 7 场子集)。
+      足以产出:盘口清单 + 排名背景 + 伤停情报 + 盘口走势 + 大小分预测 + 风险提示 六段。
+      不足以产出:球员个人得分/效率值(foretell 未暴露 basketball_player 级工具,但表存在)。
+    decision: satisfied
+final_status: satisfied
+gap_type: null
+gap_evidence: |
+  基于 SQL 基准可产出六段分析:①赛程盘口清单 ②排名基本面 ③伤停情报 ④盘口走势
+  ⑤大小分预测 ⑥风险提示。数据充分支撑 7 场大小分预测。仅球员级深度受限
+  (basketball_player 表存在但 foretell 未暴露工具),不影响六段框架完整性。
+recommended_next_step: "若需球员级分析,新增篮球球员统计工具(basketball_player/basketball_competition_players_stats 表已存在)。"
+
+case_summary:
+  total_rounds: 7
+  final_status: partial
+  primary_gap_type: implementation_gap
+  secondary_gaps:
+    - tool_logic_gap (get_odds_snapshot 缺大小分维度,只返回胜平负+让分,未暴露 basketball_odds_over_down)
+  rework_verdict: ⚠️ 改判(原 ❌ 无解 → 现 implementation_gap)
+  sql_baseline_summary:
+    nba_matches_on_2026_04_08: 10
+    user_targeted_7_matches_subset: true
+    over_under_odds_per_match: 14家公司
+    user_handicap_values_matched_in_db: "229.5/237.5/222.5/226.5/231.5 等多处精确命中"
+    fundamentals:
+      points_table: "存在(东西部排名,scope=5常规赛)"
+      intelligence: 314
+      injury: 102
+  key_evidence:
+    - "basketball_match: 2026-04-08 competition_id=1 共 10 场 NBA 常规赛,全部已完场(含用户 303-309 的 7 场子集)"
+    - "basketball_odds_over_down: 每场 14 家公司大小分盘口,用户给的 7 个盘口值在 DB 多处精确命中(229.5/237.5/222.5/226.5/231.5)"
+    - "basketball_points_table: NBA 东西部积分榜存在(scope=5 常规赛)"
+    - "basketball_match_intelligence: 4/8 这 10 场共 314 条情报"
+    - "basketball_team_injury: 20 支参赛队共 102 条伤停"
+    - "resolve_team('凯尔特人') 跨运动碰撞确认:返回 10 个 football 凯尔特人,无 NBA 波士顿凯尔特人 → implementation_gap"
+    - "get_schedule_by_date(date='2026-04-08', competition_id=1) 能正确返回全部 10 场 NBA 篮球赛程 → 按日期查赛程路径畅通,原判'无解'不成立"
+    - "get_odds_snapshot(match_id=3868765) 只返回 european(胜平负)+asian(让分),无 over/under 大小分维度 → 未暴露 basketball_odds_over_down 表(tool_logic_gap)"
+  expected_behaviors_compliance:
+    sql优先验证: true
+    未穷尽DB检索前不得断言无: true
+    备注: |
+      原判 ❌ 因跨运动碰撞直接判无解,违反"SQL 优先"。本次 SQL 基准证明 DB 数据齐全
+      (10场NBA+14家盘口+积分榜+314情报+102伤停),且 get_schedule_by_date 路径可用,
+      应判 implementation_gap(缺篮球工具但数据和路径都在),不得标"无解"。

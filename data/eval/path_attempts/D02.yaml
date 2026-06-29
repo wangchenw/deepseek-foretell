@@ -1,17 +1,76 @@
 type_id: D02
 case_id: TC-D02-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: live_probe
 attempts:
 - round: 1
-  atomic_id: D02-probe-1
-  tool: resolve_match
+  atomic_id: D02-T1-a1
+  tool: get_lottery_schedule
   params:
-    home: 皇马
-    away: 巴萨
+    play_type: '101'
+  code: OK
+  count: 15
+  stub: false
+  note: 竞彩足球(play_type=101)批量赛程,返回 15 场世界杯场次,每场含 spf/rq/bf/jq/bqc
+    完整赔率;spf.win/draw/loss 可直接判定主不败(主胜+平)。match_id 字段为 null,需用完整
+    lottery_code 走 resolve_lottery_match 解析。
+- round: 1
+  atomic_id: D02-T1-a1
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-29'
+    tier: top
+  code: OK
+  count: 1
+  stub: false
+  note: tier=top 过滤过严,今日仅返 1 场已完赛(南非vs加拿大,total_count=281 但 tier_count=1);非竞足批量主路径,弃用。
+- round: 2
+  atomic_id: D02-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '074'
+    date: '2026-06-30'
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 用纯数字 code=074 + date 失败;lottery_code 实为 "周一074",需用完整编码。
+- round: 2
+  atomic_id: D02-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 周一074
+  code: OK
+  count: 1
+  stub: false
+  note: fallback 去掉 date + 用完整 lottery_code "周一074" 成功;match_candidates[0].match_id=4459720(巴西vs日本,世界杯,sport=football,not_started,neutral=true,home_position=5/away_position=17,含温湿压风环境)。sport 与 play_type 一致,无跨运动碰撞。
+- round: 3
+  atomic_id: D02-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
   code: OK
   count: 10
   stub: false
-satisfied: []
+  note: 欧赔 5 家(18Bet/利记/易胜博/盈禾+匿名,initial/current/latest 主胜/平/客胜)+ 亚盘 5
+    家(handicap=-0.75,主客水位),支撑 4 步盘口逻辑(基本面/初盘/升盘时机/水位)与诱盘判断。
+- round: 3
+  atomic_id: D02-T1-a2
+  tool: get_kelly
+  params:
+    match_id: 4459720
+  code: OK
+  count: 5
+  stub: false
+  note: 5 家公司凯利指数 + implied_prob(主胜隐含概率约 0.54,凯利全为负值),支撑凯利/热度判断。
+satisfied:
+- D02-T1-a1
+- D02-T1-a2
 blocking_gap: null
 route_complete: true
+verdict: verified
+verdict_reason: 竞足批量主路径 get_lottery_schedule(play_type=101) 返回 15 场含完整 spf/rq/bf/jq/bqc
+  赔率,spf 胜平负直接支撑主不败(主胜+平)推荐;resolve_lottery_match 用完整 lottery_code 可解析
+  match_id;get_odds_snapshot + get_kelly 提供深盘口与凯利指数,满足用户 4 步盘口+凯利+热度分析需求。sport=any
+  下 play_type=101 全为足球(世界杯),match_candidates.sport=football,无跨运动碰撞。synthesize_answer
+  所需数据齐备,无 blocking gap。

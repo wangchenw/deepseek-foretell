@@ -1,19 +1,78 @@
 type_id: B09
 case_id: TC-B09-REG-006
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+scenario: B
+probe_summary: 验证 Phase 2 重构后 resolve_match series_game 反转 bug 是否修复，并探索 NBA 系列赛 G7 路径完整性。
 attempts:
 - round: 1
   atomic_id: B09-T0-a1
+  tool: resolve_basketball_team
+  params: {name: 马刺}
+  code: OK
+  count: 3
+  stub: false
+  note: 命中 San Antonio Spurs team_id=10137 (competition_id=1 NBA)；另有奥斯汀马刺/科特赖克马刺作为干扰候选
+- round: 1
+  atomic_id: B09-T0-a1
+  tool: resolve_basketball_team
+  params: {name: 雷霆}
+  code: OK
+  count: 10
+  stub: false
+  note: 命中 Oklahoma City Thunder team_id=10219 (competition_id=1 NBA)；候选较多需上下文筛选
+- round: 1
+  atomic_id: B09-T0-a2
+  tool: get_series_matchup
+  params: {sport: basketball, team_id: 10137, limit: 30}
+  code: OK
+  count: 30
+  stub: false
+  note: 命中 matchup_id=922432 雷霆(home 10219) vs 马刺(away 10137) best_of_7 state=away_won
+    home_wins=3 away_wins=4 winner=马刺；match_ids=[3920589,3920590,3920591,3921246,3921525]
+    仅返回 5 个（7 场中 2 个 match_id 缺失，无法按索引定位 G7）。证实系列赛 7 场已完成。
+- round: 1
+  atomic_id: B09-T0-a1
   tool: resolve_match
-  params:
-    home: 马刺
-    away: 雷霆
-    series_game: 7
+  params: {home: 马刺, away: 雷霆, series_game: 7}
   code: NOT_APPLICABLE
   stub: false
-satisfied: []
+  note: 返回 NOT_APPLICABLE + reason "未找到系列赛第7场，禁止降级分析其他场次"。
+    series_game 反转 bug 已修复（不再无条件返回 []），但底层 mysql_client.resolve_match
+    只查 football_match 表，不支持 basketball_match；且 series_game 参数虽接收但 SQL 未用作过滤。
+- round: 1
+  atomic_id: B09-T0-a1
+  tool: resolve_match
+  params: {home: 雷霆, away: 马刺, series_game: 7}
+  code: NOT_APPLICABLE
+  stub: false
+  note: 主客互换 fallback 同样 NOT_APPLICABLE——确认与 home/away 顺序无关，是 sport 表层 gap。
+- round: 1
+  atomic_id: B09-T0-a1
+  tool: resolve_match
+  params: {home: 雷霆, away: 马刺}
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 去 series_game 后仍 ENTITY_NOT_FOUND——证明 resolve_match 根本不查 basketball_match 表。
+satisfied:
+- B09-T0-a2
+- B09-T0-a5
 blocking_gap:
-  type: data_gap
-  description: resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game 维度未入库
+  type: implementation_gap
+  description: |
+    resolve_match 工具层 series_game 反转 bug 已修复（entity.py 不再 `if series_game is not None:
+    return []`，而是透传到 client 并在无候选时返回 NOT_APPLICABLE + 守轨提示），修复有效。
+    但底层 mysql_client.resolve_match 仅查询 football_match 表，不支持 basketball_match；
+    且 series_game 参数虽在签名中接受，SQL 过滤条件完全未使用该参数（即使足球也不会按 G7 过滤）。
+    因此 B09 (NBA 篮球 G7) 路径无法通过 resolve_match 定位 G7 match_id。可经 get_series_matchup
+    证实 7 场系列赛存在（matchup 922432，3-4 马刺胜），但 match_ids 数组仅 5 个 id 缺失 2 场，
+    无法精确锁定 G7 的 match_id。
   failed_atomic: B09-T0-a1
 route_complete: false
+phase2_fix_verified:
+  series_game_inversion_bug: true
+  evidence: entity.py 当前实现将 series_game 透传至 client.resolve_match，无候选时按 series_game
+    分支返回 NOT_APPLICABLE + "禁止降级分析其他场次" 守轨提示，符合 B09-T0-a5 hard_constraint。
+verdict: ⚠️
+verdict_reason: 修复方向正确且守轨行为已生效，但 resolve_match 尚未支持篮球 + series_game
+  SQL 未用作过滤，G7 match_id 仍无法定位。建议 Phase 3 扩展 resolve_match 支持 basketball_match
+  并将 series_game 纳入 SQL 过滤（或新增 resolve_basketball_series_match 工具）。

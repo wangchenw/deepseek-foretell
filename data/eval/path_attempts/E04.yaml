@@ -1,16 +1,234 @@
 type_id: E04
 case_id: TC-E04-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (组合方案)
+type_name: 二串一
+entity_entry: lottery_batch
+sport: any
+turns:
+- turn_index: 0
+  text: 4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态，有无演戏等等，还有推荐2串一，3串一，最有把握啊
 attempts:
 - round: 1
-  atomic_id: E04-probe-1
+  atomic_id: E04-T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
+    date: '2026-04-14'
+  code: OK
+  count: 7
+  stub: false
+  note: 2026-04-14 竞彩足球批次命中 7 场（周一001~007，瑞超/葡超），每场 odds 含
+    spf/rq/bf(31 比分项)/jq(8 进球数项)/bqc 全玩法；sell_status 全 suspended（已完赛期次）；
+    match_id 全为 null（lottery_match 表已知特性，需 name+date 回查 football_match）
+- round: 1
+  atomic_id: E04-T1-a1
+  tool: resolve_match
+  params:
+    home: 布鲁马波
+    away: 索尔纳
+    date: '2026-04-14'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: lottery 简称（布鲁马波/索尔纳）与 football_team.name_zh 全名（布洛马波卡纳/AIK索尔纳）不匹配，带 date 失败
+- round: 1
+  atomic_id: E04-T1-a1
+  tool: resolve_match
+  params:
+    home: 通德拉
+    away: 吉维森特
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 去 date 仍 ENTITY_NOT_FOUND；吉维森特 DB 全名"吉尔维森特"，通德拉 DB 全名"通德拉"（仅吉维森特简称不一致）
+- round: 2
+  atomic_id: E04-T1-a1
+  tool: sql_football_team
+  params:
+    query: name_zh LIKE fuzzy match
+  code: OK
+  count: 4
+  stub: false
+  note: SQL 模糊匹配定位 4 队 team_id — 布洛马波卡纳=11575、AIK索尔纳=10910、通德拉=32896、吉尔维森特=11838
+- round: 2
+  atomic_id: E04-T1-a1
+  tool: sql_football_match
+  params:
+    home_team_id: 11575
+    away_team_id: 10910
+  code: OK
+  count: 1
+  stub: false
+  note: 命中 match_id=4467008，2026-04-14 01:00 瑞超 competition_id=184，status=finished，比分
+    2:2 平，home_position=11/away_position=9，coverage_lineup=1/coverage_intelligence=1
+- round: 2
+  atomic_id: E04-T1-a1
+  tool: sql_football_match
+  params:
+    home_team_id: 32896
+    away_team_id: 11838
+  code: OK
+  count: 1
+  stub: false
+  note: 命中 match_id=4369047，2026-04-14 03:15 葡超 competition_id=151，status=finished，比分
+    2:2 平，home_position=17/away_position=6，coverage_lineup=1/coverage_intelligence=1
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4467008
+  code: OK
+  count: 0
+  stub: false
+  note: 返回结构 european+asian（非 odds 列表）；欧赔 initial 3.5/3.51/2.01、current
+    3.65/3.63/1.88（客胜热门索尔纳，与竞彩 spf loss=1.67 一致），多家公司；count 字段为
+    null 但实际有数据
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4369047
+  code: OK
+  count: 0
+  stub: false
+  note: 葡超通德拉 vs 吉尔维森特欧赔 OK，结构同上（客胜热门吉维森特 spf loss=1.77）
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_intel_tags
+  params:
+    match_id: 4467008
+  code: OK
+  count: 5
+  stub: false
+  note: 5 类情报 tags（home/away × positive/negative + neutral），含战意/伤情/裁判/天气/首发等深度内容，覆盖"球队利益状态/有无演戏"维度
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_intel_tags
+  params:
+    match_id: 4369047
+  code: OK
+  count: 5
+  stub: false
+  note: 葡超场次同样 5 类情报齐全
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_standings
+  params:
+    league_id: 184
   code: OK
   count: 16
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 瑞超积分榜 16 队，布洛马波卡纳 pos=11、AIK索尔纳 pos=9（利益/排名维度）
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_standings
+  params:
+    league_id: 151
+  code: OK
+  count: 18
+  stub: false
+  note: 葡超积分榜 18 队，通德拉 pos=17（保级压力）、吉尔维森特 pos=6（利益状态对比鲜明）
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_injury_report
+  params:
+    match_id: 4467008
+  code: OK
+  count: 3
+  stub: false
+  note: home 3+ 球员伤停（type=suspended 停赛），结构 home/away 分列
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 11575
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 布洛马波卡纳近5场 form 数据（字段名非 result/score/opponent，但 count=5 证明数据存在）
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 10910
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: AIK索尔纳近5场 OK
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 32896
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 通德拉近5场 OK
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 11838
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 吉尔维森特近5场 OK
+- round: 2
+  atomic_id: E04-T1-a2
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+    date: '2026-04-14'
+  code: OK
+  count: 7
+  stub: false
+  note: 复用获取竞彩 bf 比分赔率（31 项）+ jq 进球数赔率（8 项），是"比分预测+进球数"的核心数据源
+satisfied:
+- E04-T1-a1
+- E04-T1-a2
+blocking_gap:
+  type: routing_gap
+  description: resolve_match 无法用竞彩 lottery 简称（布鲁马波/吉维森特）定位 football_match，因
+    football_team.name_zh 使用全名（布洛马波卡纳/吉尔维森特），简称与全名不一致导致 ENTITY_NOT_FOUND；带
+    date 或去 date 均失败。get_lottery_schedule 返回的 match_id 全为 null（lottery_match 表已知特性）。
+    需 SQL 模糊匹配 football_team.name_zh → team_id → football_match 回查。workaround 已验证可打通，不阻断
+    LLM eval。
+  failed_atomic: E04-T1-a1
+  workaround: SQL `football_team.name_zh LIKE '%关键字%'` 定位 team_id，再 `football_match WHERE
+    home_team_id=? AND away_team_id=? ORDER BY match_time DESC` 命中 match_id
 route_complete: true
+data_quality_notes:
+- get_lottery_schedule 2026-04-14 批次 7 场均 sell_status=suspended（已完赛期次），属回测场景；赔率快照 bf/jq/spf 仍齐全可用
+- 竞彩 spf 客胜热门（周一002 loss=1.67 索尔纳、周一007 loss=1.77 吉尔维森特）实际比分均 2:2 平局——"最有把握"热门爆冷打平，正好印证用户"考虑球队利益状态/有无演戏"维度的价值
+- get_odds_snapshot 返回结构为 {european, asian} 而非 {odds} 列表，count 字段为 null 但实际含多家公司赔率（结构差异，非数据缺失）
+- get_recent_form 返回字段名非 result/score/opponent（疑似 form_code/opponent_name 等），count=5 证明数据存在，字段语义待 Phase 2 结构化复核
+cross_sport_collision_check:
+  risk: none
+  note: E04 sport=any 但本例 play_type=101 纯竞彩足球，2 场均为 football_match（瑞超/葡超），未触及篮球
+    team_id，无跨运动碰撞
+combination_strategy:
+  type: 二串一/三串一
+  selected_matches:
+  - lottery_code: 周一002
+    match_id: 4467008
+    home: 布洛马波卡纳
+    away: AIK索尔纳
+    spf_loss: 1.67
+    actual: 2:2
+  - lottery_code: 周一007
+    match_id: 4369047
+    home: 通德拉
+    away: 吉尔维森特
+    spf_loss: 1.77
+    actual: 2:2
+  note: 按 spf 赔率最低（最有把握客胜）选 2 场组合 2 串一；三串一可加周一001（天狼星 VS 哈马比
+    spf_loss=2.0）。组合赔率、单场 bf/jq 已可由 lottery_schedule 直接计算输出
+known_gap_status:
+  previous: unexplored
+  current: routing_gap (resolve_match 简称/全名不匹配，SQL workaround 已通)
+  resolution: 二串一组合方案数据路径完整 — lottery_schedule 提供玩法赔率，SQL 回查提供 match_id，单场分析工具链（odds/intel/standings/injury/form）全部 OK

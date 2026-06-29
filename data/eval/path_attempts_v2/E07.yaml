@@ -1,0 +1,280 @@
+type_id: E07
+case_id: TC-E07-001
+explored_at: '2026-06-29'
+scenario: E (北单 lottery_batch)
+entity_entry: lottery_batch
+sport: football
+priority: P2
+turns:
+- turn_index: 0
+  text: 分析一下今天竞彩001为什么会赢球，为什么赢了两个球！
+atomic_exploration:
+
+- atomic_id: E07-T1-a1
+  category: resolve_entity
+  target: {entity: match, lottery_play_type: '301', code: '001'}
+  rounds:
+  - round: 1
+    hypothesis: 用户口语"竞彩001"但场景类型是北单(entity_entry=lottery_batch, scenario E)。
+      先用 information_schema 确认竞彩(lottery_jczq_odds)与北单(lottery_bd_odds)表结构,
+      判断"001"在哪个彩种里是合法场次编号(issue_num)。
+    schema_query: |
+      uv run python scripts/foretell_eval_helper.py schema "jczq"
+      uv run python scripts/foretell_eval_helper.py schema "lottery"
+    schema_result: |
+      lottery_jczq_odds(竞彩): issue, issue_num(序号), match_time(int), match_time_str,
+        home, away, sell_status, spf, rq, bf, jq, bqc。
+      lottery_bd_odds(北单): issue, issue_num, match_time, sell_status, spf, jq, bqc, sxp, bf。
+      lottery_bd_result(北单彩果): home_score, away_score, spf, jq, bqc, sxp, bf。
+      lottery_jczq_result(竞彩彩果): home_score, away_score, half_home_score, half_away_score。
+      lottery_match(彩种↔比赛关联): match_id, lottery_type, issue, issue_num, home_name,
+        away_name, is_same, lottery_match_id。
+    decision: continue
+
+  - round: 2
+    hypothesis: 竞彩 issue_num 是否每期从1编号?若竞彩无"001"场次,则用户"竞彩001"实指北单001。
+      用 SQL 独立查竞彩最新期 issue_num 范围 + 北单 issue_num=1 最近期。
+    sql_baseline:
+      query: |
+        -- 竞彩最新期 issue_num 范围
+        SELECT MIN(issue_num) AS min_num, MAX(issue_num) AS max_num, COUNT(*) AS cnt
+        FROM lottery_jczq_odds WHERE issue=(SELECT MAX(issue) FROM lottery_jczq_odds);
+        -- 竞彩 issue_num=1 是否存在
+        SELECT issue, issue_num, match_time_str, home, away FROM lottery_jczq_odds
+        WHERE issue_num=1 ORDER BY issue DESC LIMIT 8;
+        -- 北单 issue_num=1 最近5期
+        SELECT issue, issue_num, match_time_str, home, away, comp, sell_status
+        FROM lottery_bd_odds WHERE issue_num=1 ORDER BY issue DESC LIMIT 5;
+      result: |
+        竞彩最新期 260703 的 issue_num 范围 = 5086~5088(全局连续大数,非每期重编);
+        竞彩 issue_num=1 → 0 条(竞彩根本不存在"001"场次)。
+        北单 issue_num=1 最新期 issue=26069: 赫尔辛基预备队 vs 塞伊奈约基学院(芬甲),
+          match_time_str=2026-06-26 23:55, sell_status=3,3,3,3,3(已停售)。
+        今日 2026-06-29 北单 issue=26069 批次从 issue_num=54 起(54~67 世界杯/冰岛超/巴西乙),
+          今日无 issue_num=1 的"001"场次。
+    comparison: |
+      SQL 基准证明:用户口语"竞彩001"是误称,竞彩无001场次;实际指北单胜负(301)001,
+      = issue 26069 / issue_num 1,赫尔辛基预备队 vs 塞伊奈约基学院(芬甲),
+      比赛日 2026-06-26(已完赛),非"今天"。用户"今天001"与北单排期错位。
+    decision: continue
+
+  - round: 3
+    hypothesis: v1 判定 match_id=null、football_match 不收录该预备队/学院队(data_gap)。
+      但 lottery_match 关联表可能有 match_id。用 SQL 直查 lottery_match + football_match 验证。
+    sql_baseline:
+      query: |
+        SELECT match_id, lottery_type, issue, issue_num, home_name, away_name, is_same,
+          lottery_match_id FROM lottery_match
+        WHERE lottery_type=301 AND issue='26069' AND issue_num='1' LIMIT 5;
+        SELECT id, season_id, competition_id, home_team_id, away_team_id, status_id,
+          match_time_str, home_scores, away_scores, coverage_intelligence, coverage_lineup,
+          home_position, away_position
+        FROM football_match WHERE id=4477378 LIMIT 5;
+        SELECT id, name_zh, name_en, national FROM football_team WHERE id IN (12885,39545) LIMIT 5;
+      result: |
+        lottery_match 命中: match_id=4477378, lottery_type=301, issue=26069, issue_num=1,
+          home_name=赫尔辛基预备队, away_name=塞伊奈约基学院, is_same=1, lottery_match_id=26069001。
+        football_match.id=4477378 存在且已完赛: status_id=8(完场),
+          match_time_str=2026-06-27 00:00:00, competition_id=196, season_id=13906,
+          home_team_id=12885, away_team_id=39545,
+          home_scores="[2,1,0,6,5,0,0]"(比分2/半场1/红0/黄6/角5),
+          away_scores="[0,0,0,1,11,0,0]"(比分0/半场0/红0/黄1/角11),
+          coverage_lineup=1(有阵容), coverage_intelligence=0(无情报)。
+        football_team: id=12885=克鲁比04(Klubi 04 Helsinki=赫尔辛基预备队),
+          id=39545=SJK学院(SJK Akatemia=塞伊奈约基学院)。两队均在 football_team 主表。
+    comparison: |
+      SQL 基准推翻 v1 的 data_gap: football_match 完整收录该场(id=4477378, 完赛 2:0),
+      且 lottery_match 表提供 match_id 关联。v1 用 resolve_match 按队名"赫尔辛基预备队"
+      模糊查 football_match 失败,是因为 football_team.name_zh 存的是"克鲁比04"而非
+      "赫尔辛基预备队"(北单官网用别名/预备队称呼);正确路径是 lottery_match.match_id 直链。
+    decision: continue
+
+  - round: 4
+    hypothesis: 用工具 resolve_lottery_match(301,001) 对照,看工具能否给出 match_id 与赔率,
+      并验证 v1 提到的"北单 odds JSON 解析瑕疵"是数据问题还是工具解析 bug。
+    tool_call:
+      name: resolve_lottery_match
+      params: {play_type: '301', code: '001'}
+      result: |
+        code=OK, lottery_id=26069001, issue=26069, issue_num=1, home_name=赫尔辛基预备队,
+        away_name=塞伊奈约基学院, league_name=芬甲, date=2026-06-26, match_id=null,
+        sell_status 各玩法 suspended。
+        odds.spf = {win: "{\"sf3\":\"2.22\"", draw: "\"goal\":\"0\"", loss: "\"sf0\":\"3.35\""}
+          → 截断的 JSON 片段,且丢失 sf1=3.95(让球平)。
+        odds.bf = [{label:"1:0",odds:"{\"s31\":\"16.70\""},{label:"2:0",odds:"\"s30\":\"32.38\""},
+          ...,{label:"0:0",odds:"\"s20\":\"18.10\""},...] → 每项 odds 是未闭合 JSON 片段,
+          且 label↔key 错位: label "2:0" 配 s30=32.38,而真实 2:0 赔率是 s20=18.10(工具把它标成"0:0")。
+        odds.jq/bqc 同样是截断片段; odds.sxp 是完整 JSON。
+    comparison: |
+      SQL 基准(lottery_bd_odds 原始字段)vs 工具返回:
+        DB spf = {"sf3":"2.22","goal":"0","sf0":"3.35","sf1":"3.95"}(完整4键)
+        工具 spf.win = "{\"sf3\":\"2.22\""(截断,无闭合括号), loss 丢 sf1=3.95。
+        DB bf = 完整闭合 JSON(s20=18.10 对应 2:0,与 lottery_bd_result.bf sp=18.10 一致);
+        工具 bf 数组每项 odds 为 JSON 片段,且 label 与 key 顺序错位(2:0 错配 s30)。
+      结论: DB 原始 JSON 完好无损,工具 _parse_lottery_play 对北单赔率串的切分逻辑损坏
+      (按逗号硬切+固定 label 序列错配),属 tool_logic_gap(P1),非 data_gap。
+      另: 工具返回 match_id=null,但 lottery_match 表有 match_id=4477378 → 工具未暴露
+      lottery_match→football_match 的 match_id 关联,导致无法自动链接赛果/统计(implementation_gap 子项)。
+    decision: continue
+
+  - round: 5
+    hypothesis: 既然 SQL 拿到 match_id=4477378,调 get_match_result / get_match_half_stats
+      验证工具层能否暴露赛果与战术统计(回答"为什么赢球/赢两球"的核心数据)。
+    tool_call:
+      name: get_match_result
+      params: {match_id: 4477378}
+      result: |
+        code=OK, full_time=2-0, half_time=1-0, yellow_card{home:6,away:1},
+        corner{home:5,away:11}, red_card{0,0}, status=finished,
+        match_time=2026-06-27 00:00:00。
+    tool_call_2:
+      name: get_match_half_stats
+      params: {match_id: 4477378, scope: ft}
+      result: |
+        code=OK, home_goals=2/away_goals=0, shots 13-14, shot_on_target 6-5,
+        ball_possession 46-54, corner_kicks 5-11, yellow 6-1, attack 86-109,
+        attack_dangerous 67-96, passes/fouls/offsides=null。
+    sql_baseline_crosscheck:
+      query: |
+        SELECT type, position, time, player_name, home_score, away_score, reason_type
+        FROM football_match_incidents WHERE match_id=4477378 ORDER BY time, sort LIMIT 60;
+      result: |
+        41' 进球 position=1(主队) 阿赫蒂·海卡拉 → home_score=1,away_score=0(1-0);
+        58' 进球 position=1(主队) 亚当·勒戈夫-科南 → home_score=2,away_score=0(2-0);
+        主队黄牌6张(26'/81'/89'/93'/94'/95'),客队黄牌1张(68');
+        多次换人(type=9);半场开始(46',type=11)/完场(96',type=12)。
+        football_match_lineup: confirmed=1, home_coach_id=129794, away_coach_id=15253(阵型字段空)。
+    comparison: |
+      工具与 SQL 完全一致(均 2:0、半场 1:0、黄6-1、角5-11)。工具 get_match_result/
+      get_match_half_stats 在拿到 match_id 后可正常返回赛果+战术统计;SQL incidents
+      补充进球时间线与进球球员(工具 get_match_result 未暴露进球球员/事件流水)。
+      → 回答"为什么赢球/赢两球"的数据完全可得: 主队射正率更高(6/13 vs 5/14)、
+      控球虽低(46%)但转化2球; 客队控球54%/角球11/危险进攻96却射正仅5、零转化;
+      进球时间 41'海卡拉、58'勒戈夫-科南。
+    decision: satisfied
+  final_status: satisfied
+  gap_type: tool_logic_gap
+  gap_evidence: |
+    实体本身可定位(satisfied),但工具链有两个 tool_logic_gap:
+    (1) resolve_lottery_match/get_lottery_schedule 北单 odds JSON 解析损坏: SQL 基准
+      lottery_bd_odds.spf/bf/jq/bqc/sxp 均为完整闭合 JSON(s20=18.10=2:0赔率,与彩果一致),
+      工具却返回截断片段 + label↔key 错位 + spf 丢 sf1=3.95。DB 数据完好,纯工具解析 bug。
+    (2) resolve_lottery_match 返回 match_id=null,未暴露 lottery_match 表的 match_id=4477378
+      关联,阻断自动链接 football_match 赛果/统计;需 SQL 桥接 lottery_match 才能拿到 match_id。
+  recommended_next_step: |
+    修 _parse_lottery_play: 对北单 spf/bf/jq/bqc/sxp 直接 json.loads 整串(已是合法 JSON),
+      不要按逗号硬切;bf label 序列需按 DB key 语义(s{home}{away})映射而非固定序列。
+    resolve_lottery_match 应 join lottery_match 表回填 match_id 字段,打通 lottery→football_match 链路。
+
+- atomic_id: E07-T1-a2
+  category: synthesize_answer
+  target: {question: 为什么赢球/为什么赢两球}
+  rounds:
+  - round: 1
+    hypothesis: v1 判 data_gap(主比赛库不收录该预备队/学院队,无战术数据)。但 a1 已用 SQL
+      证明 football_match.id=4477378 完整收录且 get_match_result/get_match_half_stats 可用。
+      直接合成回答所需证据是否齐全?
+    sql_baseline:
+      query: |
+        -- 赛果(彩果表)
+        SELECT issue, issue_num, home_score, away_score, bf, spf, jq, sell_status
+        FROM lottery_bd_result WHERE issue=26069 AND issue_num=1 LIMIT 5;
+        -- 赔率(odds表)
+        SELECT spf, jq, bqc, sxp, bf FROM lottery_bd_odds WHERE issue=26069 AND issue_num=1 LIMIT 5;
+      result: |
+        lottery_bd_result: home_score=2, away_score=0, bf={"rb1":"2:0","sp":"18.10"},
+          spf={"rb1":"0","rb2":"3","sp":"2.22"}(rb2=3=主胜), jq={"rb1":"2","sp":"4.90"}(2球),
+          sell_status=4,4,4,4,4(已开奖)。
+        lottery_bd_odds: spf/jq/bqc/sxp/bf 全部完整闭合 JSON(见 a1 round4)。
+    tool_call:
+      name: get_match_result
+      params: {match_id: 4477378}
+      result: full_time=2-0, half_time=1-0, yellow 6-1, corner 5-11, finished。
+    tool_call_2:
+      name: get_match_half_stats
+      params: {match_id: 4477378, scope: ft}
+      result: shots 13-14, shot_on_target 6-5, possession 46-54, attack_dangerous 67-96。
+    comparison: |
+      赛果事实(赢球+赢两球): lottery_bd_result(2:0) + football_match.home_scores/away_scores
+      + get_match_result(full_time 2-0) 三方一致,确凿。
+      "为什么赢球/赢两球"因果: get_match_half_stats 给出射正率/控球/危险进攻对比,
+      SQL incidents 给出进球时间与球员(41'海卡拉、58'勒戈夫-科南)。数据完备,可合成
+      有依据的因果解释(主队射正效率高、客队控球角球多但转化低)。
+      唯一缺口: get_match_result 未暴露进球球员/事件流水(需 SQL incidents 补);
+      coverage_intelligence=0(无情报),pass/foul/offside=null(部分统计缺失)——但不阻断核心因果分析。
+    decision: satisfied
+  final_status: satisfied
+  gap_type: tool_logic_gap
+  gap_evidence: |
+    非 data_gap: DB 完全有赛果(lottery_bd_result + football_match)、赔率(lottery_bd_odds
+    完整 JSON)、战术统计(get_match_half_stats: 射正/控球/角球/危险进攻)、事件流水
+    (football_match_incidents: 进球时间+球员+黄牌+换人)。回答所需证据齐全。
+    残留 tool_logic_gap/implementation_gap:
+    (1) 北单 odds JSON 解析损坏(同 a1),工具返回的赔率不可直接结构化使用,须 SQL 直查
+      lottery_bd_odds 取原始 JSON。
+    (2) resolve_lottery_match 不回填 match_id,自动链路断在 lottery→football_match 之间,
+      需 SQL 桥接 lottery_match 表;get_match_result 不含进球球员/事件流水,需 SQL 补
+      football_match_incidents。
+  recommended_next_step: |
+    同 a1: 修 odds JSON 解析 + resolve_lottery_match 回填 match_id;
+    get_match_result 宜补充 goals/incidents 摘要(进球球员+时间+红黄牌),避免再 SQL 直查。
+
+satisfied:
+- E07-T1-a1
+- E07-T1-a2
+
+blocking_gap:
+  type: tool_logic_gap
+  description: |
+    E07 改判: 原 ⚠️ implementation_gap + data_gap(北单 odds JSON / 主库不收录)→
+    新判 ⚠️ tool_logic_gap(数据完备,工具解析与关联有 bug)。
+    SQL 基准确证 DB 完全有数据:
+      - 北单 001 = issue 26069 / issue_num 1 = 赫尔辛基预备队(克鲁比04,id=12885) vs
+        塞伊奈约基学院(SJK学院,id=39545),芬甲,2026-06-26 开赛(2026-06-27 完赛)。
+      - 赛果 2:0(home_score=2/away_score=0,半场1:0),lottery_bd_result 与
+        football_match.home_scores/away_scores 与 get_match_result 三方一致 → 赢球+赢两球确凿。
+      - 赔率: lottery_bd_odds 的 spf/bf/jq/bqc/sxp 全部完整闭合 JSON(s20=18.10=2:0赔率,
+        jq.j2=4.90=2球,spf.sf3=2.22=主胜),数据层无任何 JSON 损坏。
+      - 战术: get_match_half_stats(射正6-5/控球46-54/角球5-11/危险进攻67-96) +
+        football_match_incidents(41'海卡拉、58'勒戈夫-科南进球;6张主队黄牌) +
+        football_match_lineup(confirmed=1) 完备,可解释"为什么赢球/赢两球"。
+    工具层 bug(P1, tool_logic_gap):
+      1. resolve_lottery_match / get_lottery_schedule 对北单 odds JSON 解析损坏:
+         返回截断片段 + bf label↔key 错位(2:0 错配 s30=32.38,真实 s20=18.10) +
+         spf 丢失 sf1=3.95。DB 原始 JSON 完好 → 纯工具 _parse_lottery_play 切分逻辑 bug。
+      2. resolve_lottery_match 返回 match_id=null,未 join lottery_match 表回填
+         match_id=4477378,阻断 lottery→football_match 自动链路(implementation_gap 子项)。
+    非 data_gap: v1 误判源于用 resolve_match 按队名"赫尔辛基预备队"查 football_match 失败,
+    但 football_team.name_zh 实为"克鲁比04"(预备队别名),正确路径是 lottery_match.match_id 直链。
+  failed_atomic: null
+  workaround: |
+    生产环境可用 SQL 桥接路径回答: resolve_lottery_match(301,001) 取 issue/issue_num →
+    SQL 查 lottery_match 取 match_id → get_match_result + get_match_half_stats 取赛果/统计 →
+    SQL 查 football_match_incidents 取进球球员/时间 → SQL 查 lottery_bd_odds 取原始赔率 JSON
+    (绕开工具损坏解析)。可合成: "北单001=赫尔辛基预备队 vs SJK学院(芬甲),2:0(半场1:0),
+    41'海卡拉、58'勒戈夫-科南进球;主队射正6/13效率高于客队5/14,客队控球54%/角球11却零转化。"
+    另需向用户澄清: "竞彩001"实为北单001,且为 2026-06-26 历史期次(已完赛),非当日批次。
+
+route_complete: true
+data_quality_notes:
+- 竞彩 lottery_jczq_odds.issue_num 是全局连续大数(最新期 260703 为 5086~5088),竞彩无"001"场次;
+  用户口语"竞彩001"实指北单胜负(301)001,北单 issue_num 每期从1重编。
+- 北单 001(issue 26069)为 2026-06-26 历史期次(已完赛开奖),非"今天";今日(2026-06-29)北单
+  可售批次为 issue 26069 的 issue_num 54~67(世界杯/冰岛超/巴西乙)。
+- football_team.name_zh 用一队规范名(克鲁比04 / SJK学院),北单官网用预备队别名(赫尔辛基预备队
+  / 塞伊奈约基学院);resolve_match 按别名模糊查 football_match 会假阴性,须走 lottery_match.match_id。
+- lottery_bd_odds 原始 JSON 完好(spf/bf/jq/bqc/sxp 均合法 JSON);工具解析损坏,非数据问题。
+- get_match_result 不含进球球员/事件流水;get_match_half_stats 的 passes/fouls/offsides=null
+  (该场部分高级统计缺失),但不阻断核心因果分析。
+beidan_vs_jingcai:
+  play_type_301: 北单胜负过关,表 lottery_bd_odds/lottery_bd_result,玩法 spf/jq/bqc/sxp/bf
+  play_type_404: 北单让球胜平负,表 lottery_bdsf_odds,玩法 sf(让球)
+  jingcai_101: 竞彩足球,表 lottery_jczq_odds/result,issue_num 为全局连续大数,无"001"场次
+  tool_support: get_lottery_schedule/resolve_lottery_match 支持 301/404,但北单 odds JSON 解析损坏
+    且 resolve_lottery_match 不回填 match_id;get_match_result/get_match_half_stats 在有 match_id 时正常
+verdict_lean: conditional_pass
+verdict_rationale: |
+  数据层完全可答(赛果2:0+进球时间+战术统计+完整赔率JSON),非 data_gap。工具层有两个
+  tool_logic_gap(P1): 北单 odds JSON 解析损坏、resolve_lottery_match 不回填 match_id。
+  在修复前,生产环境须 SQL 桥接 lottery_match 拿 match_id 并直查 lottery_bd_odds/incidents,
+  自动链路不通但人工/SQL 路径可答 → conditional_pass(数据完备但工具链有 bug 需修)。

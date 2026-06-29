@@ -1,0 +1,204 @@
+type_id: E06
+case_id: TC-E06-001
+explored_at: '2026-06-29'
+methodology: SQL 优先,工具调用降级为对照(Agent 2 规则)
+user_query: |
+  任九14场打票清单(稳胆场001/012/013/018选2球3球,搏冷场019/020选3球4球,
+  3注2串1+1注3串1)。entity_entry=lottery_period,场景 E 批量串关(任九)。
+original_verdict: implementation_gap(无任九 rj 专属 play_type)
+atomics:
+- id: E06-T1-a1
+  category: resolve_entity
+  target: {entity: match, lottery_product: renji(rj)}
+  success_criteria: |
+    返回任九当前期次(issue)的 14 候选场次,含 issue/match_no/home/away/match_time,
+    且产品语义为"任九(rj)"而非"十四场胜负彩(sfc)"。
+- id: E06-T1-a2
+  category: synthesize_answer
+  target: {task: 打票清单+稳胆/搏冷选号+串关组合}
+  success_criteria: |
+    在 14 候选场次基础上,给出任九任选9场的选号建议(稳胆/搏冷)+串关组合,
+    需逐场基本面(form/赔率/伤停)支撑;且产品标签为任九。
+rounds_E06-T1-a1:
+- round: 1
+  hypothesis: |
+    先查 lottery 相关表结构,确认任九(rj)在 DB 中由哪些表/字段承载,
+    以及是否存在足彩玩法赔率表。
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name LIKE '%zc%'
+    ORDER BY table_name, ordinal_position LIMIT 300
+  schema_result: |
+    仅两张表:
+    - lottery_zc_issue(期次表):type varchar(20) comment "sfc:胜负彩,rj:任九、bqc:半全场、jqc:进球彩";
+      字段 issue/start_time/end_time/draw_time/result/first_pot_count/first_prize/jackpot/sales 等。
+    - lottery_zc_match(场次表):type varchar(10) comment "sfc:胜负彩、bqc:半全场、jqc:进球彩、rj:任九";
+      字段 issue/match_id/comp/home/away/match_time/match_time_str/result。
+    无 lottery_zc_odds 表——足彩(胜负彩/任九)在 DB 中无独立玩法赔率表。
+    另 lottery_match.lottery_type comment 明确:"401-14场胜负/任选9场"(401 同时覆盖 sfc 与 rj)。
+  decision: continue
+- round: 2
+  hypothesis: |
+    用 SQL 独立查出任九 rj 的真实期次与 14 候选场次,作为基准答案;
+    并验证 rj 与 sfc 是否同期共享同一批 14 场(决定 401 工具返回是否可代表任九)。
+  sql_baseline:
+    query_1: |
+      SELECT type, issue, FROM_UNIXTIME(start_time) st, FROM_UNIXTIME(end_time) et,
+             FROM_UNIXTIME(draw_time) dt, result, first_pot_count, first_prize, jackpot
+      FROM lottery_zc_issue WHERE type='rj' ORDER BY issue DESC LIMIT 10
+    result_1: |
+      10 期任九期次真实存在,issue=26080..26089。最新期 26089:
+      st=2026-06-28 18:00,et=2026-06-29 22:00,dt=2026-07-04,result=null(在售),
+      first_pot_count/jackpot=null(未开奖)。已开奖期 26088: result="3,0,0,3,3,1,0,3,0,0,3,0,1,0",
+      first_pot_count=16106, first_prize=914。证明任九期次/开奖/奖池数据 DB 真实存在。
+    query_2: |
+      SELECT type, issue, match_id, comp, home, away, match_time_str, result
+      FROM lottery_zc_match WHERE type='rj' ORDER BY issue DESC, match_id LIMIT 30
+    result_2: |
+      issue=26089 共 14 场(世界杯):260891 巴西vs日本(06-30)、260892 德国vs巴拉圭、
+      260893 荷兰vs摩洛哥、260894 科特迪vs挪威(07-01)、260895 法国vs瑞典、260896 墨西哥vs厄瓜多、
+      260897 英格兰vs刚果金(07-02)、260898 美国vs波黑、260899 西班牙vs奥地利(07-03)、
+      2608910 葡萄牙vs克罗地、2608911 瑞士vs阿尔及、2608912 澳大利vs埃及(07-04)、
+      2608913 阿根廷vs佛得角、2608914 哥伦比vs加纳。result 均空(在售)。
+      上一期 26088 已开奖,14 场 result 填充(3/1/0)。证明任九 14 候选场次 DB 真实存在。
+    query_3: |
+      SELECT rj.issue, rj.match_id, rj.home rj_home, rj.away rj_away,
+             sfc.home sfc_home, sfc.away sfc_away, rj.match_time_str
+      FROM lottery_zc_match rj
+      LEFT JOIN lottery_zc_match sfc
+        ON sfc.type='sfc' AND sfc.issue=rj.issue AND sfc.match_id=rj.match_id
+      WHERE rj.type='rj' AND rj.issue=26089 ORDER BY rj.match_id
+    result_3: |
+      14 行全部 rj_home=sfc_home、rj_away=sfc_away 完全一致(巴西vs日本…哥伦比vs加纳)。
+      证明 rj 与 sfc 每期共享同一批 14 候选场次(同 match_id/home/away/match_time)。
+  decision: continue
+- round: 3
+  hypothesis: |
+    调 foretell 工具 get_lottery_schedule(401) 与 resolve_lottery_match(401,001) 对照,
+    确认 401 在工具层映射的 zc_type 是 sfc 还是 rj,以及返回场次是否与 SQL rj 基准一致。
+  tool_call:
+    name: get_lottery_schedule
+    params: {play_type: '401'}
+    result: |
+      code=OK, count=14, issue=26089, 14 场:第1场 巴西vs日本(06-30)…第14场 哥伦比vs加纳(07-04),
+      match_id=260891..2608914。与 SQL type='rj' 基准 14 场完全一致(home/away/match_id/date 全对齐)。
+  tool_call_2:
+    name: resolve_lottery_match
+    params: {play_type: '401', code: '001'}
+    result: |
+      code=OK, count=10(跨期候选),首条 issue=26089 第1场 巴西vs日本 match_id=260891,
+      其余为 26088..26080 各期第1场(已带 result)。
+  source_code_check: |
+    foretell/tools/crazy_sports/mysql_client.py 第 216 行:
+      PlayType.FOURTEEN_MATCHES: ("lottery_zc_match", "sfc")
+    401 硬编码 zc_type='sfc'(十四场胜负彩),PlayType 枚举无 RJ。
+    get_lottery_schedule/resolve_lottery_match 对 401 走 WHERE type='sfc' 过滤,
+    仅因 rj 与 sfc 同期同场次一致,返回的 14 场恰等于 rj 14 场。
+  comparison: |
+    SQL 基准(type='rj')与工具(401→type='sfc')返回的 14 候选场次在 issue=26089 完全一致
+    (同 match_id/home/away/match_time)。但产品语义错配:工具标签为"十四场胜负彩(sfc)",
+    非"任九(rj)"。任九专属的 lottery_zc_issue.type='rj' 期次元数据(开奖结果/奖池/销售额)
+    与"任选9场"选号语义均未被工具暴露。场次实体本身真实(非合成 ID 假命中),
+    但产品标签错误——若仅以 401 count=14 即判 E06 满足,会误把十四场胜负彩当任九。
+  decision: blocked
+  final_status: partial
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 基准(lottery_zc_match.type='rj')证明 DB 真实存在任九期次(26080-26089,含开奖/奖池)
+    与 14 候选场次(issue=26089 14 场世界杯)。工具 get_lottery_schedule(401) 也能返回同样 14 场。
+    但 foretell/tools/crazy_sports/mysql_client.py:216 将 401 硬编码为 ("lottery_zc_match","sfc"),
+    PlayType 枚举无 RJ;401 在 lottery_match.lottery_type 注释中为"14场胜负/任选9场"(共享编码)。
+    故任九(rj)在工具层无专属 play_type 路由,产品语义被误标为十四场胜负彩(sfc)。
+    任九专属的 lottery_zc_issue.type='rj' 期次(开奖结果/奖池/销售额)与任选9场选号逻辑未暴露。
+    判定:数据存在,工具缺失 rj 专属路由 → implementation_gap(确认原判)。
+  recommended_next_step: |
+    新增 PlayType.RJ(建议 play_type=405)映射 ("lottery_zc_match","rj"),
+    并扩展 get_lottery_schedule/resolve_lottery_match 支持 rj;同时新增工具读取
+    lottery_zc_issue.type='rj' 的开奖结果/奖池/销售额以区分任九与十四场产品语义。
+rounds_E06-T1-a2:
+- round: 1
+  hypothesis: |
+    T1-a2 需在 14 场基础上做任九任选9场选号(稳胆001/012/013/018、搏冷019/020)+串关组合,
+    依赖逐场基本面(form/赔率/伤停)。先 SQL 确认足彩玩法赔率是否存在于 DB。
+  schema_query: |
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema='data_center'
+      AND (table_name LIKE '%zc%' OR table_name LIKE '%sfc%' OR table_name LIKE '%odds%')
+  schema_result: |
+    无 lottery_zc_odds / lottery_sfc_odds / lottery_rj_odds 表。odds 类表仅有:
+    football_odds_asian/europe/corner(亚盘/欧盘/角球,通用赛事赔率,按 football match_id 关联)
+    与 basketball_odds_*、lottery_bd_odds(北单)、lottery_jczq_odds(竞彩)、lottery_jclq_odds(竞篮)。
+    传统足彩(胜负彩/任九)在 DB 中无玩法赔率表——lottery_zc_match 也无 odds 字段。
+  sql_baseline:
+    query: |
+      SELECT type, COUNT(*) cnt, COUNT(DISTINCT issue) issues, MAX(issue) latest
+      FROM lottery_zc_match GROUP BY type
+    result: |
+      rj: 2702 行/193 期/latest=26089;sfc: 2702 行/193 期/latest=26089;
+      bqc: 1512 行;jqc: 1036 行。rj 与 sfc 行数/期数/latest 完全相同,再次印证同期共享。
+  tool_call:
+    name: synthesize_answer
+    params: {}
+    result: {code: NOT_APPLICABLE, stub: true}
+  comparison: |
+    任九综合打票清单所需三类输入:
+    (a) 14 候选场次——SQL+工具均可得(T1-a1 satisfied);
+    (b) 逐场基本面(近期form/赔率snapshot/伤停)——get_recent_form/get_odds_snapshot/
+        get_injury_report 等工具为 stub(与 E05 同源),且足彩玩法赔率在 DB 无表(data_gap);
+    (c) 任九任选9场选号语义与串关组合逻辑——无任何工具实现,且工具层未暴露 rj 产品标签。
+    三者中 (b)(c) 均阻塞。
+  decision: blocked
+  final_status: blocked
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 证明任九期次+14 场实体真实存在,但 T1-a2 综合所需:
+    - 逐场基本面工具(get_recent_form/get_odds_snapshot/get_injury_report)为 stub(implementation_gap,与 E05 同源);
+    - 足彩玩法赔率 DB 无表(lottery_zc_match 无 odds 字段,无 lottery_zc_odds 表)→ 赔率维度为 data_gap;
+    - 任九任选9场选号与串关组合逻辑无工具实现,且 rj 产品标签未暴露(implementation_gap)。
+    主导 gap 为 implementation_gap(工具未实现任九选号/串关综合 + 无 rj 专属路由),
+    赔率维度叠加 data_gap(足彩无玩法赔率表)。
+  recommended_next_step: |
+    先实现 PlayType.RJ 路由(T1-a1 建议),再实现 get_recent_form/get_odds_snapshot 等逐场基本面工具;
+    足彩玩法赔率缺失需找上游纳米数据补充 lottery_zc_odds 表或在工具层用 football_odds_europe
+    (通用欧赔,按 match_id 关联)近似替代,但需先解决彩票 match_id 与 football_match.match_id 的关联映射。
+summary:
+  sql_renji_period_found: true
+  sql_renji_14matches_found: true
+  sql_renji_odds_found: false
+  tool_401_returns_14_matches: true
+  tool_401_maps_to: "lottery_zc_match.type='sfc'(mysql_client.py:216, 硬编码)"
+  rj_sfc_share_same_14_matches: true
+  renji_play_type_exposed: false
+verdict: fail
+verdict_reason: |
+  E06 维持 ⚠️ implementation_gap(确认原判)。SQL 基准验证:
+  (1) DB 真实存在任九 rj 期次(lottery_zc_issue.type='rj',issue 26080-26089,含开奖结果/奖池/销售额);
+  (2) DB 真实存在任九 14 候选场次(lottery_zc_match.type='rj',issue=26089 14 场世界杯);
+  (3) rj 与 sfc 每期共享同一批 14 场(同 match_id/home/away/match_time),故工具 401 返回的 14 场
+      虽走 type='sfc' 过滤,但场次实体与 rj 完全一致(非合成 ID 假命中,场次本身正确);
+  (4) 但 foretell 工具层无任九专属 play_type——401 硬编码 lottery_zc_match.type='sfc'
+      (mysql_client.py:216),PlayType 枚举无 RJ,产品语义被误标为十四场胜负彩;
+  (5) 任九专属的 lottery_zc_issue.type='rj' 期次元数据(开奖/奖池)与任选9场选号逻辑均未暴露;
+  (6) 足彩玩法赔率 DB 无表(lottery_zc_match 无 odds 字段,无 lottery_zc_odds 表)→ 赔率维度叠加 data_gap;
+  (7) T1-a2 综合所需逐场基本面工具为 stub(与 E05 同源)。
+  判定:数据存在(期次+14场),工具缺失 rj 专属路由+选号综合 → 主导 implementation_gap,
+  赔率维度 data_gap。route_complete=false。需新增 PlayType.RJ(如 405)映射 type='rj'、
+  暴露任九期次元数据、实现逐场基本面工具,并解决足彩玩法赔率数据缺口后方可 route_complete。
+satisfied:
+- E06-T1-a1
+blocking_gap:
+  type: implementation_gap
+  description: |
+    foretell 工具层无任九(rj)专属 play_type——PlayType 枚举仅 401=FOURTEEN_MATCHES 且硬编码
+    lottery_zc_match.type='sfc'(mysql_client.py:216),301 实为北单(lottery_bd_odds)。
+    rj 与 sfc 每期共享同一批 14 候选场次,故 T1-a1 的 14 场 match 实体可经 401 真实取得
+    (SQL 验证 rj/sfc 同期同场次完全一致,非合成 ID 假命中),但产品语义被误标为十四场胜负彩。
+    任九专属的 lottery_zc_issue.type='rj' 期次(开奖结果/奖池/销售额)与"任选9场"选号逻辑
+    均未暴露;T1-a2 综合所需逐场基本面(form/odds/injury)依赖工具为 stub(与 E05 同源);
+    足彩玩法赔率 DB 无表(lottery_zc_match 无 odds 字段,无 lottery_zc_odds 表)→ 赔率维度叠加 data_gap。
+  failed_atomic: E06-T1-a2
+  secondary_gaps:
+  - {type: data_gap, scope: "足彩玩法赔率表缺失(lottery_zc_match 无 odds 字段,无 lottery_zc_odds 表)"}
+  - {type: implementation_gap, scope: "get_recent_form/get_odds_snapshot/get_injury_report 为 stub(与 E05 同源)"}
+route_complete: false

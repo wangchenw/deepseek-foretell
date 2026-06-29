@@ -1,11 +1,161 @@
 type_id: G12
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G12-001
+explored_at: '2026-06-29'
+scenario: G
+type_name: 时间窗纠正
+entity_entry: context
+sport: any
+tags: [regression, time_window]
+summary: |
+  用户要 4 场世界杯小组赛（捷克vs南非 / 瑞士vs波黑 / 加拿大vs卡塔尔 / 墨西哥vs韩国）
+  的竞彩过关组合，50 元做到 ≥150 元。核心是"时间窗纠正"——首轮可能把"明天早上世界杯"
+  误解为今天，turn1 用修正后的北京日期 2026-06-19 重新定位场次。注意世界杯跨日：北京时间
+  06:00/09:00 早场属前一日 UTC，但工具按北京时间日期分窗，故仍落在 2026-06-19。
+attempts:
+# ===== turn0 首轮：时间窗理解可能错误，不带 date 解析 =====
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 捷克, away: 南非}
+  code: OK
+  stub: false
+  count: 2
+  note: ambiguous，顶候选=4460939(2026-06-19 世界杯)，次候选=2019 女足友谊
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 瑞士, away: 波黑}
+  code: OK
+  stub: false
+  count: 7
+  note: ambiguous，顶候选=4460942(2026-06-19 世界杯)，其余为 U21/U17/女足/友谊
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 加拿大, away: 卡塔尔}
+  code: OK
+  stub: false
+  count: 1
+  note: 直中 4459825(2026-06-19 06:00 世界杯)
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 墨西哥, away: 韩国}
+  code: OK
+  stub: false
+  count: 10
+  note: ambiguous，顶候选=4459821(2026-06-19 09:00 世界杯)；2018 世界杯旧场因主客互换(韩国主)未返回，无碰撞
+# ===== turn1 时间窗纠正：maintain_context + 修正 date 重解析 =====
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 捷克, away: 南非, date: '2026-06-19'}
+  code: OK
+  stub: false
+  count: 1
+  match_id: 4460939
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 瑞士, away: 波黑, date: '2026-06-19'}
+  code: OK
+  stub: false
+  count: 1
+  match_id: 4460942
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 加拿大, away: 卡塔尔, date: '2026-06-19'}
+  code: OK
+  stub: false
+  count: 1
+  match_id: 4459825
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: resolve_match
+  params: {home: 墨西哥, away: 韩国, date: '2026-06-19'}
+  code: OK
+  stub: false
+  count: 1
+  match_id: 4459821
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: get_schedule_by_date
+  params: {date: '2026-06-19'}
+  code: OK
+  stub: false
+  count: 100
+  note: 顶 4 场即目标 4 场世界杯赛；count 截断于 100（含瑞典女超/格鲁甲等杂项）
+- round: 2
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: get_schedule_by_date
+  params: {date: '2026-06-18'}
+  code: OK
+  stub: false
+  count: 100
+  note: 跨日验证——返回 2026-06-18 的世界杯场（葡萄牙/刚果金、英格兰/克罗地亚等），不含目标 4 场；证明工具按北京时间日期分窗，06:00/09:00 早场虽属前一日 UTC 仍归 2026-06-19
+# ===== turn1 synthesize_answer：竞彩 SPF 赔率供过关组合 =====
+- round: 2
+  turn: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  tool: sql
+  params: {table: lottery_jczq_odds, filter: "match_time_str LIKE 2026-06-19% AND home/away 四场"}
+  code: OK
+  stub: false
+  count: 4
+  note: |
+    4 场全有竞彩 SPF 赔率，同期 issue=260618，序号 4025-4028，cancel=0，sell_status=3(停售/已完赛):
+      捷克vs南非   SPF 1.59/3.55/4.58  RQ -1@2.95/3.30/2.05
+      瑞士vs波黑   SPF 1.37/4.00/6.70  RQ -1@2.37/3.10/2.60
+      加拿大vs卡塔尔 SPF 1.17/5.45/11.00 RQ -1@1.67/3.65/3.90
+      墨西哥vs韩国  SPF 1.94/2.80/3.90  RQ -1@4.29/3.32/1.68
+    4 主胜串关 ≈ 1.59×1.37×1.17×1.94 ≈ 4.94 倍 → 50 元约 247 元，满足 ≥150 目标。
+- round: 2
+  turn: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  tool: sql
+  params: {table: football_odds_europe, filter: "match_id IN (4460939,4460942,4459825,4459821)"}
+  code: OK
+  stub: false
+  count: 40
+  note: 欧赔全覆盖（含 company=19 竞彩官方），可交叉验证竞彩 SPF
+satisfied:
+- T1-g0
+- T1-a1
+- T1-a2
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
+  type: none
+  description: |
+    数据路径完整。时间窗纠正后用北京日期 2026-06-19 重 resolve_match，4 场全部 count=1 唯一命中
+    世界杯正赛；get_schedule_by_date 按北京时间分窗，跨日(UTC)早场不串档。竞彩 SPF + 欧赔齐全，
+    可合成过关组合。maintain_context / time_window 属 agent 编排层，数据层无阻塞。
   failed_atomic: null
-route_complete: false
+route_complete: true
+verdict: verified
+key_findings:
+- 4 场均为 2026-06-19 北京时间早场（00:00/03:00/06:00/09:00），北京时间日期分窗正确；跨日陷阱在 UTC 层，工具用北京日期已规避，纠正时须用 2026-06-19 而非 UTC 2026-06-18。
+- resolve_match 不带 date 时捷克/南非、瑞士/波黑、墨西哥/韩国为 ambiguous（含 U21/女足/友谊旧场），但顶候选均为 2026 世界杯正赛；带 date=2026-06-19 后全部 count=1 唯一命中。
+- 2018 世界杯韩国(主)vs墨西哥(客)旧场因主客顺序与本次"墨西哥对韩国"相反而未碰撞；若用户改述"韩国对墨西哥"将触发历史场碰撞，需 date 消歧——此为 time_window+routing 复合陷阱。
+- 竞彩 SPF 4 场齐全（issue 260618 / 序号 4025-4028），4 主胜串关约 4.94 倍，50→247 元，满足 ≥150 目标；synthesize_answer 数据层无 gap。

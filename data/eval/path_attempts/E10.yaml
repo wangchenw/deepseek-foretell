@@ -1,16 +1,248 @@
 type_id: E10
 case_id: TC-E10-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (初筛vs深核)
+turns:
+- turn_index: 0
+  text: 美国VS澳大利亚 比分预测
 attempts:
+# ---- Phase 1: 初筛 (batch screening via get_lottery_schedule) ----
 - round: 1
-  atomic_id: E10-probe-1
+  atomic_id: E10-T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
   code: OK
-  count: 16
+  count: 15
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 竞彩足球在售批次初筛 OK；扫描 entries 未命中 美国/澳大利亚 条目（该场为 2026-06-20
+    已完赛世界杯小组赛，不在当前在售竞彩批次内）
+- round: 1
+  atomic_id: E10-T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+  code: OK
+  count: 4
+  stub: false
+  note: 竞篮批次初筛 OK（sport=any 探查篮球侧，无美国vs澳大利亚）
+- round: 1
+  atomic_id: E10-T1-a1
+  tool: scan_lottery_for_usa_au
+  params:
+    play_type: '101'
+  code: OK
+  count: 0
+  stub: false
+  note: 客户端字符串扫描竞彩 101 批次未发现 美国+澳大利亚 同条目；初筛未入围 → fallback
+    到 resolve_match 按队名直查
+# ---- Phase 2: 深度核验 (resolve_match → deep tool chain) ----
+- round: 2
+  atomic_id: E10-T1-a1
+  tool: resolve_match
+  params:
+    home: 美国
+    away: 澳大利亚
+  code: OK
+  count: 10
+  stub: false
+  note: 锁定 match_id=4459828，home=美国(13611) away=澳大利亚(13832)，league_id=1
+    世界杯，date=2026-06-20，status=finished，neutral=false，round_group=4 round_num=2；
+    environment 含 23°C/47%/3.4m/s
+- round: 2
+  atomic_id: E10-T1-a1
+  tool: resolve_team
+  params:
+    name: 美国
+  code: OK
+  count: 10
+  stub: false
+  note: 首候选=美国女足U18 (team_id=12394, national=1)，非世界杯成年国家队 13611 — 实体碰撞
+- round: 2
+  atomic_id: E10-T1-a1
+  tool: resolve_team
+  params:
+    name: 澳大利亚
+  code: OK
+  count: 10
+  stub: false
+  note: 首候选=澳大利亚特选队 (team_id=11359, national=0)，非国家队 13832 — 实体碰撞；正确
+    team_id 须从 resolve_match 取
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_match_result
+  params:
+    match_id: 4459828
+  code: OK
+  count: 1
+  stub: false
+  note: status=finished，含 full_time/score_breakdown
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 13611
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 美国成年国家队近5场（首条 2026-06-26 客 2-3 负）
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 13832
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 澳大利亚国家队近5场（首条 2026-06-26 客 0-0 平）
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 13611
+    team_b: 13832
+    n: 5
+  code: OK
+  count: 4
+  stub: false
+  note: 历史交锋4场，首条即本世界杯场 美国 2-0 澳大利亚（半场 2-0，角球 7-4，黄牌 3-4，无红牌）
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459828
+  code: OK
+  count: 10
+  stub: false
+  note: 欧赔+亚盘结构化返回
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4459828
+  code: OK
+  count: 50
+  stub: false
+  note: 赔率走势50个变化点
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_kelly
+  params:
+    match_id: 4459828
+  code: OK
+  count: 5
+  stub: false
+  note: 凯利指数多家
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_same_odds_history
+  params:
+    match_id: 4459828
+  code: OK
+  count: 10
+  stub: false
+  note: 同赔历史10场赛果
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_match_lineup
+  params:
+    match_id: 4459828
+  code: OK
+  count: 22
+  stub: false
+  note: 首发确认，含阵型/教练/主客名单
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_injury_report
+  params:
+    match_id: 4459828
+  code: OK
+  count: 2
+  stub: false
+  note: 主客伤停结构化返回
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_intel_tags
+  params:
+    match_id: 4459828
+  code: OK
+  count: 5
+  stub: false
+  note: 5类情报 tag（主正/主负/客正/客负/中性）
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_match_team_stats
+  params:
+    match_id: 4459828
+  code: OK
+  count: 2
+  stub: false
+  note: 双方球队比赛统计
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_match_player_stats
+  params:
+    match_id: 4459828
+    limit: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 球员评分/统计 top10
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_match_incidents
+  params:
+    match_id: 4459828
+  code: OK
+  count: 27
+  stub: false
+  note: 27个比赛事件（进球/黄牌/换人等），type 语义映射正常
+- round: 2
+  atomic_id: E10-T1-a2
+  tool: get_standings
+  params:
+    league_id: 1
+  code: OK
+  count: 30
+  stub: false
+  note: 世界杯积分榜交叉验证
+satisfied:
+- E10-T1-a1
+- E10-T1-a2
+blocking_gap:
+  type: routing_gap
+  description: 两处非阻断路由缺口。(1) 初筛缺口：美国vs澳大利亚为 2026-06-20 已完赛世界杯小组赛，
+    不在当前在售竞彩 101 批次内，get_lottery_schedule 初筛无法入围该场；需 fallback 到 resolve_match
+    按队名直查。(2) 实体解析碰撞：resolve_team("美国") 首候选=美国女足U18(12394)、resolve_team("澳大利亚")
+    首候选=澳大利亚特选队(11359,national=0)，均非世界杯成年国家队(13611/13832)；若 LLM 用 resolve_team
+    取 team_id 再查 form/h2h 会落到错误实体（假阴性风险）。正确 team_id 须从 resolve_match 的 match
+    记录(home_team_id/away_team_id)获取。
+  failed_atomic: E10-T1-a1
+  workaround: resolve_match(home,away) 直接得 match_id + 双方 team_id；初筛未入围时跳过 lottery
+    直进 resolve_match。不阻断 LLM eval。
 route_complete: true
+data_quality_notes:
+- 美国vs澳大利亚 match_id=4459828 为 2026-06-20 世界杯小组赛(round_group=4 round_num=2)，status=finished；
+  用户问"比分预测"时该场已完赛，比分核验可得(美国 2-0 澳大利亚，半场 2-0，角球 7-4)
+- resolve_team 对"美国/澳大利亚"单字面查询返回的是女足U18/特选队而非成年国家队，体现国家队实体消歧
+  须优先走 resolve_match 而非 resolve_team；与 db_schema_map 所记 basketball/football team_id 跨运动
+  碰撞风险同源（此处为同运动内国家队 vs 青训/特选队碰撞）
+- get_h2h 首条即本世界杯场本身（含 score_breakdown），说明 h2h 与本场结果重叠，分析时需去重避免
+  用本场数据"预测"本场
+phase2_verification:
+  new_tools_implemented:
+  - get_match_lineup: OK (22 entries, confirmed)
+  - get_injury_report: OK
+  - get_intel_tags: OK (5 tag groups)
+  - get_match_team_stats: OK (2 teams)
+  - get_match_player_stats: OK (10 players)
+  - get_match_incidents: OK (27 events)
+  - get_odds_trend: OK (50 points)
+  - get_same_odds_history: OK (10 entries)
+  - get_kelly: OK
+  - get_recent_form: OK (13611/13832 各5场)
+  - get_h2h: OK (4场)
+  - get_standings: OK (世界杯 30)
+verdict_lean: verified

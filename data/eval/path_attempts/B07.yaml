@@ -1,17 +1,212 @@
 type_id: B07
 case_id: TC-B07-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+source: path_explorer_phase1
+scenario_summary: 4月21日韩K联 全北现代(主,第3) vs 仁川联(客,第10) 七段式赛前分析模板
+entity_entry: match
 attempts:
+# ===== T1-a1: resolve_entity(match) =====
 - round: 1
-  atomic_id: B07-probe-1
+  atomic_id: B07-T1-a1
+  tool: resolve_team
+  params:
+    name: 全北现代
+  code: OK
+  count: 3
+  stub: false
+  note: team_id=10238（Jeonbuk Hyundai Motors）
+- round: 1
+  atomic_id: B07-T1-a1
+  tool: resolve_team
+  params:
+    name: 仁川联
+  code: OK
+  count: 4
+  stub: false
+  note: team_id=10694（Incheon United Club）
+- round: 1
+  atomic_id: B07-T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 全北现代
+    away: 仁川联
+    date: '2026-04-21'
+  code: OK
+  count: 1
+  stub: false
+  match_id: 4480384
+  note: 韩K联 league_id=581 round_num=9 status=finished，主位3客位10，环境温度13°C湿度42%风力1.1m/s
+# ===== 第一部分：基础数据对比 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_recent_form
+  params:
+    team_id: 10238
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 全北最近5场 W/D/D/W/W（含 venue 字段）
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_recent_form
+  params:
+    team_id: 10694
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 仁川最近5场 W/L/W/D/L
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_standings
+  params:
+    league_id: 581
+  code: OK
+  count: 12
+  stub: false
+  note: 韩K联积分榜，含主客场拆分（全北主场 5胜0平2负，仁川客场 3胜3平1负）
+# ===== 第二部分：战术体系 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_match_lineup
+  params:
+    match_id: 4480384
+  code: OK
+  stub: false
+  note: confirmed=true，主队 4-2-3-1（coach_id=7544），客队 4-4-2（coach_id=1704），含 11 首发坐标
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_match_team_stats
+  params:
+    match_id: 4480384
+  code: OK
+  count: 2
+  stub: false
+  note: 控球 51/49、射门 3/6、射正 1/4、角球 7/1、黄牌 0/4
+# ===== 第三部分：关键球员状态 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_match_player_stats
+  params:
+    match_id: 4480384
+    limit: 10
   code: OK
   count: 10
   stub: false
-satisfied: []
+  note: 含评分（李同律7.23、赵伟济7.05、李明周7.03）+ 进球助攻
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_injury_report
+  params:
+    match_id: 4480384
+  code: OK
+  count: 2
+  stub: false
+  note: 全北孔帕尼奥、朴主英 injured；客队无伤停
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_team_squad
+  params:
+    team_id: 10694
+  code: OK
+  count: 33
+  stub: false
+  note: 仁川完整大名单（含位置/球衣号）
+# ===== 第四部分：历史交锋 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_h2h
+  params:
+    team_a: 10238
+    team_b: 10694
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 最近5次交锋含 full/half 比分 + 红黄牌角球（4/21 全北1-2仁川）
+# ===== 第五部分：高阶数据 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_match_team_stats
+  params:
+    match_id: 4480384
+  code: OK
+  count: 2
+  stub: false
+  note: 提供 shots/shots_on_target/ball_possession 等可替代 xG/xGA；数据源不直接提供 xG 字段，需 LLM 基于射门数据估算
+# ===== 第六部分：外部因素 =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_team_schedule
+  params:
+    team_id: 10238
+    direction: all
+    limit: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 用于赛程密集度评估（注意：direction=all 返回的是 future 已安排赛程，回看历史需结合 recent_form）
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: resolve_match
+  params:
+    home: 全北现代
+    away: 仁川联
+    date: '2026-04-21'
+  code: OK
+  count: 1
+  stub: false
+  note: 返回 environment.temperature=13°C/humidity=42%/wind=1.1m/s，满足天气条件维度
+- round: 2
+  atomic_id: B07-T1-b1
+  category: referee_lookup
+  tool: get_referee
+  status: skipped
+  note: resolve_match 候选未含 referee_id 字段，无法直接调用 get_referee；裁判风格维度需依赖 intel_tags 补充或视为 minor gap
+# ===== 子智能体 intel =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_intel_tags
+  params:
+    match_id: 4480384
+  code: OK
+  count: 5
+  stub: false
+  note: 完整赛前情报（主队积极/消极、客队积极/消极、中立），内容覆盖近5年交锋胜率、穆戈沙射手榜第1、孔帕尼奥未首秀等
+# ===== 子智能体 odds =====
+- round: 1
+  atomic_id: B07-T1-b1
+  tool: get_odds_snapshot
+  params:
+    match_id: 4480384
+  code: OK
+  stub: false
+  note: 5家欧赔公司 + 5家亚盘公司（初盘/即时/最新，含 in_play 标识），亚盘初盘主-0.5→即时-0.75
+# ===== T1-a2 / T1-b2: synthesize_answer (非工具) =====
+- round: 1
+  atomic_id: B07-T1-a2
+  category: synthesize_answer
+  status: n/a
+  note: LLM 合成步骤，无需工具调用
+- round: 1
+  atomic_id: B07-T1-b2
+  category: synthesize_answer
+  target:
+    format: six_segment
+  status: n/a
+  note: 七段式（六部分分析 + 第七部分自我审计）合成，输入数据已由 b1 工具链完整覆盖
+satisfied:
+- B07-T1-a1
+- B07-T1-a2
+- B07-T1-b1
+- B07-T1-b2
 blocking_gap: null
+minor_gaps:
+- type: implementation_gap
+  description: xG/xGA 直接指标不在数据源；可用 shots/shots_on_target/ball_possession 估算，第五部分"实际进球 vs xG"需 LLM 做近似推理
+- type: routing_gap
+  description: resolve_match 候选未含 referee_id，第六部分裁判风格维度无法直接 get_referee；可由 intel_tags 部分替代
 route_complete: true
+verdict: pass
+verdict_emoji: ✅

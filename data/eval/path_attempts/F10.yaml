@@ -1,17 +1,66 @@
 type_id: F10
 case_id: TC-F10-001
-explored_at: '2026-06-28'
-source: probe_results
+type_name: 欧赔亚盘
+scenario: F
+entity_entry: match
+sport: football
+explored_at: '2026-06-29'
+user_query: 4点半刚开赛，印尼超级联赛佩斯克对杰帕拉，佩斯克主场由让半球降为让平半。结合近期状态、历史战绩、战术打法，分析亚盘降盘原因，并结合欧洲赔率、欧亚对比，分析上盘或下盘。
+
 attempts:
-- round: 1
-  atomic_id: F10-probe-1
-  tool: resolve_match
-  params:
-    home: 皇马
-    away: 巴萨
-  code: OK
-  count: 10
-  stub: false
-satisfied: []
-blocking_gap: null
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_match
+    params:
+      home: 佩斯克
+      away: 杰帕拉
+    code: OK
+    count: 2
+    stub: false
+    note: >
+      返回 2 候选，正确命中 match_id=4379512（佩斯克谏义里 vs 杰帕拉，
+      印尼超 league_id=1788，2026-04-06 16:30 北京时间，对应"4点半刚开赛"），
+      status=finished。另一候选为印尼U20(league_id=3006)佩斯克谏义里U20，
+      跨运动/赛事碰撞已通过 league_name 与主客全称正确消歧。无需 date 参数。
+
+  - round: 1
+    atomic_id: T1-a2
+    tool: get_odds_snapshot
+    params:
+      match_id: 4379512
+    code: OK
+    count:
+      european: 5
+      asian: 5
+    stub: false
+    note: >
+      欧赔 + 亚盘联合快照均返回。亚盘初盘 handicap=-0.5（让半球）→
+      即时 current.handicap=-0.25（让平半），跨全部公司（18Bet/Interwetten/
+      立博/ＳＢ皇冠/盈禾/易胜博/即时盘）一致，精确验证用户"由让半球降为
+      让平半"的文案。欧赔主胜 initial ~1.78-2.00 → current ~2.05-2.13
+      （主胜赔率上调，主队信心下降），与亚盘降盘方向一致，构成完整
+      欧亚对比数据。latest 字段为走地极值（比赛进行中），不影响初盘→即时
+      的降盘分析。company_id=0 即时盘为基准盘，company_name 已结构化返回。
+
+satisfied:
+  - T1-a1
+  - T1-a2
+
+blocking_gap:
+  type: none
+  description: 无阻塞。match 实体定位 + 欧赔/亚盘联合快照全部 OK，数据足以支撑降盘原因分析与欧亚对比上/下盘研判。
+  failed_atomic: null
+
 route_complete: true
+verdict_lean: verified
+key_findings:
+  - >
+    get_odds_snapshot 单次调用即返回 european + asian 双维度，亚盘
+    -0.5→-0.25 与欧赔主胜 1.88→2.13 同向，用户文案被数据精确印证，
+    无需 fallback。
+  - >
+    resolve_match 不带 date 也能正确命中（match_time_beijing 16:30
+    匹配"4点半刚开赛"）；U20 同名候选通过 league_name 消歧，无跨运动碰撞。
+  - >
+    latest 字段在 in_play 比赛中呈走地极值（draw 低至 1.01），合成答案时应
+    以 initial→current 趋势为准，忽略 latest 走地噪声。

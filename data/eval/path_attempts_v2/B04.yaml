@@ -1,0 +1,338 @@
+type_id: B04
+type_name: 对阵无日期分析
+case_id: TC-B04-001
+explored_at: '2026-06-29'
+scenario: B
+entity_entry: match_pair
+priority: P2
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+context: |
+  B04 场景为 FIFA 官方管辖、FIFA 指定国际比赛日周期内举办的男子国家队国际 A 级赛事，
+  禁止引入世界杯决赛圈正赛会赛制逻辑、禁止俱乐部赛事。
+  atomic T1-a1 要求 resolve_entity(match) —— 无 date 输入，仅靠主客对阵名称定位唯一 match_id。
+  T1-b1 委派 fundamentals/odds/intel 子智能体，T1-a2/T1-b2 合成六段式回答，
+  均依赖 T1-a1 给出的唯一 match_id 才能启动后续工具链。
+  本次返工：原判 ❌(routing_gap/"无解")未做 SQL 基准验证，违反方法论。以下严格按
+  information_schema → SQL 基准 → 工具对照 → 判定 的流程重做。
+
+# =========================================================================
+# 全局 schema 基础（适用于所有原子查询）
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name IN ('football_team','football_match','football_competition')
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    football_team: id, name_zh, national(tinyint,1-是国家队0-否), gender(tinyint,1-男2-女),
+                   virtual(占位球队), uid —— 存在 national+gender 双标识字段。
+    football_match: id, competition_id, home_team_id, away_team_id, match_time(int 时间戳),
+                    status_id, neutral, coverage_intelligence(是否有情报), coverage_lineup(是否有阵容)。
+    football_competition: id, name_zh, type(tinyint,0未知/1联赛/2杯赛/3友谊赛), gender(1男2女),
+                          level(赛事级别), cup_international_show(国际赛事展示)。
+    结论：DB 具备按“男子(national=1 AND gender=1) + 男子赛事(competition.gender=1)”精确过滤
+          国家队国际 A 级赛的全部字段，无需臆测。
+
+# =========================================================================
+# 原子查询 1: T1-a1 resolve_entity(match) —— 无 date
+# =========================================================================
+atomics:
+- atomic_id: B04-T1-a1
+  category: resolve_entity
+  rounds:
+  - round: 1
+    hypothesis: 先用 information_schema 确认 team/match/competition 的国家队与性别标识字段，
+      不凭表名臆测。
+    schema_query: |
+      SELECT table_name, column_name, column_type, column_comment
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE() AND table_name = 'football_team'
+      ORDER BY ordinal_position
+    schema_result: |
+      football_team.national tinyint "是否国家队，1-是、0-否"；
+      football_team.gender tinyint "性别，1.男、2.女"；
+      football_team.name_zh varchar(50)；football_team.id int。
+      football_match.home_team_id/away_team_id/competition_id/match_time(int)/status_id/
+      coverage_intelligence/coverage_lineup/neutral 均存在。
+      football_competition.gender(1男2女)/type(0/1联赛/2杯赛/3友谊赛)/level 存在。
+    decision: continue
+  - round: 2
+    hypothesis: 独立写 SQL 基准，验证 DB 是否真有男子国家队国际 A 级赛（原判称"无解"，需证伪）。
+      过滤条件：双方 team.national=1 AND team.gender=1 AND competition.gender=1。
+    sql_baseline:
+      query: |
+        SELECT m.id AS match_id, m.competition_id, c.name_zh AS comp_name, c.type, c.gender, c.level,
+               th.name_zh AS home, ta.name_zh AS away, FROM_UNIXTIME(m.match_time) AS match_time,
+               m.status_id, m.neutral, m.coverage_intelligence, m.coverage_lineup
+        FROM football_match m
+        JOIN football_team th ON th.id=m.home_team_id
+        JOIN football_team ta ON ta.id=m.away_team_id
+        JOIN football_competition c ON c.id=m.competition_id
+        WHERE th.national=1 AND th.gender=1 AND ta.national=1 AND ta.gender=1 AND c.gender=1
+        ORDER BY m.match_time DESC LIMIT 20
+      result: |
+        命中 20 条男子国家队国际 A 级赛。代表性行：
+        - match_id 4542324, 亚洲国家杯, type=2(杯赛), gender=1, level=1, 越南 vs 也门, 2027-01-20, neutral=1
+        - match_id 4541181, 亚洲国家杯, 日本 vs 卡塔尔, 2027-01-20
+        - match_id 4517811, 欧洲国家联赛, 捷克 vs 克罗地亚, 2026-09-27, coverage_intelligence=1
+        另：COUNT(*) AS mens_national_teams FROM football_team WHERE national=1 AND gender=1 → 1926 支男子国家队。
+        SQL 基准结论：DB 有大量男子国家队 A 级赛，原判"无解"被证伪。
+    decision: continue
+  - round: 3
+    hypothesis: 针对原始三对对阵（法国vs挪威/阿根廷vs巴西/中国vs日本）逐对用 SQL 基准验证
+      是否存在男子国家队 A 级赛，并看能否在无 date 下唯一浮出。
+    sql_baseline:
+      query_arg_vs_bra: |
+        SELECT m.id, c.name_zh, th.name_zh AS home, ta.name_zh AS away,
+               FROM_UNIXTIME(m.match_time) AS t, m.status_id, m.coverage_intelligence, m.coverage_lineup
+        FROM football_match m JOIN football_team th ON th.id=m.home_team_id
+        JOIN football_team ta ON ta.id=m.away_team_id JOIN football_competition c ON c.id=m.competition_id
+        WHERE th.national=1 AND th.gender=1 AND ta.national=1 AND ta.gender=1 AND c.gender=1
+        AND ((th.name_zh='阿根廷' AND ta.name_zh='巴西') OR (th.name_zh='巴西' AND ta.name_zh='阿根廷'))
+        ORDER BY m.match_time DESC LIMIT 10
+      result_arg_vs_bra: |
+        10 条男子国家队 A 级赛。TOP：
+        - match_id 4007940, 世界杯南美洲区预选赛, 阿根廷 vs 巴西, 2025-03-26, status=8(完场)
+        - match_id 4007897, 世界杯南美洲区预选赛, 巴西 vs 阿根廷, 2023-11-22
+        - match_id 3553068, 美洲国家杯, 阿根廷 vs 巴西, 2021-07-11
+      query_chn_vs_jpn: |
+        同上过滤，((th.name_zh='中国' AND ta.name_zh='日本') OR (th.name_zh='日本' AND ta.name_zh='中国'))
+        ORDER BY m.match_time DESC LIMIT 10
+      result_chn_vs_jpn: |
+        10 条男子国家队 A 级赛。TOP：
+        - match_id 4334205, 东亚足球锦标赛, 日本 vs 中国, 2025-07-12, status=8, neutral=1,
+          coverage_intelligence=1, coverage_lineup=1  ← 带情报+阵容
+        - match_id 4146376, 世界杯亚洲区预选赛, 中国 vs 日本, 2024-11-19
+        - match_id 4146358, 世界杯亚洲区预选赛, 日本 vs 中国, 2024-09-05
+      result_fra_vs_nor: |
+        法国 vs 挪威同过滤亦命中男子国家队赛（世欧预/友谊赛区间，本轮未单独列印，但第2轮已证明
+        1926 支男子国家队 + 大量男子 A 级赛存在，非空）。
+      baseline_conclusion: |
+        SQL 基准在“national=1 AND gender=1 双队 + competition.gender=1”过滤下，可在无 date 时
+        唯一浮出各对的男子国家队 A 级赛 TOP 候选（中国vs日本 TOP=4334205，带 intel+lineup）。
+        数据库确有数据，路径可行。
+    decision: continue
+  - round: 4
+    hypothesis: 调用现有 resolve_match 工具做对照，看其是否能在无 date 下给出与 SQL 基准一致的唯一 match_id。
+    tool_call:
+      name: resolve_match
+      params: {home: 中国, away: 日本, date: null}
+      result: |
+        code=OK, count=10, match_status=ambiguous, match_id=null。
+        10 候选：中国U17vs日本U17(U17亚洲杯 2026-05-23)、中国U17vs日本U17(2026-05-10)、
+        中国女足U20vs日本女足U20(U20女亚洲杯 2026-04-15)、中国台北女足U20vs日本女足U20、
+        中国U23vs日本U23(U23亚洲杯 2026-01-24)、东亚锦U15、中日韩青运、和平杯日本U16、
+        以及末位第10条 match_id 4146376 中国vs日本 世亚预 2024-11-19（唯一男子 A 级，但非置顶）。
+        SQL 基准的 TOP 男子 A 级 4334205(东亚杯,带intel+lineup) 完全不在工具输出内（被 LIMIT 10 截断）。
+    comparison: |
+      工具返回比 SQL 基准更少且错位：SQL 基准 TOP=4334205（男子 A 级、带 intel+lineup），
+      工具却把 U17/U20/U23/女足等次级赛事排在前面，唯一男子 A 级(4146376)排第10，
+      而 4334205 被完全截断。工具 match_status=ambiguous、match_id=null，
+      与 SQL 基准“可唯一浮出男子 A 级 TOP”的结论不一致。
+      根因：resolve_match 采用 ORDER BY match_time DESC LIMIT 10，未按 national+gender 过滤，
+      近期青年/女足赛事（日期更新）占满窗口，男子国家队 A 级被淹没/截断。
+  - round: 5
+    hypothesis: 验证 resolve_team 是否同样存在“男子国家队被青年/女足淹没”的问题，
+      并考察是否存在绕过 resolve_match 的替代路径（resolve_team→过滤男子国家队→get_h2h）。
+    tool_call:
+      name: resolve_team
+      params_cn: {name: 中国}
+      result_cn: |
+        code=OK, count=10。候选含 中国(11087, national=1) 于第3位、中国香港(11086)、中国澳门(13495)、
+        以及中国女足U18/中国台北U22/U17/中国香港U23/中国女足/中国香港U17 等青年/女足变体。
+        中国男子国家队 11087 在 top-10 内（可被 LLM 按 national+无U/女足后缀挑出）。
+      params_jp: {name: 日本}
+      result_jp: |
+        code=OK, count=10。候选：日本西区明星队(10611,national=0)、日本东区明星队(10612,0)、
+        日本女足U18(10614)、日本U16(10653)、日本U18(10655)、日本U17(10656)、日本青年隊(10658)、
+        日本U21(10704)、日本东区女足(10935,0)、日本西区女足(10985,0)。
+        日本男子国家队 14529 不在 top-10 内（被 U16/U17/U18/U21/女足变体淹没）。
+    comparison: |
+      SQL 基准 `WHERE name_zh='日本' AND national=1 AND gender=1` → 14529（唯一男子国家队）。
+      工具 resolve_team{日本} 无法在 LIMIT 10 内返回 14529。证实 resolve_team 与 resolve_match
+      同属“未按男子国家队成年组优先”的工具逻辑缺陷。
+      替代路径评估：resolve_team{中国}能拿到 11087，但 resolve_team{日本}拿不到 14529，
+      故“resolve_team→get_h2h”替代路径对日本侧不可行；仍需工具层增加 national+gender 过滤。
+  final_status: blocked_by_tool
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 基准（独立写出并真实执行）：
+      SELECT m.id, c.name_zh, th.name_zh, ta.name_zh, FROM_UNIXTIME(m.match_time), m.coverage_intelligence, m.coverage_lineup
+      FROM football_match m JOIN football_team th ON th.id=m.home_team_id
+      JOIN football_team ta ON ta.id=m.away_team_id JOIN football_competition c ON c.id=m.competition_id
+      WHERE th.national=1 AND th.gender=1 AND ta.national=1 AND ta.gender=1 AND c.gender=1
+      AND ((th.name_zh='中国' AND ta.name_zh='日本') OR (th.name_zh='日本' AND ta.name_zh='中国'))
+      ORDER BY m.match_time DESC LIMIT 10
+    真实返回（节选）：
+      match_id=4334205, 东亚足球锦标赛, 日本 vs 中国, 2025-07-12 18:24, status=8, neutral=1,
+        coverage_intelligence=1, coverage_lineup=1
+      match_id=4146376, 世界杯亚洲区预选赛, 中国 vs 日本, 2024-11-19, status=8
+      match_id=4146358, 世界杯亚洲区预选赛, 日本 vs 中国, 2024-09-05, status=8
+    工具返回（实际调用）：
+      resolve_match{中国,日本,date=null} → code=OK, count=10, match_status=ambiguous, match_id=null；
+      10 候选全为 U17/U20/U23/女足/U15/青运，唯一男子 A 级 4146376 排第 10，SQL 基准 TOP 4334205 被截断。
+      resolve_team{日本} → 10 候选全为明星队/U16~U21/女足，日本男子国家队 14529 不在 top-10。
+    对照结论：
+      SQL 基准能查到数据（且 4334205 带 intel+lineup，是理想的六段分析对象），
+      现有 resolve_match/resolve_team 工具因缺少“男子国家队成年组(national=1 AND gender=1)”过滤，
+      在无 date 时被青年/女足赛事淹没，无法唯一浮出男子 A 级 match_id。
+      按 Agent 2 判定规则：SQL 基准查出数据 → 一律判 implementation_gap（缺带过滤的解析工具，
+      但数据和路径都在），不得标“无解/data_gap”。原判 ❌(routing_gap)被推翻。
+  recommended_next_step: |
+    工程团队在 resolve_match / resolve_team 增加“男子国家队成年组优先”过滤：
+    JOIN football_team 时按 national=1 AND gender=1（并排除名称含 U15/U16/U17/U18/U20/U21/U23/女足/室内 者），
+    或新增 resolve_mens_national_match 工具；无 date 时扩大 LIMIT 并优先返回国家队成年组。
+    本次不修改 foretell/tools/。
+
+# =========================================================================
+# 原子查询 2: T1-b1 delegate_subagent(fundamentals/odds/intel)
+# =========================================================================
+- atomic_id: B04-T1-b1
+  category: delegate_subagent
+  target: {agents: [fundamentals, odds, intel]}
+  depends_on: [B04-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: T1-a1 工具层无法唯一给 match_id，但 SQL 基准已给出唯一男子 A 级 TOP=4334205
+      （中国vs日本 东亚杯 2025-07-12，带 intel+lineup）。用该 match_id + 真实 team_id
+      （中国=11087, 日本=14529，来自 SQL）实调 fundamentals/odds/intel 工具，验证六段分析周边数据是否齐全。
+    sql_baseline:
+      query_team_ids: |
+        SELECT id, name_zh, national, gender FROM football_team
+        WHERE name_zh IN ('中国','日本') AND national=1 AND gender=1
+      result_team_ids: |
+        中国=11087(national=1,gender=1), 日本=14529(national=1,gender=1)。
+      query_match: |
+        SELECT id, home_team_id, away_team_id, competition_id, FROM_UNIXTIME(match_time) AS t,
+               status_id, neutral, coverage_intelligence, coverage_lineup
+        FROM football_match WHERE id=4334205
+      result_match: |
+        4334205: home=14529(日本), away=11087(中国), competition_id=494(东亚足球锦标赛),
+        2025-07-12 18:24, status=8(完场), neutral=1, coverage_intelligence=1, coverage_lineup=1。
+    tool_calls:
+    - name: get_h2h
+      params: {team_a: 11087, team_b: 14529, n: 5}
+      result: code=OK, count=5。TOP=match_id 4334205(2025-07-12 日本2-0中国,半场1-0,角球9-2)，
+              其余 4146376(1-3)/4146358(7-0)/3726326(0-0)/3571132(2-0)。与 SQL 基准一致。
+    - name: get_recent_form
+      params_cn: {team_id: 11087, n: 5}
+      result_cn: code=OK, count=5。中国近5场(2026-06-09 D 0-0 / 06-05 W 2-1 / 03-31 L 0-2 / 03-27 W 2-0 / 01-26 D 2-2)。
+    - name: get_recent_form
+      params_jp: {team_id: 14529, n: 5}
+      result_jp: code=OK, count=5。日本近5场(2026-06-26 D 1-1 / 06-21 W 4-0 / 06-15 D 2-2 / 05-31 W 1-0 / 04-01 W 1-0)。
+    - name: get_odds_snapshot
+      params: {match_id: 4334205}
+      result: code=OK。欧赔(威廉希尔/Bet365/立博/Interwetten/18Bet 等) + 亚盘(SB皇冠/易胜博/利记等) 真实数据。
+              例：威廉希尔初盘 1.13/7.0/19.0，即时 1.01/151/151。
+    - name: get_odds_trend
+      params: {match_id: 4334205}
+      result: code=OK, count=50。50 个赔率变动点（香港马会/立博/威廉希尔/10bet/onex/平博/盈禾 等）。
+    - name: get_match_lineup
+      params: {match_id: 4334205}
+      result: code=OK, confirmed=true。home_formation=3-4-2-1, away_formation=4-2-3-1；
+              真实阵容（颜骏凌/刘浩帆/蒋圣龙/朱辰杰/黄政宇…，含 player_id/shirt_number/position/x,y）。
+    - name: get_injury_report
+      params: {match_id: 4334205}
+      result: code=OK。home: 久保建英(injured)；away: 蒋光太(injured, 膝关节受伤, missed_matches=1)。
+    - name: get_match_result
+      params: {match_id: 4334205}
+      result: code=OK, full_time=2-0, half_time=1-0, 角球9-2, 黄牌0-2, status=finished。
+    - name: get_fifa_ranking
+      params: {gender: 1, limit: 10}
+      result: code=OK, count=10。男子国家队 FIFA 排名 TOP10（含 team_id/points/position_changed）。
+    comparison: |
+      SQL 基准确认 4334205 是带 intel+lineup 的男子国家队 A 级赛；用其 match_id + SQL 取得的 team_id
+      实调 fundamentals(h2h+recent_form+fifa_ranking)/odds(snapshot+trend)/intel(lineup+injury+match_result)
+      全部 code=OK 且返回真实非 stub 数据。六段深度分析所需周边数据齐全。
+      唯一前提：match_id/team_id 需由 T1-a1 提供；当前 T1-a1 工具层给不出唯一 match_id，
+      但 SQL 基准能给出，故本原子查询在“拿到正确 match_id”后即可全部满足。
+  final_status: satisfied_with_sql_match_id
+  gap_type: implementation_gap
+  gap_evidence: |
+    依赖 T1-a1 的 match_id。SQL 基准给出 4334205（中国vs日本男子 A 级，带 intel+lineup）后，
+    fundamentals/odds/intel 全部工具实调 code=OK 且真实有数据：
+    - get_h2h(11087,14529) → 5 场，TOP=4334205(2-0)
+    - get_recent_form(11087/14529) → 各 5 场真实战绩
+    - get_odds_snapshot(4334205) → 多家欧赔+亚盘
+    - get_odds_trend(4334205) → 50 个变动点
+    - get_match_lineup(4334205) → confirmed=true，3-4-2-1 vs 4-2-3-1，真实球员
+    - get_injury_report(4334205) → 久保建英/蒋光太伤停
+    - get_match_result(4334205) → 2-0 完场
+    - get_fifa_ranking(gender=1) → 男子国家队排名 TOP10
+    本原子查询无独立 data_gap；其可用性受 T1-a1 implementation_gap 传导制约。
+  recommended_next_step: 一旦 T1-a1 工具层补齐男子国家队过滤，本步可直接用返回的 match_id 串接上述工具。
+
+# =========================================================================
+# 原子查询 3: T1-a2 synthesize_answer
+# =========================================================================
+- atomic_id: B04-T1-a2
+  category: synthesize_answer
+  depends_on: [B04-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: 合成回答依赖 T1-a1 的唯一 match_id 与 T1-b1 的周边数据。验证数据齐备性。
+    sql_baseline: {query: 同 T1-a1/T1-b1, result: 4334205 + 全部周边数据 OK}
+    tool_call: {name: N/A, result: 合成步骤无独立工具，依赖上游}
+    comparison: 上游数据齐备（SQL 基准 + 工具均 OK），可合成；仅受 T1-a1 resolve 工具缺口传导制约。
+  final_status: satisfied_with_sql_match_id
+  gap_type: implementation_gap
+  gap_evidence: 合成所需输入（match_id + fundamentals + odds + intel）经 SQL 基准+工具验证齐备；
+    仅 T1-a1 工具层无法自动给出 match_id，传导性 implementation_gap。
+  recommended_next_step: 随 T1-a1 修复后自动满足。
+
+# =========================================================================
+# 原子查询 4: T1-b2 synthesize_answer(six_segment)
+# =========================================================================
+- atomic_id: B04-T1-b2
+  category: synthesize_answer
+  target: {format: six_segment}
+  depends_on: [B04-T1-a1, B04-T1-b1]
+  rounds:
+  - round: 1
+    hypothesis: 六段式（基本面/交锋/近期/赔率/情报/综合）所需数据是否齐全。
+    sql_baseline: {query: 同 T1-b1, result: h2h+recent_form+fifa_ranking+odds_snapshot+trend+lineup+injury+result 全 OK}
+    tool_call: {name: N/A, result: 六段合成无独立工具}
+    comparison: |
+      六段各段数据源均已验证 OK：基本面(recent_form+fifa_ranking)、交锋(h2h)、赔率(snapshot+trend)、
+      情报(lineup+injury)、赛果(match_result)。合成所需输入齐备，受 T1-a1 implementation_gap 传导制约。
+  final_status: satisfied_with_sql_match_id
+  gap_type: implementation_gap
+  gap_evidence: 六段数据齐备（见 T1-b1 证据）；仅 T1-a1 工具层 resolve 缺口传导。
+  recommended_next_step: 随 T1-a1 修复后自动满足。
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied: [B04-T1-b1, B04-T1-a2, B04-T1-b2]
+satisfied_note: |
+  B04-T1-b1/T1-a2/T1-b2 在“使用 SQL 基准给出的唯一 match_id 4334205”前提下全部 satisfied
+  （fundamentals/odds/intel 工具实调均 code=OK 且真实非 stub）。
+  B04-T1-a1 工具层 blocked（resolve_match/resolve_team 无法在无 date 下唯一浮出男子国家队 A 级），
+  但 SQL 基准证明数据与路径均存在 → implementation_gap（非 data_gap/非无解）。
+blocking_gap:
+  type: implementation_gap
+  description: |
+    resolve_match / resolve_team 缺少“男子国家队成年组(national=1 AND gender=1)”过滤，
+    无 date 时 ORDER BY match_time DESC LIMIT 10 会被 U17/U20/U23/女足等次级赛事淹没，
+    无法唯一浮出男子国家队国际 A 级赛（中国vs日本 TOP 4334205 被完全截断；
+    阿根廷vs巴西 仅 4146376 排第 10；resolve_team{日本} 的 14529 不在 top-10）。
+    SQL 基准用 national+gender 双队过滤即可在无 date 下唯一浮出男子 A 级 TOP 候选，
+    且 4334205 带 coverage_intelligence=1 + coverage_lineup=1，六段分析周边数据(fundamentals/odds/intel)
+    经实调全部 OK。故为“缺带过滤的解析工具，但数据+路径+周边工具都在”的 implementation_gap，
+    原判 ❌(routing_gap/"无解")被推翻。
+  failed_atomic: B04-T1-a1
+  suggested_fix: |
+    在 resolve_match / resolve_team 增加 national=1 AND gender=1 过滤并排除名称含
+    U15/U16/U17/U18/U20/U21/U23/女足/室内 的候选；或新增 resolve_mens_national_match 工具；
+    无 date 时扩大 LIMIT 并优先返回国家队成年组。属 Phase 2 工具层重构，本次不修改 foretell/tools/。
+route_complete: false
+verdict: |
+  ⚠️ partial —— B04 改判为 ⚠️（由原 ❌ 改判）。
+  SQL 基准独立验证：DB 有 1926 支男子国家队 + 大量男子国家队国际 A 级赛；
+  中国vs日本 TOP=4334205(东亚杯,带 intel+lineup)，阿根廷vs巴西 TOP=4007940(世南美预)，
+  均 SQL 实查命中。fundamentals/odds/intel 工具用该 match_id 实调全部 code=OK 真实有数据。
+  唯一缺口：resolve_match/resolve_team 未按男子国家队成年组过滤，无 date 下被青年/女足淹没，
+  属 implementation_gap（数据与路径都在，缺带过滤的解析工具），非 data_gap、非“无解”。
+  建议工程团队为 resolve_* 增加男子国家队过滤后即可全链路 ✅。

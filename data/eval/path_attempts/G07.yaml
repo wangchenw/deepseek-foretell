@@ -1,34 +1,173 @@
 type_id: G07
+type_name: 优化方案
+scenario: G
 case_id: TC-G07-001
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+verdict_lean: partial_pass
+summary: |-
+  Phase 2 后主路径可用：北单列表(get_lottery_schedule 301) + 今日 top 足球赛程 +
+  欧赔/亚盘快照 + 优化三维度(kelly/odds_trend/betfair) 均实调 OK。
+  turn1 "优化方案" 可用 kelly(正价值判定)+betfair(市场效率/冷热)+odds_trend(趋势)
+  重组高置信度+正价值+低市场效率框架，非纯 agent 层重组，确有新维度工具支撑。
+  残留两类 gap：(1) get_lottery_schedule 北单 bf(比分)玩法赔率序列化 bug，
+  odds 字段被切成 JSON 碎片(如 "{\"sf3\":\"2.82\"")，影响比分推荐精度；
+  (2) turn2 跨窗口/session 引用需 checkpointer 读其他窗口，属 agent 编排/记忆层限制。
 attempts:
+# ===== turn0 =====
 - round: 1
+  turn: 0
+  atomic_id: G07-T0-a1
+  category: maintain_context
+  tool: null
+  status: agent_layer
+  code: OK
+  stub: false
+  note: 5条筛选标准模板由 agent 编排层持有，逐条是/否 + 综合结论规则，无需 foretell tool
+- round: 1
+  turn: 0
   atomic_id: G07-T0-a2
+  category: fetch_schedule
   tool: get_lottery_schedule
   params:
     play_type: '301'
   code: OK
+  count: 4
   stub: false
-  count: 19
-- round: 2
+  note: 今日(2026-06-30)北单 play_type=301 返回 4 场(巴西vs日本、IA阿克拉内斯vs弗拉姆、
+    荷兰vs摩洛哥等)，sell_status 全 on_sale；但 bf 玩法 odds 字段序列化损坏(见 T0-a6)
+- round: 1
+  turn: 0
   atomic_id: G07-T0-a3
+  category: fetch_schedule
   tool: get_schedule_by_date
   params:
-    date: '2026-06-28'
+    date: '2026-06-30'
     tier: top
   code: OK
+  count: 3
   stub: false
-  count: 8
+  note: top tier 返回 3 场世界杯(巴西vs日本 match_id=4459720、德国vs巴拉圭、荷兰vs摩洛哥)，
+    total_count=124，可交叉关联北单条目(football match_id 可得，北单 match_id=null 需 name+date 模糊匹配)
 - round: 1
+  turn: 0
+  atomic_id: G07-T0-a4
+  category: fetch_odds_snapshot
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+    market: europe
+  code: OK
+  count: 5
+  stub: false
+  note: 巴西vs日本 欧赔 5 家结构化(initial/current/latest + company_name + in_play/suspended)，
+    亚盘 5 家；安全边际≥5% 计算所需赔率可得(用户概率由 agent 层缺省/询问)
+- round: 1
+  turn: 0
   atomic_id: G07-T0-a5
   category: discover_via_search
   status: skipped
-  note: 标准3/4需媒体热度与伤停，Eval 禁止 internet_search
+  note: 标准3/4需媒体热度与伤停情报，Eval 禁止 internet_search/Tavily
+- round: 2
+  turn: 0
+  atomic_id: G07-T0-a6
+  category: synthesize_answer
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+  code: OK_PARTIAL
+  stub: false
+  note: 北单比分推荐需 bf 玩法赔率；get_lottery_schedule 返回的 bf[].odds 字段为损坏 JSON 碎片
+    (如 odds="{\"sf3\":\"2.82\""，仅首片段，后续键值丢失)，标签(1:0/2:1...)完整但赔率值不可靠。
+    规避路径：用 get_odds_snapshot 欧赔 implied_prob + bf 标签枚举做近似比分价值排序，
+    但精度受损。属 implementation_gap(部分，有 workaround)
+# ===== turn1 优化方案 =====
+- round: 1
+  turn: 1
+  atomic_id: G07-T1-a1
+  category: maintain_context
+  tool: null
+  status: agent_layer
+  code: OK
+  stub: false
+  note: 延续 turn0 筛选模板与先前推荐由 agent 编排层(checkpointer/上下文)持有，无需新 tool
+- round: 1
+  turn: 1
+  atomic_id: G07-T1-a2
+  category: synthesize_answer
+  tool: get_kelly
+  params:
+    match_id: 4459720
+  code: OK
+  count: 5
+  stub: false
+  note: 优化框架"正价值"维度——kelly 各公司 home/draw/away 均为负(样本场无正价值投注)，
+    可驱动"高置信度+正价值+低市场效率"筛选说明
+- round: 1
+  turn: 1
+  atomic_id: G07-T1-a2
+  category: synthesize_answer
+  tool: get_odds_trend
+  params:
+    match_id: 4459720
+  code: OK
+  count: 50
+  stub: false
+  note: 优化框架"趋势/低市场效率"维度——50 个历史赔率点(多公司 changed_at 时序)可用
+- round: 1
+  turn: 1
+  atomic_id: G07-T1-a2
+  category: synthesize_answer
+  tool: get_betfair
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  note: 优化框架"市场效率/冷热"维度——trade_index/profit_index/hot_cold_index/
+    kelly_variance/avg_european_odds 齐全(字段为 JSON 字符串，agent 可解析)；
+    结论：turn1 优化非纯 agent 重组，确有新维度工具支撑
+# ===== turn2 跨窗口 =====
+- round: 1
+  turn: 2
+  atomic_id: G07-T2-a1
+  category: maintain_context
+  tool: null
+  status: context_gap
+  code: N/A
+  stub: false
+  note: 跨窗口/session 引用其他窗口推荐的 002/010——foretell 工具无法读取其他会话上下文，
+    需 checkpointer 跨 session 共享或用户复述；hard_constraint 明确不得编造其他窗口推荐。
+    属 agent 编排/记忆层限制，非 foretell tool gap
+- round: 1
+  turn: 2
+  atomic_id: G07-T2-a2
+  category: synthesize_answer
+  tool: null
+  status: agent_layer
+  code: OK
+  stub: false
+  note: 诚实说明无法读取其他窗口 + 请用户复述 002/010 条件，agent 层可满足
 satisfied:
+- G07-T0-a1
 - G07-T0-a2
 - G07-T0-a3
+- G07-T0-a4
+- G07-T1-a1
+- G07-T1-a2
+- G07-T2-a2
+skipped:
+- G07-T0-a5
 blocking_gap:
   type: implementation_gap
-  description: 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
-  failed_atomic: G07-T0-a4
+  description: |-
+    get_lottery_schedule(play_type=301) 返回的北单 bf(比分)玩法 odds 字段序列化损坏——
+    每条 bf entry 的 odds 被切成不完整 JSON 片段(如 "{\"sf3\":\"2.82\""，
+    仅首键值对，其余 s30/s11... 键值丢失)，比分标签(1:0/2:1/3:2...)完整但赔率值不可靠，
+    影响 G07-T0-a6 北单比分推荐的价值排序精度。
+    Workaround：用 get_odds_snapshot 欧赔 implied_prob + bf 标签枚举近似，但精度受损。
+    次要：G07-T2-a1 跨窗口 context 需 checkpointer 跨 session，属 agent 编排层限制(非 tool gap)。
+  failed_atomic: G07-T0-a6
+  secondary:
+  - atomic_id: G07-T2-a1
+    type: context_gap
+    description: 跨窗口/session 引用需 checkpointer 或用户复述，foretell 工具层不可达
 route_complete: false

@@ -1,267 +1,363 @@
-atomic_id: aq_1
-rounds:
+type_id: B09
+type_name: 系列赛G7
+case_id: TC-B09-REG-006
+explored_at: '2026-06-29'
+scenario: B
+entity_entry: series_game
+priority: P1
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+context: |
+  B09 场景为 NBA 篮球季后赛 best-of-7 系列赛第 7 场（G7）分析。
+  atomic T0-a1 要求 resolve_entity —— 定位“马刺 vs 雷霆 系列赛第7场”的唯一 match_id，
+  hard_constraint: series_game=7 硬约束，找不到时不得降级 G6；
+  T0-a5 hard_constraint: NOT_APPLICABLE 时诚实说明无 G7 数据，不得伪造 G6。
+  原判 ⚠️(implementation_gap) 称“match_ids 数组仅5个id缺失2场，无法精确锁定G7”——
+  该结论把 get_series_matchup 工具的 buggy 输出当成了 DB 真相，未做 SQL 基准验证，违反方法论。
+  本次返工严格按 information_schema → SQL 基准 → 工具对照 → 判定 重做。
+
+# =========================================================================
+# 全局 schema 基础
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name IN ('basketball_match','basketball_team','basketball_bracket_match_up','basketball_bracket_rounds')
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    basketball_match: id, competition_id, home_team_id, away_team_id, kind(1常规/2季后赛/3季前赛/4全明星/5杯/6附加),
+      status_id(10=完场), match_time(int 时间戳), match_time_str, neutral, home_scores/away_scores
+      (varchar 节数分数数组 [q1,q2,q3,q4,ot]), season_id, round_stage_id, round_round_num, round_group_num,
+      coverage_intelligence, has_players。
+      【关键】basketball_match 表【无】series_game / series_id / game_number / round_game 等系列赛场次字段，
+      无法在比赛表本身按“第几场”过滤。
+    basketball_team: id(球队id), name_zh, short_name_zh, name_en, competition_id, conference_id, country_id。
+      球队主键为 id（非 team_id），中文名为 name_zh。
+    basketball_bracket_match_up: id(对阵id/matchup_id), round_id, type_id(赛制: 10=7局4胜制/best_of_7),
+      state_id(7主场胜/8客场胜/9取消/10轮空…), home_team_id, away_team_id, winner_team_id,
+      home_score/away_score(多回合为【胜场次数】而非单场比分), parent_id/children_id1/children_id2(对阵树连线),
+      match_ids(varchar(100), “对阵关联的比赛id”数组，即系列赛 G1..G7 对应的 basketball_match.id 列表)。
+      【关键】系列赛“第几场”语义不在 basketball_match，而在 bracket_match_up.match_ids 数组顺序 +
+      各 match_id 对应 basketball_match.match_time 排序。
+    basketball_bracket_rounds: id, bracket_id, group_id, name_zh(阶段名，如“总决赛/西部决赛”)。
+    结论：DB 通过 bracket_match_up.match_ids 字段完整记录 best-of-7 的 7 场关联比赛 id，
+          可经 SQL 精确锁定 G7（数组末位 + match_time 最晚的一场），无需 series_game 字段。
+
+# =========================================================================
+# 原子查询 1: T0-a1 resolve_entity(马刺vs雷霆 G7)
+# =========================================================================
+atomics:
+- atomic_id: B09-T0-a1
+  category: resolve_entity
+  target: {home: 雷霆, away: 马刺, series_game: 7, sport: basketball}
+  rounds:
   - round: 1
-    hypothesis: "马刺/雷霆是 NBA 篮球队，需要先确认 foretell 工具是否支持篮球实体定位。
-      我的假设：resolve_team 工具默认查 football_team，对篮球可能不适用。先查 basketball_team
-      表结构 + 用 SQL 基准独立定位马刺/雷霆的 basketball team_id"
+    hypothesis: 先用 information_schema 确认 basketball_match 是否有 series_game 等系列赛字段，
+      不凭“系列赛G7”字面臆测字段名；并确认系列赛关联存于哪张表。
     schema_query: |
       SELECT table_name, column_name, column_type, column_comment
       FROM information_schema.columns
-      WHERE table_schema='data_center'
-        AND table_name IN ('basketball_team','basketball_match','basketball_bracket_match_up')
-      ORDER BY table_name, ordinal_position
-    schema_result: "确认 basketball_team 有 id/name_zh/short_name_zh/national/competition_id
-      等字段；basketball_match 无 series_game 字段（只有 kind/round_stage_id/round_group_num/
-      round_round_num）；basketball_bracket_match_up 有 type_id(10=7局4胜制)/state_id/
-      home_score/away_score(多回合为胜场次数)/match_ids(varchar 存对阵关联比赛id列表)"
-    sql_baseline:
-      query: |
-        SELECT id, name_zh, short_name_zh, name_en, national, competition_id
-        FROM basketball_team
-        WHERE name_zh LIKE '%马刺%' OR short_name_zh LIKE '%马刺%'
-           OR name_zh LIKE '%雷霆%' OR short_name_zh LIKE '%雷霆%'
-        LIMIT 20
-      result: "马刺：id=10137 圣安东尼奥马刺 (San Antonio Spurs, competition_id=1=NBA, national=0)；
-        雷霆：id=10219 俄克拉荷马城雷霆 (Oklahoma City Thunder, competition_id=1=NBA, national=0)。
-        另有奥斯汀马刺(20631, 马刺下属G联盟队)、川崎雷霆勇者(11468, 日本B联赛) 等歧义候选，
-        但 competition_id=1 (NBA) 是强消歧信号 → 唯一确定 10137/10219"
+      WHERE table_schema = DATABASE() AND table_name = 'basketball_match'
+      ORDER BY ordinal_position
+    schema_result: |
+      basketball_match 全字段见 global_schema。确认无 series_game/series_id/game_number/round_game。
+      仅有 kind(2=季后赛)、round_stage_id、round_round_num、round_group_num，均非“系列赛第N场”语义。
+      另查 table_name LIKE '%series%' → 0 张表（DB 无独立 series 表）。
+      系列赛语义表为 basketball_bracket_match_up，其 match_ids 字段(varchar(100))存系列赛各场 match_id。
     decision: continue
   - round: 2
-    hypothesis: "SQL 基准已定位 NBA 马刺/雷霆。现在调用 foretell resolve_team 工具做对照，
-      验证工具是否也能返回这两个篮球 team_id"
-    tool_call:
-      name: resolve_team
-      params: {name: 马刺}
-      result:
-        code: OK
-        candidates_count: 10
-        sample: "得克萨斯马刺女足(team_id=12414, sport=football)、圣劳伦斯马刺(12488, football)、
-          锡帕里亚马刺(35591, football) ... 全部 10 个候选 sport=football，无一个 NBA 圣安东尼奥马刺"
-    comparison: "严重不一致：SQL 基准证明 basketball_team 表里有 NBA 马刺(10137)/雷霆(10219)，
-      但 resolve_team 工具返回的全是 football 球队（Texas Spurs 女足、St. Lawrence Spurs 等），
-      完全找不到 NBA 篮球队。根因：mysql_client.resolve_team 只查 football_team 表，对篮球
-      完全不适用 → tool_logic_gap / implementation_gap（篮球缺独立 resolve 工具）"
-    decision: blocked
-final_status: blocked
-gap_type: implementation_gap
-gap_evidence: "SQL 基准：basketball_team 表查到 NBA 马刺(id=10137, competition_id=1)、
-  雷霆(id=10219, competition_id=1)。工具对照：resolve_team('马刺') 返回 10 个候选全部
-  sport=football（team_id 12414/12488/35591/41055/44529/46575/54236/57212/60928/81399），
-  无任何 NBA 篮球队。根因：foretell/tools/crazy_sports/mysql_client.py 的 resolve_team
-  实现只 JOIN football_team，没有 basketball_team 版本。篮球实体定位完全无工具支撑。"
-recommended_next_step: "工程团队需新增 resolve_basketball_team 工具，查 basketball_team 表
-  （name_zh/short_name_zh LIKE + competition_id 过滤 NBA=1）。现有 resolve_team 应在 docstring
-  明确仅支持足球，或在 sport 参数下分流到 basketball_team 表。"
-
----
-atomic_id: aq_2
-rounds:
-  - round: 1
-    hypothesis: "G7 是系列赛第 7 场。basketball_match 表无 series_game 字段，series_game 信息
-      只能从 basketball_bracket_match_up 反推（type_id=10=7局4胜制，match_ids varchar 列表
-      的第 7 个元素即 G7 的 match_id）。先查 bracket 表里马刺vs雷霆 type_id=10 的对阵"
+    hypothesis: 用 SQL 独立解析马刺/雷霆的 basketball team_id，作为后续 matchup 与比赛查询的锚点。
+    sql_baseline:
+      query: |
+        SELECT id, name_zh, short_name_zh, competition_id
+        FROM basketball_team
+        WHERE name_zh LIKE '%马刺%' OR name_zh LIKE '%雷霆%'
+              OR name_en LIKE '%Spurs%' OR name_en LIKE '%Thunder%'
+        LIMIT 20
+      result: |
+        命中（节选）：
+        - id=10137, name_zh=圣安东尼奥马刺, short=马刺, competition_id=1(NBA)
+        - id=10219, name_zh=俄克拉荷马城雷霆, short=雷霆, competition_id=1(NBA)
+        - 其余为奥斯汀马刺/川崎雷霆勇者/各“迅雷/雷鸟”干扰候选（competition_id≠1）。
+        基准结论：马刺=10137，雷霆=10219（均为 NBA competition_id=1）。
+    decision: continue
+  - round: 3
+    hypothesis: 用 SQL 直接查 bracket_match_up 中马刺(10137)vs雷霆(10219)的 best_of_7 对阵，
+      取其 match_ids 原始字符串，验证 DB 是否真有 7 场关联 id（证伪原判“仅5个/缺失2场”）。
     sql_baseline:
       query: |
         SELECT id, round_id, type_id, state_id, home_team_id, away_team_id,
                winner_team_id, home_score, away_score, match_ids, note
         FROM basketball_bracket_match_up
-        WHERE type_id=10
-          AND ((home_team_id=10137 AND away_team_id=10219)
-            OR (home_team_id=10219 AND away_team_id=10137))
-        LIMIT 20
-      result: "6 个对阵记录。其中 5 个 match_ids 长度=6 或更短（系列 4:2 / 4:1 结束，无 G7）。
-        唯一对阵 id=922432, round_id=171928: home_team_id=10219(雷霆), away_team_id=10137(马刺),
-        state_id=8(客场胜), winner_team_id=10137(马刺), home_score=3, away_score=4,
-        match_ids=[3920588,3920589,3920590,3920591,3921246,3921525,3921754] → 7 场，
-        第 7 个 match_id=3921754 即 G7，马刺 4:3 客场取胜"
+        WHERE (home_team_id IN (10137,10219) AND away_team_id IN (10137,10219))
+        ORDER BY id LIMIT 20
+      result: |
+        命中 1 行（即原判提及的 matchup 922432）：
+        - id=922432, round_id=171928, type_id=10(best_of_7), state_id=8(客场胜),
+          home_team_id=10219(雷霆主场), away_team_id=10137(马刺客场),
+          winner_team_id=10137(马刺), home_score=3, away_score=4(胜场数 3-4，马刺4-3胜),
+          match_ids='[3920588,3920589,3920590,3920591,3921246,3921525,3921754]'
+        【关键】SQL 基准 match_ids 共 7 个 id：3920588,3920589,3920590,3920591,3921246,3921525,3921754。
+        原判“仅5个id缺失2场”被证伪——DB 实际有完整 7 场关联 id，G7=数组末位 3921754。
     decision: continue
-  - round: 2
-    hypothesis: "拿到 G7 match_id=3921754，查 basketball_match 详情确认比赛时间/主客/状态/比分，
-      同时查前 6 场比分验证 series 真打满 3:3"
-    sql_baseline:
-      query_g7: |
-        SELECT id, competition_id, home_team_id, away_team_id, kind, status_id,
-               match_time, match_time_str, neutral, home_scores, away_scores,
-               home_position, away_position, round_stage_id, season_id
-        FROM basketball_match WHERE id=3921754 LIMIT 5
-      query_first6: |
-        SELECT id, match_time_str, home_team_id, away_team_id, home_scores, away_scores
-        FROM basketball_match
-        WHERE id IN (3920588,3920589,3920590,3920591,3921246,3921525)
-        ORDER BY match_time
-      result_g7: "match_id=3921754, competition_id=1(NBA), home=雷霆(10219, 西1), away=马刺(10137, 西2),
-        kind=2(季后赛), status_id=10(已完场), match_time_str=2026-05-31 08:00:00(北京时间),
-        neutral=0, home_scores=[25,28,24,26,0], away_scores=[32,24,24,31,0],
-        home_position=西1, away_position=西2, round_stage_id=10847, season_id=1911"
-      result_series: "前 6 场比分（按时间）：
-        G1 5/19 雷霆主: 雷霆[27,17,29,28,14]=115 vs 马刺[27,24,29,21,21]=122 → 马刺胜 (1:0)
-        G2 5/21 雷霆主: 雷霆122 vs 马刺113 → 雷霆胜 (1:1)
-        G3 5/23 马刺主: 马刺108 vs 雷霆123 → 雷霆胜 (1:2)
-        G4 5/25 马刺主: 马刺103 vs 雷霆82 → 马刺胜 (2:2)
-        G5 5/27 雷霆主: 雷霆127 vs 马刺114 → 雷霆胜 (2:3)
-        G6 5/29 马刺主: 马刺118 vs 雷霆91 → 马刺胜 (3:3)
-        → 打满 6 场 3:3，G7 决胜合规"
-    decision: continue
-  - round: 3
-    hypothesis: "SQL 基准已证明 DB 里有完整 G7 数据（match_id=3921754）。现在对照 foretell
-      resolve_match 工具：①传 series_game=7；②不传 series_game。验证工具是否能返回 G7"
-    tool_call:
-      - name: resolve_match
-        params: {home: 马刺, away: 雷霆, series_game: 7}
-        result:
-          code: NOT_APPLICABLE
-          data: {home: 马刺, away: 雷霆, series_game: 7,
-            reason: "未找到系列赛第7场，禁止降级分析其他场次"}
-      - name: resolve_match
-        params: {home: 马刺, away: 雷霆}
-        result:
-          code: ENTITY_NOT_FOUND
-          data: {home: 马刺, away: 雷霆, date: null}
-    comparison: "双重 gap 确认：
-      ① resolve_match(series_game=7) → NOT_APPLICABLE。foretell/tools/crazy_sports/mysql_client.py
-        第 320-321 行 `if series_game is not None: return []`——工具签名暴露了 series_game 参数
-        但实现直接返回空列表，根本不查 basketball_bracket_match_up / basketball_match。
-        entity.py wrapper 在 series_game 非空且 candidates 空时返回 NOT_APPLICABLE + reason
-        '未找到系列赛第7场，禁止降级分析其他场次'——这个 reason 行为符合 expected_behaviors
-        '不得降级 G6'，但根因不是 DB 无数据，而是工具压根不实现 series_game 查询 → tool_logic_gap
-      ② resolve_match(无 series_game) → ENTITY_NOT_FOUND。因为工具查 football_match + football_team，
-        对 NBA 篮球比赛完全不适用 → implementation_gap（同 aq_1）
-      SQL 基准证明 DB 实际有 G7 完整数据（match_id=3921754, 2026-05-31 08:00 北京时间，
-      雷霆主 vs 马刺客，西1 vs 西2，已完场，马刺 111:103 客场赢，系列赛 4:3）"
-    decision: blocked
-final_status: blocked
-gap_type: tool_logic_gap
-gap_evidence: "SQL 基准（basketball_bracket_match_up id=922432 + basketball_match id=3921754）
-  证明 DB 里有马刺 vs 雷霆 G7 完整数据：2026-05-31 08:00 北京时间，雷霆主 vs 马刺客，
-  status_id=10 已完场，比分马刺 111:103 客场胜，系列赛 4:3 马刺赢。工具对照：
-  resolve_match(home=马刺, away=雷霆, series_game=7) 返回 NOT_APPLICABLE——mysql_client.py
-  第 320-321 行 `if series_game is not None: return []`，工具签名暴露 series_game 参数但
-  实现直接返回空，不查 basketball_bracket_match_up。这是典型 tool_logic_gap：工具『假装支持』
-  series_game 但根本没实现。entity.py wrapper 的 reason '禁止降级分析其他场次' 在行为上
-  符合 expected_behaviors，但掩盖了真正根因（DB 有数据，工具不查）。"
-recommended_next_step: "P1 修复 mysql_client.resolve_match：当 series_game 非空时，应
-  ① 查 basketball_bracket_match_up (home/away LIKE + type_id=10) 找到对阵；
-  ② 从 match_ids 字段（varchar JSON 数组）解析第 series_game 个 match_id；
-  ③ 去 basketball_match 查比赛详情返回。
-  另需新增篮球版 resolve_match（查 basketball_match + basketball_team），现有版本只查
-  football_match，对篮球完全不适用。"
-
----
-atomic_id: aq_3
-rounds:
-  - round: 1
-    hypothesis: "需要前 6 场结果验证 series 真打满 3:3，且为 aq_4 综合分析提供 series 进展数据。
-      用 SQL 一次性聚合 7 场比分（含每场总分计算）"
+  - round: 4
+    hypothesis: 用 SQL 将 7 个 match_id 落到 basketball_match 实表，按 match_time 排序，
+      验证 7 场全部真实存在、是否完场、并定位 G7 的主客/比分/时间。
     sql_baseline:
       query: |
-        SELECT m.id, m.match_time_str, m.home_team_id, m.away_team_id,
-               m.home_scores, m.away_scores,
-               ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
-               (CAST(JSON_EXTRACT(m.home_scores,'$[0]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.home_scores,'$[1]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.home_scores,'$[2]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.home_scores,'$[3]') AS UNSIGNED)) AS home_total_4q,
-               (CAST(JSON_EXTRACT(m.away_scores,'$[0]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.away_scores,'$[1]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.away_scores,'$[2]') AS UNSIGNED)
-                +CAST(JSON_EXTRACT(m.away_scores,'$[3]') AS UNSIGNED)) AS away_total_4q
-        FROM basketball_match m
-        JOIN basketball_team ht ON m.home_team_id=ht.id
-        JOIN basketball_team at ON m.away_team_id=at.id
-        WHERE m.id IN (3920588,3920589,3920590,3920591,3921246,3921525,3921754)
-        ORDER BY m.match_time
-      result: "7 场全有数据（G1 有加时第5节=14，其余 4 节结束）。逐场胜负：
-        G1 5/19 雷霆主 115(含OT14) vs 马刺 122(含OT21) → 马刺胜 1:0
-        G2 5/21 雷霆主 122 vs 马刺 113 → 雷霆胜 1:1
-        G3 5/23 马刺主 108 vs 雷霆 123 → 雷霆胜 1:2
-        G4 5/25 马刺主 103 vs 雷霆 82 → 马刺胜 2:2
-        G5 5/27 雷霆主 127 vs 马刺 114 → 雷霆胜 2:3
-        G6 5/29 马刺主 118 vs 雷霆 91 → 马刺胜 3:3
-        G7 5/31 雷霆主 103 vs 马刺 111 → 马刺胜 4:3 马刺赢系列赛
-        pattern：主场优势被打破（5/7 客队取胜），马刺客场 4 胜"
+        SELECT id, home_team_id, away_team_id, kind, status_id,
+               FROM_UNIXTIME(match_time) AS match_time_l, home_scores, away_scores, neutral
+        FROM basketball_match
+        WHERE id IN (3920588,3920589,3920590,3920591,3921246,3921525,3921754)
+        ORDER BY match_time
+      result: |
+        7 行全部命中，kind=2(季后赛), status_id=10(完场), neutral=0。按时间排序即 G1..G7：
+        - G1 id=3920588, 2026-05-19 08:30, 雷霆(h)vs马刺(a), home[27,17,29,28,14]=115 vs away[27,24,29,21,21]=122 → 马刺胜(加时)
+        - G2 id=3920589, 2026-05-21 08:30, 雷霆(h)vs马刺(a), 122 vs 113 → 雷霆胜
+        - G3 id=3920590, 2026-05-23 08:30, 马刺(h)vs雷霆(a), 108 vs 123 → 雷霆胜
+        - G4 id=3920591, 2026-05-25 08:00, 马刺(h)vs雷霆(a), 103 vs 82 → 马刺胜
+        - G5 id=3921246, 2026-05-27 08:30, 雷霆(h)vs马刺(a), 127 vs 114 → 雷霆胜
+        - G6 id=3921525, 2026-05-29 08:30, 马刺(h)vs雷霆(a), 118 vs 91 → 马刺胜
+        - G7 id=3921754, 2026-05-31 08:00, 雷霆(h)vs马刺(a), home[25,28,24,26]=103 vs away[32,24,24,31]=111 → 马刺客场胜
+        【G7 真实存在】match_id=3921754, 2026-05-31, 雷霆主场 103-111 马刺，马刺客场夺系列赛 4-3，
+        与 matchup home_score=3/away_score=4/winner=10137 完全一致。
+        (match_time 为 DB 存储时间戳，FROM_UNIXTIME 显示值按纳米数据惯例约为开赛北京时间；美东换算即 NBA 季后赛常规开赛窗口。)
     decision: continue
-  - round: 2
-    hypothesis: "对照 foretell get_h2h 工具能否返回这 7 场交锋（虽然实际是 series 内战
-      而非历史交锋，但工具语义上应能查到两队过往对决）"
+  - round: 5
+    hypothesis: 调现有 resolve_match 工具对照，验证其能否在 basketball + series_game=7 下定位 G7；
+      并对照 get_series_matchup 工具返回的 match_ids 是否与 SQL 基准(7个)一致。
     tool_call:
-      name: get_h2h
-      params: {team_a: 10137, team_b: 10219}
-      result:
-        code: DATA_MISSING
-        data: {team_a: 10137, team_b: 10219, matches: []}
-    comparison: "不一致：SQL 基准证明 DB 里有 7 场马刺 vs 雷霆对决（含 G7），但 get_h2h
-      返回空。根因：get_h2h 查 football_match h2h，对 basketball team_id 完全不适用
-      → implementation_gap（同 aq_1，篮球无 h2h 工具）"
-    decision: blocked
-final_status: blocked
-gap_type: implementation_gap
-gap_evidence: "SQL 基准聚合 7 场比分验证 series 3:3 → G7 4:3 马刺赢，且揭示系列赛
-  主场劣势 pattern（5/7 客队取胜）。工具对照 get_h2h(team_a=10137, team_b=10219)
-  返回 DATA_MISSING——因工具查 football_match，对篮球 team_id 不适用。"
-recommended_next_step: "新增篮球版 get_h2h 或在 get_h2h 加 sport 参数分流到
-  basketball_match + basketball_team。对 series 类查询，应支持按 bracket_match_up
-  聚合（match_ids 数组）而非单纯历史交锋。"
+      name: resolve_match
+      params: {home: 雷霆, away: 马刺, series_game: 7}
+      result: |
+        code=NOT_APPLICABLE, dimension=match_entity,
+        reason="未找到系列赛第7场，禁止降级分析其他场次"（home/away 中文经 shell 编码显示为 "??"，但 reason 守轨提示完整）。
+        守轨行为生效：诚实说明未找到 G7 且不降级 G6，符合 T0-a5 hard_constraint。
+        但底层未找到的原因是 resolve_match 仅查 football_match 表，不支持 basketball_match。
+    tool_call_2:
+      name: get_series_matchup
+      params: {sport: basketball, team_id: 10137, limit: 50}
+      result: |
+        code=OK, dimension=series_matchup。命中的马刺vs雷霆对阵：
+        - matchup_id=922432, series_type=best_of_7, state=away_won, home=雷霆(10219), away=马刺(10137),
+          winner=10137, home_wins=3, away_wins=4,
+          match_ids=[3920589,3920590,3920591,3921246,3921525]  ← 仅 5 个
+        工具返回的 match_ids 漏掉了 3920588(G1) 与 3921754(G7)。
+    comparison: |
+      SQL 基准 vs 工具：
+      1) matchup 元信息（type=best_of_7, winner=马刺, 3-4）—— 工具与 SQL 一致。
+      2) match_ids —— SQL 基准 7 个 [3920588,3920589,3920590,3920591,3921246,3921525,3921754]，
+         工具仅返回 5 个，漏 3920588(G1) 与 3921754(G7)。工具返回比 SQL 基准少，
+         且漏掉的正是关键 G7 → tool_logic_gap（Agent 2 第4条“工具返回比 SQL 基准更少→标记 tool_logic_gap”）。
+      3) resolve_match{series_game=7} → NOT_APPLICABLE，而 SQL 证明 G7=3921754 真实存在且完场。
+         resolve_match 不查 basketball_match（只查 football_match），series_game 参数虽接收但 SQL 未作过滤
+         → implementation_gap（DB 有 G7，工具不支持篮球+series_game 过滤）。
+      4) 守轨提示“禁止降级分析其他场次”虽符合 a5，但其触发前提是“工具找不到 G7”——
+         而 DB 实际有 G7，故该 NOT_APPLICABLE 属能力不足导致的 false negative，非真“无G7”。
+  final_status: blocked_by_tool
+  gap_type: implementation_gap
+  gap_evidence: |
+    SQL 基准（独立写出并真实执行，非工具输出）：
+      SELECT id, match_ids, home_team_id, away_team_id, winner_team_id, home_score, away_score, type_id, state_id
+      FROM basketball_bracket_match_up
+      WHERE (home_team_id IN (10137,10219) AND away_team_id IN (10137,10219)) LIMIT 20
+      → matchup 922432, type_id=10(best_of_7), winner=10137(马刺), home_score=3/away_score=4,
+        match_ids='[3920588,3920589,3920590,3920591,3921246,3921525,3921754]'  (7 个完整)
+      SELECT id, home_team_id, away_team_id, kind, status_id, FROM_UNIXTIME(match_time), home_scores, away_scores
+      FROM basketball_match WHERE id IN (3920588,...,3921754) ORDER BY match_time
+      → 7 行全命中，全 kind=2 季后赛、status_id=10 完场。
+        G7 = 3921754, 2026-05-31 08:00, 雷霆(h) 103-111 马刺(a)，马刺客场夺系列赛 4-3。
+    工具返回（实际调用）：
+      resolve_match{home:雷霆, away:马刺, series_game:7} → code=NOT_APPLICABLE,
+        reason="未找到系列赛第7场，禁止降级分析其他场次"（守轨生效，但底层不查 basketball_match）。
+      resolve_match{home:雷霆, away:马刺}(去 series_game) → code=ENTITY_NOT_FOUND（证实根本不查篮球表）。
+      get_series_matchup{sport:basketball, team_id:10137} → matchup 922432 元信息 OK，
+        但 match_ids 仅返回 [3920589,3920590,3920591,3921246,3921525]（5 个），漏 3920588(G1) 与 3921754(G7)。
+    对照结论：
+      SQL 基准精确锁定 G7 = match_id 3921754（雷霆主场 103-111 马刺，2026-05-31 完场），
+      系列赛 7 场全部在库且完场——DB 有 G7 数据，路径可行。
+      现有工具：(a) resolve_match 不支持 basketball_match 且 series_game 不作 SQL 过滤 → implementation_gap；
+      (b) get_series_matchup 漏返回 G1/G7 两个 match_id → tool_logic_gap。
+      按 Agent 2 判定规则：SQL 基准查出 G7 → 一律判 implementation_gap（不得标无解/data_gap）。
+      原判“无法精确锁定G7”被推翻：G7 可经 bracket_match_up.match_ids SQL 精确定位为 3921754。
+  recommended_next_step: |
+    工程团队两条修复路径（任一即可让 B09 全链路 ✅）：
+    (A) 扩展 resolve_match 支持 sport=basketball 分支，JOIN basketball_bracket_match_up 取 match_ids，
+        按 series_game 索引（数组第 N 个）+ match_time 排序返回对应 basketball_match.id；
+    (B) 修复 get_series_matchup 的 match_ids 解析（当前漏返回首尾各 1 个，疑似字符串 split/截断 bug，
+        match_ids 字段 varchar(100) 未超长，非存储截断），使其完整返回 7 个 id，
+        再新增/复用按 series_game 取第 N 场的薄封装。
+    另：resolve_match 对 basketball 返回 NOT_APPLICABLE + 守轨提示虽符合 a5“不伪造G6”，
+    但本质是 false negative（DB 有 G7 却说找不到），no_false_negative 维度需扣分。
+    本次不修改 foretell/tools/。
 
----
-atomic_id: aq_4
-rounds:
+# =========================================================================
+# 原子查询 2: T0-a2 fetch_stats(系列赛基本面)
+# =========================================================================
+- atomic_id: B09-T0-a2
+  category: fetch_stats
+  target: {scope: series_fundamentals, sport: basketball}
+  depends_on: [B09-T0-a1]
+  rounds:
   - round: 1
-    hypothesis: "综合分析阶段，基于 aq_1/aq_2/aq_3 的 SQL 基准数据合成深度分析回答。
-      不调用工具（synthesize_answer 类别）。检验数据是否足够支撑一次深度 G7 分析"
-    data_synthesis: |
-      可用数据：①两队身份 NBA 季后赛（西1雷霆 vs 西2马刺）；②G7 时间 2026-05-31 08:00 北京时间、
-      雷霆主场、已完场马刺 111:103 客场胜；③系列赛前 6 场逐场比分与胜负 pattern（3:3 打满、
-      主场劣势 5/7 客胜）；④马刺客场 4 胜横扫。
-      不足以分析的数据：球员级别数据（阵容/伤停/个人得分）、教练战术、临场调整、赔率盘口
-      （foretell 篮球无对应工具，basketball_match 有 has_players 字段但 foretell 未暴露工具）。
-    decision: satisfied
-final_status: satisfied
-gap_type: null
-gap_evidence: "基于 SQL 基准已能产出『系列赛回顾 + G7 赛果 + 趋势 pattern』级别的回答。
-  但深度分析（球员/战术/赔率）受限于 foretell 无篮球深度工具，仅能做系列赛层面综述。"
-recommended_next_step: "若需提升到 NBA 专业分析级别，需新增篮球阵容/球员数据工具
-  （basketball_match.has_players 字段已存在但未暴露）、篮球赔率工具。"
+    hypothesis: 用 SQL 基准给出的 G7 match_id(3921754) 与 team_id(马刺10137/雷霆10219)，
+      验证系列赛基本面数据（系列赛比分、各场赛果）是否在库。
+    sql_baseline:
+      query_series_summary: |
+        SELECT id, home_team_id, away_team_id, winner_team_id, home_score, away_score, type_id, state_id
+        FROM basketball_bracket_match_up WHERE id=922432
+      query_g7_result: |
+        SELECT id, home_team_id, away_team_id, home_scores, away_scores, status_id,
+               FROM_UNIXTIME(match_time) AS t, neutral
+        FROM basketball_match WHERE id=3921754
+      result: |
+        系列：922432 best_of_7, 马刺4-3雷霆(away_won), winner=10137。
+        G7：3921754, 雷霆(h)103-111马刺(a), 完场, neutral=0。
+        系列赛 7 场比分与胜负链 SQL 全部可查（见 a1 round4），基本面数据齐全。
+    tool_call:
+      name: get_series_matchup
+      params: {sport: basketball, team_id: 10137, limit: 50}
+      result: matchup 922432 元信息 OK（best_of_7, 3-4, winner=马刺），但 match_ids 漏 G1/G7。
+    comparison: |
+      系列赛基本面（对阵、赛制、胜场数、赢家）工具与 SQL 一致；7 场逐场赛果 SQL 全可查。
+      工具漏返回 G1/G7 的 match_ids 不影响“系列赛比分”元信息，但影响逐场定位（传导 a1）。
+  final_status: satisfied_with_sql_match_id
+  gap_type: implementation_gap
+  gap_evidence: |
+    系列赛基本面经 SQL 基准完整可查（922432, best_of_7, 马刺4-3雷霆, G7=3921754 雷霆103-111马刺）。
+    get_series_matchup 元信息 OK 但 match_ids 漏 2 个（tool_logic_gap，传导自 a1）。
+    无独立 data_gap；逐场定位受 a1 implementation_gap 制约。
+  recommended_next_step: 随 a1 修复（match_ids 完整返回 + series_game 取场）后自动满足。
 
----
-atomic_id: aq_5
-rounds:
+# =========================================================================
+# 原子查询 3: T0-a3 fetch_odds_snapshot(让分/大小分)
+# =========================================================================
+- atomic_id: B09-T0-a3
+  category: fetch_odds_snapshot
+  target: {match_id: 3921754, market: handicap_totals}
+  depends_on: [B09-T0-a1]
+  rounds:
   - round: 1
-    hypothesis: "检验 expected_behaviors 两条约束是否被工具链行为满足：
-      ①保留 G7 约束：resolve_match(series_game=7) 是否真以 G7 为过滤、未静默丢弃；
-      ②找不到不得降级 G6：工具在 series_game=7 返回空时是否诚实拒绝而非 fallback G6"
-    guardrail_check: |
-      ①保留 G7 约束：resolve_match(home=马刺, away=雷霆, series_game=7) → NOT_APPLICABLE,
-        reason='未找到系列赛第7场，禁止降级分析其他场次'。entity.py wrapper 显式带 series_game
-        在 reason 里，未静默丢弃 G7 约束 ✓
-      ②不得降级 G6：工具未 fallback 到 G6/其他场次，明确返回 NOT_APPLICABLE 而非把 G6 数据
-        当 G7 返回 ✓
-      ③不暴露内部 ID：工具 envelope 未暴露 match_id/team_id 给用户（因直接 NOT_APPLICABLE）；
-        但 SQL 基准回答给用户时需主动过滤掉 match_id=3921754、team_id=10137/10219、
-        round_id=171928/72809 等内部 ID
-      约束①②行为合规，但根因是『工具压根不实现』而非『DB 无数据』——这点必须在最终回答里诚实
-      告知用户：『当前工具不支持系列赛场次定位，已用数据库直接检索确认 G7 数据存在』"
-    decision: satisfied
-final_status: satisfied
-gap_type: null
-gap_evidence: "工具链行为符合 expected_behaviors 两条约束（保留 G7 约束、不降级 G6）。
-  但需注意：行为合规是因工具直接返回 NOT_APPLICABLE，而非真正执行了 G7 查询。
-  最终回答必须诚实告知用户工具限制 + 用 SQL 基准补全的真实 G7 数据，且不暴露内部 ID。"
-recommended_next_step: "在最终 answer_playbook 里明确：回答 G7 类问题时，
-  若工具返回 NOT_APPLICABLE，Agent 应触发 SQL 基准兜底（查 basketball_bracket_match_up +
-  basketball_match），而非直接告知用户『未找到』。"
+    hypothesis: 用 G7 match_id=3921754 实调篮球赔率工具，验证让分/大小分快照是否真实有数据（非 stub）。
+    sql_baseline:
+      query: |
+        SELECT table_name FROM information_schema.columns
+        WHERE table_schema=DATABASE() AND table_name LIKE '%basketball%odds%' LIMIT 10
+      result: |
+        待工具实调确认；atomic hard_constraint 已声明“stub 需诚实说明”，
+        若工具返回 stub/空，按 a5 守轨诚实说明不伪造。
+    tool_call:
+      name: get_odds_snapshot
+      params: {match_id: 3921754}
+      result: 待实调；本次返工聚焦 a1 SQL 基准证伪，a3 赔率实调留待 a1 修复后串接（避免对 NOT_APPLICABLE 的 G7 误调）。
+    comparison: |
+      a3 依赖 a1 给出正确 G7 match_id。SQL 基准已给出 3921754；当前 a1 工具层 blocked，
+      故 a3 以“拿到正确 match_id 后可串接”为结论，赔率工具本身 stub 与否不改变 a1 的 implementation_gap 判定。
+  final_status: pending_match_id
+  gap_type: implementation_gap
+  gap_evidence: 依赖 a1 的 G7 match_id(3921754)。SQL 基准已锁定，待 a1 工具层修复后串接 get_odds_snapshot 验证 stub/真实。
+  recommended_next_step: a1 修复后用 3921754 实调 get_odds_snapshot 确认让分/大小分；若 stub 按 a5 诚实说明。
 
-case_summary:
-  total_rounds: 9
-  final_status: blocked
-  primary_gap_type: tool_logic_gap
-  secondary_gaps:
-    - implementation_gap (篮球无 resolve_team/resolve_match/get_h2h 工具)
-  key_evidence:
-    - "basketball_team 表有 NBA 马刺(10137)/雷霆(10219)，但 resolve_team 工具只查 football_team 返回全是足球队"
-    - "basketball_bracket_match_up id=922432 + basketball_match id=3921754 证明 DB 有完整 G7 数据"
-    - "mysql_client.py 第 320-321 行 `if series_game is not None: return []` 工具假装支持 series_game 但不实现"
-    - "前 6 场比分验证 series 真打满 3:3，G7 马刺 111:103 客场胜，系列赛 4:3"
-  expected_behaviors_compliance:
-    保留G7约束: true
-    找不到时不得降级G6: true
-    备注: "工具行为合规（NOT_APPLICABLE 不降级），但根因是工具不实现而非 DB 无数据"
+# =========================================================================
+# 原子查询 4: T0-a4 delegate_subagent(match-analysis 链)
+# =========================================================================
+- atomic_id: B09-T0-a4
+  category: delegate_subagent
+  target: {agents: [fundamentals, odds, intel], preserve: series_game=7}
+  depends_on: [B09-T0-a1, B09-T0-a2, B09-T0-a3]
+  rounds:
+  - round: 1
+    hypothesis: 子智能体链需以 G7 match_id 贯穿。验证上游 match_id 可用性。
+    sql_baseline: {query: 同 a1, result: G7=3921754 锁定}
+    tool_call: {name: N/A, result: 委派步骤无独立工具，依赖上游 match_id}
+    comparison: 上游 a1 工具层 blocked，但 SQL 基准 match_id 已就绪；委派链可在 a1 修复后启动。
+  final_status: satisfied_with_sql_match_id
+  gap_type: implementation_gap
+  gap_evidence: 委派链前置依赖 a1 的 G7 match_id(3921754)，SQL 基准已提供；受 a1 implementation_gap 传导制约。
+  recommended_next_step: 随 a1 修复后自动满足，需确保 series_game=7 约束贯穿 fundamentals/odds/intel 全链。
+
+# =========================================================================
+# 原子查询 5: T0-a5 apply_guardrails(系列赛约束)
+# =========================================================================
+- atomic_id: B09-T0-a5
+  category: apply_guardrails
+  target: {rule: no_downgrade_to_G6, honest_when_not_applicable}
+  rounds:
+  - round: 1
+    hypothesis: 验证守轨行为——工具在“找不到 G7”时是否诚实说明且不降级 G6。
+    sql_baseline:
+      query: 同 a1（SQL 证明 G7 真实存在=3921754）
+      result: G7 在库，客观不存在“无G7”情形。
+    tool_call:
+      name: resolve_match
+      params: {home: 雷霆, away: 马刺, series_game: 7}
+      result: |
+        code=NOT_APPLICABLE, reason="未找到系列赛第7场，禁止降级分析其他场次"。
+        守轨文案符合 a5“不伪造G6”要求。
+    comparison: |
+      守轨机制本身生效（不降级、有诚实提示），文案合规。
+      但其触发前提错误：DB 实际有 G7(3921754)，工具因不支持 basketball 而误返 NOT_APPLICABLE，
+      属“能力不足导致的 false negative”——守轨在错误前提下生效，不能掩盖工具缺口。
+      若生产环境据此回答“无G7数据”，将与 DB 真相（G7 雷霆103-111马刺）相悖，correctness 不合格。
+  final_status: guardrail_ok_but_false_negative
+  gap_type: implementation_gap
+  gap_evidence: |
+    守轨文案合规（NOT_APPLICABLE + 禁止降级 G6），符合 a5 字面要求。
+    但 SQL 证明 G7=3921754 客观存在且完场，工具 NOT_APPLICABLE 是 false negative
+    （resolve_match 不查 basketball_match），生产环境会向用户误报“无G7”。
+    守轨在错误前提下生效，no_false_negative / correctness 维度需扣分。
+  recommended_next_step: 修复 a1 工具层支持 basketball G7 定位后，守轨应在“DB 真无 G7”时才触发；
+    当前守轨仅是“找不到就诚实说”，但“找不到”的根因是工具不支持而非 DB 无数据。
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied: [B09-T0-a2, B09-T0-a4]
+satisfied_note: |
+  B09-T0-a2（系列赛基本面）/T0-a4（委派链）在“使用 SQL 基准给出的 G7 match_id 3921754”前提下 satisfied
+  （系列赛 922432 best_of_7 马刺4-3雷霆，G7 雷霆103-111马刺，SQL 全可查）。
+  B09-T0-a1 工具层 blocked（resolve_match 不支持 basketball + series_game 不作 SQL 过滤），
+  但 SQL 基准证明 G7 数据与路径均存在 → implementation_gap（非 data_gap/非无解）。
+  B09-T0-a3 赔率待 a1 修复后串接实调（avoid 对 NOT_APPLICABLE 的 G7 误调）。
+  B09-T0-a5 守轨文案合规但属 false negative（DB 有 G7 却报 NOT_APPLICABLE）。
+blocking_gap:
+  type: implementation_gap
+  secondary_type: tool_logic_gap
+  description: |
+    主 gap (implementation_gap, P1)：
+      resolve_match 工具仅查 football_match 表，不支持 basketball_match；
+      series_game 参数虽在签名中接收，但 SQL 过滤条件完全未使用该参数。
+      basketball_match 表本身无 series_game 字段，系列赛“第N场”语义存于
+      basketball_bracket_match_up.match_ids(varchar 数组) + match_time 排序。
+      SQL 基准证明 G7 = match_id 3921754（雷霆主场 103-111 马刺，2026-05-31 完场）真实在库，
+      系列赛 922432 best_of_7 马刺4-3雷霆完整 7 场全部在库且完场。
+      故为“缺支持篮球+series_game 的解析工具，但数据+路径都在”的 implementation_gap，
+      原判“无法精确锁定G7”被推翻——G7 可经 bracket_match_up.match_ids SQL 精确定位。
+    次 gap (tool_logic_gap, P1)：
+      get_series_matchup 对同一 matchup 922432 返回 match_ids 仅 5 个
+      [3920589,3920590,3920591,3921246,3921525]，漏 3920588(G1) 与 3921754(G7)。
+      SQL 基准为 7 个完整 id，工具返回比 SQL 基准少且漏掉关键 G7，
+      属“工具漏返回数据，SQL 证明 DB 其实有”的 tool_logic_gap。
+      match_ids 字段 varchar(100) 未超长（7个7位id+逗号+方括号≈58字符），非存储截断，
+      推测为工具解析 match_ids 字符串时的 split/切片 bug。
+  failed_atomic: B09-T0-a1
+  suggested_fix: |
+    (A) 扩展 resolve_match 支持 sport=basketball：JOIN basketball_bracket_match_up 取 match_ids，
+        按 series_game 索引(数组第N个) + match_time 排序返回对应 basketball_match.id；
+    (B) 修复 get_series_matchup 的 match_ids 解析漏返回首尾各 1 个的 bug，使其完整返回 7 个 id。
+    任一修复即可让 B09 全链路 ✅。属 Phase 3 工具层重构，本次不修改 foretell/tools/。
+route_complete: false
+verdict: |
+  ⚠️ partial —— B09 维持 ⚠️（implementation_gap），但纠正原判错误结论。
+  SQL 基准独立验证（关键证据）：
+    - basketball_match 表无 series_game 字段；系列赛场次存于 basketball_bracket_match_up.match_ids。
+    - matchup 922432 (best_of_7) match_ids = [3920588,3920589,3920590,3920591,3921246,3921525,3921754] 共 7 个完整。
+    - G7 = 3921754, 2026-05-31, 雷霆(h) 103-111 马刺(a), 完场, 马刺客场夺系列赛 4-3。
+  原判称“match_ids 仅5个/缺失2场/无法锁定G7”系把工具 buggy 输出当作 DB 真相，被 SQL 证伪。
+  实际：DB 有 G7，G7 可精确锁定为 3921754；缺口在工具层——
+    resolve_match 不支持 basketball + series_game 不作过滤 (implementation_gap)；
+    get_series_matchup 漏返回 G1(3920588)/G7(3921754) (tool_logic_gap)。
+  守轨“禁止降级G6”文案合规但属 false negative（DB有G7却报NOT_APPLICABLE）。
+  按 Agent 2 规则：SQL 查到 G7 → implementation_gap，不得标无解/data_gap。
+  建议工程团队按 suggested_fix (A)/(B) 修复后即可全链路 ✅。

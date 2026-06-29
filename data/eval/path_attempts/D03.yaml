@@ -1,17 +1,108 @@
 type_id: D03
+type_name: 让球推荐
 case_id: TC-D03-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+entity_entry: match
+sport: any
+verdict: answerable
+route_complete: true
+satisfied:
+- T1-a1
+- T1-a2
+blocking_gap: null
+notes:
+- target_match: '2026.04.04 马竞VS巴塞罗那' (用户文案日期 04.04，实际西甲 R30 为北京时间 2026-04-05 03:00，match_id=4358874，status=finished)
+- 让球数据权威来源为竞彩足球 lottery_jczq_odds.rq；SQL 直查可得 rq='+1,1.70,3.85,3.55'（让球数+1，让球胜/平/负）。
+- sport=any 但双方 team_id(10251 马竞 / 10015 巴萨)均来自 football_team，resolve_match sport=football，无跨运动碰撞。
+- football_odds_official_handicap 对该场 DATA_MISSING，但亚盘(get_odds_snapshot asian)有 handicap 0.0/0.25/0.5 数据，可作让球交叉验证。
+- 彩票工具路径有路由摩擦（非阻塞）：resolve_lottery_match 按 code '周六027' 跨期碰撞(同码不同期)；带 date=2026-04-04 返回 ENTITY_NOT_FOUND；get_lottery_schedule date=2026-04-04 列表分页未到 issue_num 6027。让球赔率改由 SQL 直查 lottery_jczq_odds 获得。
 attempts:
 - round: 1
-  atomic_id: D03-probe-1
+  atomic_id: T1-a1
   tool: resolve_match
-  params:
-    home: 皇马
-    away: 巴萨
+  params: {home: 马竞, away: 巴塞罗那, date: '2026-04-04'}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 带 date 精确匹配失败（实际比赛日 2026-04-05）
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 马竞, away: 巴塞罗那}
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  note: 去date后返回10候选(ambiguous)，含 2026-04-05 西甲R30(4358874)/2026-04-15 欧冠/2026-02-13 国王杯等
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_match
+  params: {home: 马竞, away: 巴塞罗那, date: '2026-04-05'}
+  code: OK
+  count: 1
+  stub: false
+  match_id: 4358874
+  note: 修正date后唯一命中，西甲R30，home_team_id=10251, away_team_id=10015, sport=football
+- round: 2
+  atomic_id: T1-a2
+  tool: get_official_handicap_odds
+  params: {match_id: 4358874}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: football_odds_official_handicap 该场无数据
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4358874, market: asian}
+  code: OK
+  count: 5
+  stub: false
+  note: 亚盘5家公司，handicap 0.0/0.25/0.5；同次返回欧赔5家(home_win/draw/away_win)
+- round: 2
+  atomic_id: T1-a2
+  tool: sql
+  params: {table: lottery_jczq_odds, where: "home LIKE %马竞%/home LIKE %马德里% AND away LIKE %巴萨%/away LIKE %巴塞罗那% AND match_time_str LIKE 2026-04%"}
+  code: OK
+  count: 2
+  stub: false
+  note: 命中 id=2038832(issue 260404,issue_num 6027,西甲,2026-04-05 03:00) rq='+1,1.70,3.85,3.55'；另含欧冠4/15场次
+- round: 3
+  atomic_id: T1-a2
+  tool: get_lottery_schedule
+  params: {play_type: '101', date: '2026-04-04'}
+  code: OK
+  count: 30
+  stub: false
+  note: 结构化返回 spf/rq/bf/jq/bqc；但分页止于 issue_num 6019(埃因霍温)，未到 6027 目标场次；结构证明 rq 字段可结构化(handicap/win/draw/loss)
+- round: 3
+  atomic_id: T1-a2
+  tool: resolve_lottery_match
+  params: {play_type: '101', code: 周六027, date: '2026-04-04'}
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 带 date 找不到该期场次
+- round: 3
+  atomic_id: T1-a2
+  tool: resolve_lottery_match
+  params: {play_type: '101', code: 周六027}
+  code: OK
+  count: 1
+  stub: false
+  note: 跨期碰撞—解到 issue 260523(2026-05-24 美职联 夏洛特FC vs 新英格兰)，非目标场次；证明同 lottery_code 跨周重复，需 date 消歧但 date 又失效
+- round: 2
+  atomic_id: T1-a2
+  tool: get_h2h
+  params: {team_a: 10251, team_b: 10015, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 含目标场 4358874 比分1-2(马竞负)，近5次交锋
+- round: 2
+  atomic_id: T1-a2
+  tool: get_intel_tags
+  params: {match_id: 4358874}
+  code: OK
+  count: 5
+  stub: false
+  note: 主/客 positive/negative + neutral 情报齐全，含伤停(奥布拉克/巴里奥斯/门多萨/拉菲尼亚/德容/克里斯滕森)、阵容、近况、交锋历史

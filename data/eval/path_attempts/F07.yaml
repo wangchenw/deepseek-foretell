@@ -1,17 +1,161 @@
 type_id: F07
 case_id: TC-F07-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+
 attempts:
 - round: 1
-  atomic_id: F07-probe-1
+  atomic_id: F07-T1-a1
+  tool: sql
+  params:
+    query: football_match competition_id=1 match_time_str LIKE '2026-06-30%'
+  code: OK
+  stub: false
+  count: 3
+  note: >-
+    明天(2026-06-30)世界杯 competition_id=1 严格只命中 3 场,均 status_id=1 未开赛,
+    round_stage_id=232927:4459720 巴西vs日本(01:00)、4459718 德国vs巴拉圭(04:30)、
+    4459719 荷兰vs摩洛哥(09:00)。用户文案称"四场"与实际 3 场不符(07-01 另有 3 场,
+    或用户口径含次日凌晨),属轻微数量偏差,非数据缺口。
+
+- round: 1
+  atomic_id: F07-T1-a1
   tool: resolve_match
   params:
-    home: 皇马
-    away: 巴萨
+    home: 巴西
+    away: 日本
+    date: '2026-06-30'
   code: OK
-  count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  count: 1
+  note: >-
+    resolve_match(主+客+date) 正确返回 match_id=4459720、league=世界杯、sport=football、
+    status=not_started、neutral=true(中立场)、match_time_beijing=2026-06-30 01:00。
+    resolve_entity(match) 路径通畅,逐场 resolve_match 可解析全部 3 场。
+
+- round: 1
+  atomic_id: F07-T1-a1 (阶段定性)
+  tool: sql
+  params:
+    query: football_stage id IN (232927,232934)
+  code: OK
+  stub: false
+  count: 2
+  note: >-
+    football_stage 确认:232927=1/16决赛(Round of 32),232934=小组赛(Group stage)。
+    即 06-30 三场是小组赛结束后的【淘汰赛 1/16决赛】,而非小组赛;积分榜(stage 232934)
+    为已完赛的最终小组榜。用户"从小组赛积分分析赛果会对各队产生什么影响"=以最终小组
+    积分/排名为上下文分析 1/16决赛晋级/淘汰影响,语义成立。
+
+- round: 1
+  atomic_id: F07-T1-a2 (小组积分-SQL)
+  tool: sql
+  params:
+    query: football_points_table + _team JOIN football_team WHERE competition_id=1 season_id=13776 team_id IN(6队)
+  code: OK
+  stub: false
+  count: 7
+  note: >-
+    逐队小组积分可查:巴西 grp3 1st 7pts(2胜1平 进7失1)、摩洛哥 grp3 2nd 7pts、
+    德国 grp5 1st 6pts(进10失4)、巴拉圭 grp4 3rd 4pts、荷兰 grp6 1st 7pts(进10失4)、
+    日本 grp6 2nd 5pts(1胜2平 进7失3)。配对呈跨组 1st-vs-2nd 形态(巴西 grp3 vs 日本 grp6、
+    荷兰 grp6 vs 摩洛哥 grp3),印证 1/16决赛对阵结构。season_id=13776 为当前赛季。
+
+- round: 1
+  atomic_id: F07-T1-a2 (get_standings 工具)
+  tool: get_standings
+  params:
+    league_id: 1
+    group: 3
+  code: OK
+  stub: false
+  count: 30
+  note: >-
+    get_standings(league_id=1) 返回 OK 30 行全场次积分(position/points/won/draw/loss/
+    goals/goals_against/goal_diff 齐全)。但两点缺陷:(1) `group` 过滤参数失效——传 group=3
+    仍返回所有 12 组混合 30 行,无法按组隔离;(2) 主客分列 home/away 的 points/played/won
+    等全为 0(维度未填充,接近 stub)。按组取积分榜应走 SQL 直查 football_points_table_team
+    + `group` 过滤,而非依赖 get_standings 工具。积分数据本身完整可用,故为 routing/implementation
+    缺陷而非 data_gap。
+
+- round: 1
+  atomic_id: F07-T1-a2 (临场盘口-即时盘)
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 10
+  note: >-
+    type_name=临场盘口;距开赛约 3 小时属临场时段。get_odds_snapshot(4459720) OK:5 家欧赔
+    (明陞/盈禾/12bet/平博/利记,主胜 1.69-1.80、和 3.55-3.69、客胜 4.64-5.28)+ 5 家亚盘
+    (平博/易胜博/韦德/明陞 等,盘口 -0.75)。initial/current/latest 三段并存,in_play=false
+    (未走地)、suspended=false。水位变化已捕捉:如盈禾主胜 1.80→1.72、平博客胜 4.64→5.28、
+    明陞亚盘 handicap -0.5→-0.75。临场即时盘数据路径通畅。
+
+- round: 1
+  atomic_id: F07-T1-a2 (临场盘口-末段水位变化)
+  tool: get_odds_trend
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 50
+  note: >-
+    get_odds_trend(4459720) OK,返回 50 个历史变赔点(changed_at 时间戳 + 各公司欧赔快照),
+    覆盖 18Bet/Interwetten/Bet365/10bet/立博/onex/威廉希尔/SB皇冠/澳门/盈禾 等多家,可还原
+    末段水位移动轨迹(如 Bet365 客胜 4.75→4.33→4.75 的波动)。临场水位变化趋势数据路径通畅,
+    满足 type_name"临场盘口"的核心数据需求。
+
+satisfied:
+- F07-T1-a1
+- F07-T1-a2
+
+blocking_gap:
+  type: none
+  description: >-
+    无阻塞数据缺口。resolve_entity(match) 经 resolve_match(主+客+date) 通畅;synthesize_answer
+    所需"小组赛积分"经 SQL 直查 football_points_table_team(competition_id=1, season_id=13776,
+    按 group 过滤) 完整可得;type_name"临场盘口"所需的即时盘与末段水位变化经 get_odds_snapshot
+    + get_odds_trend 亦通畅(以 match_id=4459720 实测)。唯一工具层缺陷是 get_standings 的 group
+    过滤失效 + 主客分列置零,但有 SQL 规避路径,不阻塞。
+  failed_atomic: null
+  workaround: >-
+    积分榜用 SQL 直查 football_points_table + football_points_table_team(JOIN football_team,
+    WHERE competition_id=1 AND season_id=13776 AND p.`group`=?) 按组取;赔率用 get_odds_snapshot/
+    get_odds_trend 以 resolve_match 得到的真实 match_id 调用。
+
 route_complete: true
+
+caveats:
+- id: F07-T1-a1
+  category: resolve_entity
+  note: >-
+    用户文案"明天四场"与 DB 实际 3 场(2026-06-30)数量不符;07-01 另有 3 场 1/16决赛。
+    建议答案按实际 3 场陈述,或澄清"四场"口径。数量偏差不阻塞路径。
+- id: F07-类型错位
+  category: scope_mismatch
+  note: >-
+    type_name=临场盘口 / 方法论提示核心为 get_odds_snapshot + get_odds_trend,但 atomic 分解的
+    用户文案实为"从小组赛积分分析赛果对各队影响"——本质是积分+淘汰赛晋级分析题,非纯临场水位
+    题目。atomic 仅拆出 resolve_entity + synthesize_answer 两项,未单列赔率 atomic。两条数据线
+    (积分榜 SQL + 临场赔率工具)均已实测可用,合成时是否纳入赔率由上层 LLM 决定。
+- id: F07-阶段语义
+  category: context
+  note: >-
+    06-30 三场为 1/16决赛(淘汰赛),小组赛(stage 232934)已完赛;"赛果会对各队产生什么影响"
+    在淘汰赛语境=晋级/出局,而非小组出线形势变化。分析应以最终小组榜为战力上下文,核心结论落
+    在 1/16决赛晋级影响。
+- 跨运动碰撞: 三场全为足球世界杯国家队赛事,resolve_match sport=football,未触发篮球 ID 碰撞。
+
+verdict_lean: pass_with_caveat
+key_findings:
+- 数据路径完整:resolve_match(主+客+date) 解析 06-30 三场 1/16决赛(4459720 巴西vs日本、
+  4459718 德国vs巴拉圭、4459719 荷兰vs摩洛哥);SQL 直查 football_points_table_team(competition_id=1,
+  season_id=13776) 得各队最终小组积分/排名;get_odds_snapshot + get_odds_trend(4459720) 实测 OK,
+  即时盘 10 条 + 变赔趋势 50 点,水位变化已捕捉。route_complete=true。
+- football_stage 实锤阶段错位:06-30 比赛 round_stage_id=232927=1/16决赛,积分榜 stage_id=232934=
+  小组赛(已完赛)。用户"从小组赛积分分析赛果影响"语义成立(以最终小组榜为上下文分析淘汰赛晋级),
+  但需注意"赛果影响"在淘汰赛语境是晋级/出局,非小组出线形势。
+- 工具层缺陷:get_standings(league_id=1) 的 `group` 过滤参数失效(传 group=3 仍返回全部 12 组混合
+  30 行)且主客分列 home/away 全置 0(维度未填充);按组取积分榜必须走 SQL 规避。另用户文案"四场"
+  与实际 3 场数量不符(轻微)。两项均不阻塞,verdict=pass_with_caveat。

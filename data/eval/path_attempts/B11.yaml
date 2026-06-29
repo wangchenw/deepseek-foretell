@@ -1,10 +1,10 @@
 type_id: B11
 case_id: TC-B11-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: 盘口不足跳过（盘口数据不足时工具层应返回 SKIP_MATCH / DATA_MISSING 让 LLM 降级跳过，而非强行分析）
 attempts:
 - round: 1
-  atomic_id: B11-probe-1
+  atomic_id: B11-T1-a1
   tool: resolve_match
   params:
     home: 皇马
@@ -12,6 +12,108 @@ attempts:
   code: OK
   count: 10
   stub: false
-satisfied: []
+  note: 候选 10 场历史/未来对阵，含西甲/西超杯/国王杯/球会友谊；用户 turn1 仅登记偏好未指定比赛，此处用通用 match 探针验证实体定位可用
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_odds_snapshot
+  params:
+    match_id: 4358406
+  code: OK
+  stub: false
+  note: 皇马 vs 巴萨 西甲 match_id=4358406，snapshot 含 european+asian 双维度，code=OK
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_odds_trend
+  params:
+    match_id: 4358406
+  code: OK
+  count: 50
+  stub: false
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_kelly
+  params:
+    match_id: 4358406
+  code: OK
+  stub: false
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_betfair
+  params:
+    match_id: 4358406
+  code: OK
+  stub: false
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_same_odds_history
+  params:
+    match_id: 4358406
+  code: OK
+  count: 10
+  stub: false
+- round: 1
+  atomic_id: B11-T1-b1
+  tool: get_betfair
+  params:
+    match_id: 4138216
+  code: DATA_MISSING
+  stub: false
+  note: 球会友谊 match_id=4138216，snapshot/trend/kelly/soh 均 OK 但 betfair=DATA_MISSING，证实单维度缺失时工具层降级为 DATA_MISSING 而非崩溃
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_odds_snapshot
+  params:
+    match_id: 99999999
+  code: SKIP_MATCH
+  stub: false
+  note: 不存在的 match_id 触发盘口不足路径；snapshot 返回 SKIP_MATCH + reason="欧赔与亚盘均缺失"，envelope.data={match_id, reason}，无 european/asian 字段
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_odds_trend
+  params:
+    match_id: 99999999
+  code: DATA_MISSING
+  stub: false
+  note: 同 match_id trend 级联 DATA_MISSING，points=[]
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_kelly
+  params:
+    match_id: 99999999
+  code: DATA_MISSING
+  stub: false
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_betfair
+  params:
+    match_id: 99999999
+  code: DATA_MISSING
+  stub: false
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_same_odds_history
+  params:
+    match_id: 99999999
+  code: DATA_MISSING
+  stub: false
+- round: 2
+  atomic_id: B11-T1-b1
+  tool: get_odds_snapshot
+  params:
+    match_id: 1
+  code: SKIP_MATCH
+  stub: false
+  note: 复测 match_id=1（无效）同样 SKIP_MATCH + reason，证实降级稳定可复现
+satisfied:
+- B11-T1-a1
+- B11-T1-a2
+- B11-T1-b1
+- B11-T1-b2
 blocking_gap: null
 route_complete: true
+tendency: verified
+notes:
+- get_odds_snapshot 在 _odds_missing(snapshot is None OR 既无 european/moneyline 又无 asian/spread) 时返回 SKIP_MATCH，否则双全 OK、单维度 PARTIAL；本次实测未触发 PARTIAL（8 场真实比赛均双维度 OK）
+- get_odds_trend / get_same_odds_history 在结果为空时返回 DATA_MISSING + 空 points/entries；get_kelly / get_betfair 在 result is None 时返回 DATA_MISSING
+- LLM 可凭 SKIP_MATCH / DATA_MISSING envelope.code 与 reason 字段判定"盘口不足"并跳过该维度或整场，符合 B11 预期降级语义
+- 8 场皇马 vs 巴萨候选均双维度 OK，未发现误判 SKIP_MATCH；betfair 在 7/8 场 DATA_MISSING 属 DB 必发数据稀疏，工具层正确降级而非报错

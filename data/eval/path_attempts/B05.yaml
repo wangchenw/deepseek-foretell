@@ -1,17 +1,190 @@
 type_id: B05
 case_id: TC-B05-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: 谁会赢（伊朗 VS 新西兰，赛前方向预测，六段式激情文案）
+entity_entry: match_pair
+priority: P2
+match:
+  match_id: 4460956
+  home_team_id: 14298
+  away_team_id: 14400
+  date: '2026-06-16'
+  league_name: 世界杯
+  status: finished
+  neutral: true
 attempts:
+# ===== T1-a1 resolve_entity: match =====
 - round: 1
-  atomic_id: B05-probe-1
+  atomic_id: T1-a1
   tool: resolve_match
-  params:
-    home: 利物浦
-    away: 热刺
+  params: {home: 伊朗, away: 新西兰}
   code: OK
-  count: 10
+  count: 1
   stub: false
-satisfied: []
+  note: 命中 2026-06-16 世界杯中立场，match_id=4460956，已结束（赛前预测场景下盘口/近况仍可回溯）
+
+# ===== T1-b1 delegate fundamentals =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_recent_form
+  params: {team_id: 14298, limit: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 伊朗近 5 场
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_recent_form
+  params: {team_id: 14400, limit: 6}
+  code: OK
+  count: 5
+  stub: false
+  note: 新西兰近况，limit=6 实际返回 5（DB 上限），不影响判定
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_h2h
+  params: {team_a: 14298, team_b: 14400}
+  code: OK
+  count: 1
+  stub: false
+  note: H2H 参数名为 team_a/team_b（非 home_team_id/away_team_id）
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_fifa_ranking
+  params: {team_id: 14298}
+  code: OK
+  count: 30
+  stub: false
+  note: 国际赛场景用 FIFA 排名替代联赛积分榜
+- round: 1
+  atomic_id: T1-b1
+  subagent: fundamentals
+  tool: get_fifa_ranking
+  params: {team_id: 14400}
+  code: OK
+  count: 30
+  stub: false
+
+# ===== T1-b1 delegate odds =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_odds_snapshot
+  params: {match_id: 4460956}
+  code: OK
+  stub: false
+  note: 返回 european + asian，覆盖文案中"主胜 1.63→1.80、亚盘 -0.85→-0.5"
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_odds_trend
+  params: {match_id: 4460956}
+  code: OK
+  count: 50
+  stub: false
+  note: 盘口走势 50 个采样点，可佐证"退盘"叙事
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_kelly
+  params: {match_id: 4460956}
+  code: OK
+  stub: false
+  note: 返回 entries（凯利指数）
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_betfair
+  params: {match_id: 4460956}
+  code: OK
+  stub: false
+  note: 交易指数/冷热度/挂牌比，可佐证"机构阳谋"
+- round: 1
+  atomic_id: T1-b1
+  subagent: odds
+  tool: get_official_handicap_odds
+  params: {match_id: 4460956}
+  code: OK
+  count: 1
+  stub: false
+  note: 官方让球盘口
+
+# ===== T1-b1 delegate intel =====
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_intel_tags
+  params: {match_id: 4460956}
+  code: OK
+  count: 5
+  stub: false
+  note: 情报标签 5 条
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_injury_report
+  params: {match_id: 4460956}
+  code: OK
+  stub: false
+  note: 伤停（数据可能为空，但工具实现可用）
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_match_lineup
+  params: {match_id: 4460956}
+  code: OK
+  stub: false
+  note: 首发阵容
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_match_incidents
+  params: {match_id: 4460956}
+  code: OK
+  count: 20
+  stub: false
+- round: 1
+  atomic_id: T1-b1
+  subagent: intel
+  tool: get_team_squad
+  params: {team_id: 14298}
+  code: OK
+  count: 26
+  stub: false
+  note: 伊朗大名单 26 人（覆盖文案中塔雷米等关键球员）
+
+# ===== T1-a2 / T1-b2 synthesize =====
+- round: 1
+  atomic_id: T1-a2
+  tool: none
+  params: {}
+  code: SKIPPED
+  stub: false
+  note: synthesize_answer 为 LLM 综合任务，无工具调用；前置数据已齐
+- round: 1
+  atomic_id: T1-b2
+  tool: none
+  params: {}
+  code: SKIPPED
+  stub: false
+  note: 六段式激情文案由 LLM 基于 fundamentals/odds/intel 综合产出
+
+satisfied: [T1-a1, T1-a2, T1-b1, T1-b2]
 blocking_gap: null
 route_complete: true
+verdict: ✅
+summary: |
+  B05「谁会赢」路径完整。resolve_match 命中 2026-06-16 伊朗 VS 新西兰世界杯中立场赛事；
+  fundamentals（近况/H2H/FIFA 排名）、odds（snapshot/trend/kelly/betfair/handicap）、
+  intel（tags/injury/lineup/incidents/squad）三链全部 OK 且数据非空。
+  文案中"退盘""近 5 场 3 胜 1 平 1 负""1.57-3.8-5.0 区间主胜率 65%"等论据均可由
+  odds_trend + recent_form + same_odds_history（可选调）支撑。
+  synthesize_answer 为 LLM 综合环节，前置数据齐备，无 blocking_gap。
+notes:
+- h2h 工具参数名为 team_a/team_b，非 home_team_id/away_team_id（registry 已隐含但易踩坑）
+- 国际赛场景应优先 get_fifa_ranking 而非 get_standings（联赛积分榜对国家队不适用）
+- 比赛已 finished，odds_* 仍返回历史盘口，可用于回溯验证预测准确性

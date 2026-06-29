@@ -1,16 +1,124 @@
 type_id: E07
 case_id: TC-E07-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (北单 lottery_batch)
+entity_entry: lottery_batch
+sport: any
+turns:
+- turn_index: 0
+  text: 分析一下今天竞彩001为什么会赢球，为什么赢了两个球！
 attempts:
 - round: 1
-  atomic_id: E07-probe-1
+  atomic_id: E07-T1-a1
   tool: get_lottery_schedule
   params:
-    play_type: '101'
+    play_type: '301'
   code: OK
-  count: 16
+  count: 5
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  note: 北单胜负(301) 当期 issue=26069 可售批次返回，entry lottery_code 取 issue_num（如 64=巴西vs日本
+    2026-06-30 世界杯）；本批不含 issue_num=1 的"001"（001 属上期 2026-06-26）
+- round: 1
+  atomic_id: E07-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '301'
+    code: '001'
+  code: OK
+  count: 1
+  stub: false
+  note: 北单胜负 001 解析成功，lottery_id=26069001 issue=26069 issue_num=1，赫尔辛基预备队 vs
+    塞伊奈约基学院（芬甲），date=2026-06-26 23:55，sell_status suspended（已停售/已完赛），match_id=null；含
+    spf/bf/jq/bqc/sxp 赔率
+- round: 1
+  atomic_id: E07-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '301'
+    code: '001'
+    date: '2026-06-29'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 带 today(2026-06-29) 失败——001 实际比赛日为 2026-06-26，不在今日批次；用户口语"今天001"与北单
+    实际排期错位（北单 001 为历史期次 entry，非当日）。不带 date 的解析才是正确路由
+- round: 1
+  atomic_id: E07-T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '404'
+  code: OK
+  count: 4
+  stub: false
+  note: 北单让球胜平负(404) 当期批次 OK，确认 get_lottery_schedule 支持北单 period；404 仅含 sf 单玩法
+    + goal 让球线
+- round: 2
+  atomic_id: E07-T1-a1
+  tool: resolve_match
+  params:
+    home: 赫尔辛基预备队
+    away: 塞伊奈约基学院
+    date: '2026-06-26'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 用北单解析出的队名回查 football_match 失败（无 date / 带 date 均 NOT_FOUND）；预备队/学院队不在主比赛库
+- round: 2
+  atomic_id: E07-T1-a1
+  tool: resolve_team
+  params:
+    name: 赫尔辛基预备队
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: football_team 无"赫尔辛基预备队"；同理"塞伊奈约基学院"亦 NOT_FOUND。北单收录的芬甲预备队/学院队实体未进入
+    football_team 主表
+- round: 3
+  atomic_id: E07-T1-a2
+  tool: sql
+  params:
+    query: SELECT home_score, away_score, bf, spf, jq, bqc, sell_status FROM lottery_bd_result
+      WHERE issue_num=1 ORDER BY issue DESC LIMIT 5
+  code: OK
+  count: 5
+  stub: false
+  note: lottery_bd_result 表含 home_score/away_score 比分列。issue=26069 issue_num=1 → home_score=2
+    away_score=0（bf="2:0"），sell_status="4,4,4,4,4"（已开奖）。正好对应用户"赢了两个球"。foretell 无
+    get_lottery_result 工具暴露该表，须 SQL 直查
+- round: 3
+  atomic_id: E07-T1-a2
+  tool: sql
+  params:
+    query: football_match fuzzy LIKE '%赫尔辛基%' OR '%塞伊奈约基%'
+  code: OK
+  count: 10
+  stub: false
+  note: football_match 模糊匹配仅命中 赫尔辛基(HJK)/HPS赫尔辛基/HIFK赫尔辛基（均为芬超/低级联赛一队），无"赫尔辛基预备队"vs"塞伊奈约基学院"对应比赛；战术分析所需的
+    lineup/stats/incidents/intel/tlive 无 match_id 可挂载
+satisfied:
+- E07-T1-a1
+blocking_gap:
+  type: data_gap
+  description: 北单 001（赫尔辛基预备队 vs 塞伊奈约基学院，芬甲）属北单收录的预备队/学院队，football_team
+    与 football_match 主库均未收录（resolve_team/resolve_match 均 ENTITY_NOT_FOUND），无法关联到真实比赛记录。比分"2:0
+    赢2球"可由 lottery_bd_result 表确认（home_score=2/away_score=0，已开奖），但用户核心诉求"为什么会赢球/为什么赢两个球"的因果战术分析（控球/射门/阵容/情报/事件）无任何
+    football_match_* 数据支撑，DB 层不可解。另含一个 implementation_gap 子项——lottery_bd_result 彩果表（含比分）未由任何
+    foretell 工具暴露，比分获取须 SQL 直查。
+  failed_atomic: E07-T1-a2
+  workaround: 可基于 lottery_bd_result 比分(2:0) + resolve_lottery_match 返回的赔率上下文（spf 主胜
+    2.22、bf 2:0 赔率 18.10、jq 2球 4.90）给出"主队2:0胜、净胜2球"的事实性陈述，但无法做战术因果解释
+route_complete: false
+data_quality_notes:
+- get_lottery_schedule 301 北单胜负 entry 的 odds.spf/bf/jq/bqc 存在解析瑕疵——spf.win/draw/loss 与 bf[].odds
+  字段为未完整闭合的 JSON 片段（如 "{\"sf3\":\"2.81\""），疑似 _parse_lottery_play 对北单赔率串的切分逻辑不完整；不影响实体解析但影响赔率结构化使用
+- 北单 lottery_code 取 issue_num 而非竞彩的 zero-padded 三位码；resolve_lottery_match("001") 映射到 issue_num=1，与用户口语"001"语义一致
+- 北单 001 为 2026-06-26 历史期次（已开奖），非"今天"批次；今日(2026-06-29)可售批次为 issue=26069 的 64-67 等高序号 entry（2026-06-30 世界杯等）
+beidan_vs_jingcai:
+  play_type_301: 北单胜负过关，表 lottery_bd_odds/lottery_bd_result，玩法 spf/jq/bqc/sxp/bf
+  play_type_404: 北单让球胜平负，表 lottery_bdsf_odds，玩法 sf（让球）
+  jingcai_101: 竞彩足球，表 lottery_jczq_odds/result，玩法 spf/rq/bf/jq/bqc
+  tool_support: get_lottery_schedule 与 resolve_lottery_match 已支持 301/404 北单 play_type（Phase 2 已修复结构化）；lottery_bd_result 彩果表未暴露为工具
+verdict_lean: conditional_fail
+verdict_rationale: entity 解析路径已通（E07-T1-a1 satisfied），比分事实可经 SQL 从 lottery_bd_result
+  确认；但用户核心"为什么赢两球"的战术因果分析因主比赛库不收录该预备队/学院队而无数据支撑，属 DB 层
+  data_gap，LLM eval 难以给出有依据的因果解释，倾向 conditional_fail

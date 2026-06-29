@@ -1,0 +1,254 @@
+type_id: C07
+case_id: TC-C07-001
+explored_at: '2026-06-29'
+scenario: C
+entity_entry: team
+scenario_intent: |
+  场景 C 近期战绩复盘。用户问句「勇士vs太阳」字面是 NBA 篮球金州勇士 vs 菲尼克斯太阳的交锋/近期战绩。
+  需求分析拆分两个 atomic：T1-a1 resolve_entity(team) 解析勇士/太阳的 basketball team_id；
+  T1-a2 fetch_schedule(team_id) 取两队近期战绩 + 相互交锋。
+返工说明: |
+  本案为返工。原 path_attempts/C07.yaml 判 ❌（route_complete:false，verdict:❌），理由是
+  「跨运动 ID 碰撞：篮球 team_id 喂足球专用工具静默返回足球队数据」。但原判未做 SQL 基准验证，
+  违反 Agent 2「SQL 优先」方法论——在断言无解前必须先用独立 SELECT 验证数据库到底有没有
+  勇士/太阳的篮球战绩。本次返工严格按方法论重走：information_schema → 独立 SQL 基准 → 工具对照 → 判定。
+
+atomics:
+
+# ============================================================
+- atomic_id: C07-T1-a1
+  category: resolve_entity
+  target: {team: 勇士/太阳, sport: basketball}
+  success_criteria: "返回唯一确定的 basketball team_id（勇士=金州勇士、太阳=菲尼克斯太阳），非多候选歧义"
+  rounds:
+    - round: 1
+      hypothesis: "先确认篮球球队/比赛表结构，确认 team 主键与名称字段"
+      schema_query: |
+        SELECT table_name, column_name, column_type, column_comment
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name IN ('basketball_team','basketball_match')
+        ORDER BY table_name, ordinal_position LIMIT 200
+      schema_result: |
+        basketball_team: 主键 id(int, 球队id)、competition_id、conference_id(4=太平洋赛区)、
+          name_zh(中文名称)、short_name_zh(中文简称)、national。
+        basketball_match: 主键 id(int, 比赛id)、competition_id、home_team_id、away_team_id、
+          match_time(int unix 时间戳)、status_id(10=完场)、home_scores/away_scores
+          (varchar 数组如 [33,17,28,33,0] 为各节分数)、season_id、kind(1常规赛/2季后赛/6附加赛)、neutral。
+      decision: continue
+    - round: 2
+      hypothesis: "用独立 SQL 解析勇士/太阳的 basketball team_id，作为基准答案"
+      sql_baseline:
+        query: |
+          SELECT id, competition_id, conference_id, name_zh, short_name_zh, national
+          FROM basketball_team
+          WHERE name_zh LIKE '%勇士%' OR name_zh LIKE '%太阳%'
+             OR short_name_zh LIKE '%勇士%' OR short_name_zh LIKE '%太阳%'
+          LIMIT 30
+        result: |
+          命中 NBA(competition_id=1, conference_id=4 太平洋赛区) 两支目标球队：
+            金州勇士  id=10155  short_name_zh=勇士   (Golden State Warriors)
+            菲尼克斯太阳 id=10131 short_name_zh=太阳   (Phoenix Suns)
+          另有干扰候选：本迪高勇士(10987)、信州勇士(11892)、富邦勇士(12480)、
+          蔚山现代太阳神(10104)、康涅狄克太阳/阳光(10339)、墨西卡利太阳(11283) 等，
+          但 competition_id=1 + conference_id=4 + short_name 完全匹配 可唯一定位 NBA 两队。
+      tool_call:
+        name: resolve_basketball_team
+        params: {name: 勇士}
+        result: |
+          code=OK, count=10。首位候选 team_id=10155 name=勇士 name_en=Golden State Warriors
+          sport=basketball competition_id=1 aliases=[金州勇士, Golden State Warriors]，
+          其余为本迪高勇士/iECO勇士/信州勇士等篮球勇士，无足球污染。
+      comparison: |
+        SQL 基准（basketball_team.id=10155 金州勇士）与 resolve_basketball_team 首候选完全一致；
+        太阳同理（SQL 10131 = 工具 10131 Phoenix Suns）。resolve_entity 路径可信。
+        对照项 resolve_team(name=勇士) 返回 10 个 football 候选（奥林比亚勇士 14556、
+        新加坡勇士 20362…），全部 sport=football，证实 resolve_team 仅查 football_team，
+        篮球场景必须用 resolve_basketball_team。
+      decision: satisfied
+  final_status: satisfied
+  gap_type: null
+  gap_evidence: "SQL 基准与 resolve_basketball_team 一致命中 NBA 勇士=10155 / 太阳=10131"
+  recommended_next_step: "篮球场景固定走 resolve_basketball_team，禁止用 resolve_team"
+
+# ============================================================
+- atomic_id: C07-T1-a2
+  category: fetch_schedule
+  target: {team_id: 10155/10131, direction: recent, n: 5}
+  success_criteria: "返回勇士/太阳近期 NBA 篮球战绩（含日期/主客/比分）及两队交锋，且 sport=basketball"
+  rounds:
+    - round: 1
+      hypothesis: "先确认 basketball_match 表结构（已在 a1 round1 完成），跳过重复 schema 查询"
+      schema_query: "(复用 a1 round1 的 basketball_match schema)"
+      schema_result: "home_team_id/away_team_id/match_time(int)/status_id/home_scores/away_scores 数组"
+      decision: continue
+    - round: 2
+      hypothesis: "独立写 SQL 求勇士近期 5 场完赛战绩作为基准答案"
+      sql_baseline:
+        query_warriors: |
+          SELECT m.id, m.competition_id, m.season_id, m.kind, m.home_team_id,
+                 ht.name_zh AS home_name, m.away_team_id, at.name_zh AS away_name,
+                 m.status_id, m.home_scores, m.away_scores,
+                 FROM_UNIXTIME(m.match_time) AS match_time_local
+          FROM basketball_match m
+          JOIN basketball_team ht ON ht.id=m.home_team_id
+          JOIN basketball_team at ON at.id=m.away_team_id
+          WHERE (m.home_team_id=10155 OR m.away_team_id=10155) AND m.status_id=10
+          ORDER BY m.match_time DESC LIMIT 5
+        result_warriors: |
+          5 行真实 NBA 篮球完赛（competition_id=1, season_id=1911）：
+          1) 2026-04-18  太阳(主) 111:[33,17,28,33,0]  vs 勇士(客) 96:[15,30,24,27,0]  kind=6附加赛  L
+          2) 2026-04-16  快船(主) 121:[31,30,28,32,0]  vs 勇士(客) 126:[22,31,30,43,0]  kind=6附加赛  W
+          3) 2026-04-13  快船(主) 115:[25,27,31,32,0]  vs 勇士(客) 110:[26,22,33,29,0]  kind=1常规赛  L
+          4) 2026-04-11  国王(主) 124:[32,31,19,42,0]  vs 勇士(客) 118:[27,24,38,29,0]  kind=1常规赛  L
+          5) 2026-04-10  勇士(主) 103:[23,26,24,30,0]  vs 湖人(客) 119:[28,25,29,37,0]  kind=1常规赛  L
+      decision: continue
+    - round: 3
+      hypothesis: "继续 SQL 基准：太阳近期 5 场 + 勇士vs太阳 交锋历史"
+      sql_baseline:
+        query_suns: |
+          SELECT m.id, m.kind, ht.name_zh AS home_name, at.name_zh AS away_name,
+                 m.home_scores, m.away_scores, FROM_UNIXTIME(m.match_time) AS match_time_local
+          FROM basketball_match m
+          JOIN basketball_team ht ON ht.id=m.home_team_id
+          JOIN basketball_team at ON at.id=m.away_team_id
+          WHERE (m.home_team_id=10131 OR m.away_team_id=10131) AND m.status_id=10
+          ORDER BY m.match_time DESC LIMIT 5
+        result_suns: |
+          5 行真实 NBA 篮球完赛（season_id=1911，kind=2 季后赛为主）：
+          1) 2026-04-28 太阳(主) 122 vs 雷霆(客) 131  季后赛 L
+          2) 2026-04-26 太阳(主) 109 vs 雷霆(客) 131  季后赛 L
+          3) 2026-04-23 雷霆(主) 120 vs 太阳(客) 107  季后赛 L
+          4) 2026-04-20 雷霆(主) 119 vs 太阳(客) 84   季后赛 L
+          5) 2026-04-18 太阳(主) 111 vs 勇士(客) 96   附加赛 W
+        query_h2h: |
+          SELECT m.id, m.kind, m.home_team_id, ht.name_zh AS home_name,
+                 m.away_team_id, at.name_zh AS away_name, m.home_scores, m.away_scores,
+                 FROM_UNIXTIME(m.match_time) AS match_time_local
+          FROM basketball_match m
+          JOIN basketball_team ht ON ht.id=m.home_team_id
+          JOIN basketball_team at ON at.id=m.away_team_id
+          WHERE ((m.home_team_id=10155 AND m.away_team_id=10131)
+              OR (m.home_team_id=10131 AND m.away_team_id=10155))
+          ORDER BY m.match_time DESC LIMIT 10
+        result_h2h: |
+          10 行勇士vs太阳真实交锋（最近一场即 2026-04-18 附加赛 太阳111:96勇士），
+          时间跨度 2024-07 ~ 2026-04，含常规赛/附加赛/夏季联赛(kind, competition_id=1/298)，
+          数据库对该对交锋历史完整可查。
+      decision: continue
+    - round: 4
+      hypothesis: "现在调现有工具对照，看是否真发生跨运动 ID 碰撞"
+      tool_call:
+        name: get_recent_form
+        params: {team_id: 10155, n: 5}
+        result: |
+          code=OK, dimension=recent_form, count=5。返回 5 场「足球」战绩：
+          2026-05-16 away 1:0 W、2026-05-09 home 2:1 W、2026-05-03 away 1:2 L、
+          2026-04-26 away 2:0 W、2026-04-19 home 5:3 W。
+          字段为 goals_for/goals_against（足球语境），与篮球无关。
+      tool_call_2:
+        name: get_team_schedule
+        params: {team_id: 10155, direction: recent, limit: 5}
+        result: |
+          code=OK, count=5。返回 5 场 sport=football 赛程，home_name/away_name 出现
+          「科特布斯」「雷根斯堡」「韦恩威斯巴登」「杜伊斯堡」「科隆胜利」「埃森」，
+          league_name=德丙(league_id=131)，match_id=4365094 等。即 football_team.id=10155
+          的足球队（科特布斯）赛程，非 NBA 勇士。
+      tool_call_3:
+        name: get_recent_form
+        params: {team_id: 10131, n: 5}
+        result: |
+          code=OK, count=5。返回「格勒诺布尔」法乙足球战绩（2026-05-10 home 1:0 W 等），
+          即 football_team.id=10131 的足球队数据。
+      tool_call_4:
+        name: get_team_schedule
+        params: {team_id: 10131, direction: recent, limit: 5}
+        result: |
+          code=OK, count=5。返回 sport=football 赛程：格勒诺布尔 vs 特鲁瓦/敦刻尔克/勒芒/
+          蒙彼利埃/甘冈，league_name=法乙(league_id=143)，match_id=4401196 等。
+      comparison: |
+        【关键对照——SQL 基准 vs 工具返回】
+        - SQL 基准（basketball_match，team_id=10155）：返回 NBA 勇士近期 5 场真实篮球比赛，
+          match_id=3915764/3915762/3867642/3867595/3869142，对手为太阳/快船/国王/湖人，
+          比分形态为四节数组 [33,17,28,33,0]。
+        - 工具 get_team_schedule(team_id=10155)：返回 match_id=4365094 等 5 场德丙足球赛程，
+          队名「科特布斯」，sport=football。
+        - 两者 match_id 空间、sport、队名、比分结构完全不同，证明工具未查 basketball_match，
+          而是把篮球 team_id 当 football_team.id 直接命中 football_match，静默返回足球队数据，
+          code=OK 无任何 sport 校验告警。
+        - 太阳侧同理：SQL 给 NBA 太阳季后赛 vs 雷霆，工具给法乙格勒诺布尔。
+        结论：数据库里勇士/太阳的 NBA 篮球战绩与交锋完整存在（SQL 可查），但现有 fetch_schedule
+        三件套（get_recent_form / get_team_schedule / get_team_season_stats）均为 football 专用，
+        无 basketball 版本，且未做 sport guard，篮球 team_id 静默命中 football_team 同 id 实体。
+      decision: blocked_with_root_cause
+  final_status: blocked
+  gap_type: implementation_gap
+  gap_subtype: cross_sport_data_collision
+  gap_evidence: |
+    1) SQL 基准证明数据存在：
+       勇士近期完赛 — match_id=3915764 (2026-04-18 太阳111:96勇士 附加赛) 等 5 行；
+       太阳近期完赛 — match_id=3916861 (2026-04-28 太阳122:131雷霆 季后赛) 等 5 行；
+       勇士vs太阳交锋 — 10 行，最近 2026-04-18 太阳 111:96 勇士。
+       全部出自 basketball_match + basketball_team JOIN，sport=basketball，competition_id=1(NBA)。
+    2) 工具对照证明碰撞：
+       get_team_schedule(team_id=10155) → match_id=4365094「科特布斯」德丙足球，sport=football，code=OK；
+       get_recent_form(team_id=10155) → 5 场足球 goals_for/goals_against，code=OK；
+       get_team_schedule(team_id=10131) → match_id=4401196「格勒诺布尔」法乙足球，code=OK。
+    3) 根因：basketball_team.id 与 football_team.id 共享同一数值空间但映射不同实体，
+       现有 fetch_schedule 类工具 SQL 仅查 football_match/football_competition_teams_stats，
+       签名无 sport 参数，未做 sport 校验，传入篮球 id 不报 DATA_MISSING 而静默命中足球实体。
+    按 Agent 2 规则：SQL 能查到 → implementation_gap（数据库能撑，缺篮球版工具 + 缺 sport guard），
+    不得标 data_gap/无解。
+  recommended_next_step: |
+    Phase 3 实现：
+    (1) 新增 get_basketball_recent_form / get_basketball_team_schedule / get_basketball_team_season_stats，
+        查 basketball_match + basketball_team（字段 home_scores/away_scores 数组需按节累加成总比分）；
+    (2) 或为现有三件套增加 sport 参数并在 SQL 层路由到对应表；
+    (3) 短期守轨：sport 不匹配时返回 DATA_MISSING 而非静默命中异类实体，
+        杜绝 false positive（把科特布斯德丙战绩当 NBA 勇士战绩汇报给用户）。
+
+satisfied:
+  - C07-T1-a1
+blocking_gap:
+  type: implementation_gap
+  subtype: cross_sport_data_collision
+  description: |
+    fetch_schedule 类工具（get_recent_form / get_team_schedule / get_team_season_stats）无 basketball
+    版本且未做 sport guard，篮球 team_id（10155 勇士 / 10131 太阳）静默命中 football_team 同 id
+    足球实体（科特布斯/格勒诺布尔），code=OK 返回足球战绩/赛程。但 SQL 基准证明 basketball_match
+    表中勇士/太阳的 NBA 近期战绩与交锋完整存在。属「数据库能撑、工具实现缺失 + sport guard 缺失」，
+    非 data_gap，非无解。
+  failed_atomic: C07-T1-a2
+route_complete: false
+route_complete_reason: |
+  数据层路径完整（SQL 基准可完整回答勇士/太阳近期战绩 + 交锋），但工具层路径不可安全完成
+  （现有工具静默返回足球数据，会误导 LLM 产出 false positive）。route_complete 以「工具链能否
+  安全完成」为准，故 false；但 verdict 不再是 ❌，而是 ⚠️（implementation_gap，可修复）。
+sql_baseline_proves_data_exists: true
+key_evidence_rows:
+  warriors_recent:
+    - {match_id: 3915764, date: '2026-04-18', home: 菲尼克斯太阳, away: 金州勇士, score_home: '[33,17,28,33,0]', score_away: '[15,30,24,27,0]', kind: 6附加赛}
+    - {match_id: 3915762, date: '2026-04-16', home: 洛杉矶快船, away: 金州勇士, score_home: '[31,30,28,32,0]', score_away: '[22,31,30,43,0]', kind: 6附加赛}
+    - {match_id: 3867642, date: '2026-04-13', home: 洛杉矶快船, away: 金州勇士, score_home: '[25,27,31,32,0]', score_away: '[26,22,33,29,0]', kind: 1常规赛}
+  suns_recent:
+    - {match_id: 3916861, date: '2026-04-28', home: 菲尼克斯太阳, away: 俄克拉荷马城雷霆, score_home: '[33,34,31,24,0]', score_away: '[37,38,31,25,0]', kind: 2季后赛}
+    - {match_id: 3915764, date: '2026-04-18', home: 菲尼克斯太阳, away: 金州勇士, score_home: '[33,17,28,33,0]', score_away: '[15,30,24,27,0]', kind: 6附加赛}
+  h2h_latest:
+    - {match_id: 3915764, date: '2026-04-18', home: 菲尼克斯太阳, away: 金州勇士, score_home: '[33,17,28,33,0]', score_away: '[15,30,24,27,0]', kind: 6附加赛, note: '太阳 111:96 勇士（太阳胜）'}
+tool_collision_evidence:
+  - {tool: get_team_schedule, team_id: 10155, returned_match_id: 4365094, returned_name: 科特布斯, returned_sport: football, returned_league: 德丙}
+  - {tool: get_team_schedule, team_id: 10131, returned_match_id: 4401196, returned_name: 格勒诺布尔, returned_sport: football, returned_league: 法乙}
+verdict: ⚠️
+verdict_reason: |
+  改判：原 ❌ → ⚠️。SQL 基准 conclusively 证明 basketball_match 表中勇士(10155)/太阳(10131)
+  的 NBA 近期战绩与交锋历史完整存在（关键证据 match_id=3915764，2026-04-18 太阳 111:96 勇士
+  附加赛；match_id=3916861，2026-04-28 太阳 122:131 雷霆 季后赛；H2H 共 10 行）。
+  现有 fetch_schedule 工具因无 basketball 版本 + 缺 sport guard，静默返回 football_team 同 id
+  足球数据（科特布斯/格勒诺布尔），属 implementation_gap + cross_sport_data_collision，可修复，
+  非数据缺失、非无解。按方法论「SQL 能查到 → implementation_gap」，本案判 ⚠️ 不判 ❌。
+phase2_status:
+  basketball_team_resolve: true
+  basketball_recent_form: false
+  basketball_team_schedule: false
+  basketball_team_season_stats: false
+  sport_guard_missing: true

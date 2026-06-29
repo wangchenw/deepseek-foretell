@@ -1,11 +1,131 @@
 type_id: G20
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G20-001
+explored_at: '2026-06-29'
+verdict_lean: agent_layer_covered
+notes: |
+  G20 = 格式重写(follow_up, entity_entry=context)。turn1 用户给出参考格式(墨尔本城VS中央海岸
+  三段式前瞻)要求按该格式重写 turn0 已生成的前瞻。核心验证 session 上下文维持 + 格式重组能力，
+  无新数据需求，纯 agent 编排层处理。工具层仅用于回验 turn0 上下文实体真实可追溯。
+attempts:
+# ===== turn0 上下文回验（确认 session 上下文实体真实）=====
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  purpose: 回验 turn0 上下文实体（艾阿利/阿里 vs 席特拉，巴林超）真实存在
+  tool: resolve_team
+  params:
+    name: 阿里
+  code: OK
+  count: 9+
+  stub: false
+  note: 候选含同名歧义（阿里斯/艾阿里U17/阿里斯法克斯/阿里阿希 等），巴林超"阿里"(team_id=72402)
+    未在首屏前列；turn0 context 已锁定 72402，turn1 不需重新 resolve
+- round: 1
+  turn: 0
+  atomic_id: T1-g0
+  tool: resolve_team
+  params:
+    name: 席特拉
+  code: OK
+  count: 3
+  stub: false
+  note: 唯一命中 team_id=22220(巴林超)，无歧义
+- round: 1
+  turn: 0
+  atomic_id: T1-a1
+  purpose: 回验 turn0 比赛实体可解析
+  tool: resolve_match
+  params:
+    home: 阿里
+    away: 席特拉
+    competition: 巴林超
+  code: OK
+  count: 2
+  stub: false
+  match_status: ambiguous
+  note: |
+    命中 match_id=4530473（阿里 home vs 席特拉 away，2026-04-28 00:00 星期二，巴林超，
+    status=finished，neutral=true，round_num=19 末轮，home_position=5/away_position=10，
+    附带环境温度29°C/湿度52%）。neutral=true 对应用户消息"艾阿利(中)"的中立场标注。
+    另一候选 4296862(2025-03-06)，turn0 context 已锁定 4530473。
+- round: 1
+  turn: 0
+  atomic_id: T1-a1
+  purpose: 回验前瞻所需积分榜数据（参考格式用到的排名/积分/近况）
+  tool: sql
+  params:
+    query: football_points_table join 巴林超 season_id=13626
+  code: OK
+  count: 12
+  stub: false
+  note: |
+    当前赛季积分榜完整：阿里第5(31分,9胜4平9负,进19失20)、席特拉第8(27分,7胜6平9负,进22失31)。
+    与参考格式(墨尔本城第8 29分 / 中央海岸第9 28分)结构一致，可支撑三段式前瞻重写。
+    注：resolve_match 返回 away_position=10 是该比赛轮次(末轮前)时的排名，与赛季终榜第8存在
+    差异，属正常排名变动，不影响格式重写。
+- round: 1
+  turn: 0
+  atomic_id: T1-a1
+  tool: get_standings
+  params:
+    competition_id: 641
+  code: ERROR
+  stub: false
+  note: 工具调用抛错(参数/schema 问题)；SQL 直查积分榜已覆盖该数据需求，不构成 blocking_gap
+# ===== turn1 格式重写（agent 编排层，无新工具调用）=====
+- round: 1
+  turn: 1
+  atomic_id: T1-g0
+  category: maintain_context
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  note: |
+    maintain_context — 维持 turn0 session 上下文（比赛实体 4530473 + 已生成的前瞻内容）。
+    属 agent 编排层(checkpointer/memory)，工具层无新调用。agent_layer_covered。
+- round: 1
+  turn: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  note: |
+    maintain_context — 维持参考格式模板(用户消息内联的三段式示例：主队一段+客队一段+综合推荐段)。
+    格式模板由 turn1 user 消息直接提供，无需工具取数。agent_layer_covered。
+- round: 1
+  turn: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  tool: none
+  params: {}
+  code: AGENT_LAYER
+  stub: false
+  note: |
+    synthesize_answer — 将 turn0 前瞻内容按指定格式(主队一段/客队一段/综合推荐)重组重写。
+    纯文本格式处理，无新数据需求，无工具调用。agent_layer_covered。
+satisfied:
+- T1-g0
+- T1-a1
+- T1-a2
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
+  type: none
+  description: |
+    格式重写为 agent 编排层能力（maintain_context + synthesize），工具层无新数据需求。
+    turn0 上下文实体(阿里 vs 席特拉, match_id=4530473, 巴林超)及积分榜数据均已实调确认存在，
+    可作为重写素材。无 routing/data/implementation gap。
   failed_atomic: null
-route_complete: false
+route_complete: true
+agent_layer_covered: true
+key_findings:
+- turn0 上下文实体真实可追溯：match_id=4530473（阿里 home vs 席特拉 away，2026-04-28 00:00 星期二，
+  巴林超，neutral=true 对应用户消息"艾阿利(中)"的中立场标注），resolve_match OK。
+- resolve_team "阿里"存在同名歧义（阿里斯/艾阿里等多国 Al-Ahli/Aris 变体），但 entity_entry=context
+  表示 turn0 已锁定 team_id=72402，turn1 格式重写不需重新 resolve，歧义不构成 gap。
+- G20 verdict = agent_layer_covered：格式重写无新数据需求，纯 session 上下文维持 + 格式重组，
+  工具层仅用于回验上下文；route_complete=true。
+cross_sport_collision: |
+  "阿里"为高频球队译名(足球多国 Al-Ahli/Aris/Allianssi 同名)；本 case sport=football 且 context
+  已锁定巴林超 72402，未触发跨运动碰撞。basketball_team 共享 id 整数空间，turn0 若误用需警惕。

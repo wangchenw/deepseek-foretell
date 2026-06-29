@@ -1,16 +1,179 @@
 type_id: E03
 case_id: TC-E03-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (三串一组合方案)
+entity_entry: lottery_batch
+sport: any
+turns:
+- turn_index: 0
+  text: 4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态，有无演戏等等，还有推荐2串一，3串一，最有把握啊
 attempts:
 - round: 1
-  atomic_id: E03-probe-1
+  atomic_id: T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
+    date: '2026-04-14'
+  code: OK
+  count: 7
+  stub: false
+  note: 竞彩足球 issue=260413 周一001-007 共 7 场（天狼星vs哈马比/布鲁马波vs索尔纳[瑞超]、佛罗伦萨vs拉齐奥[意甲]、罗德兹vs特鲁瓦[法乙]、曼联vs利兹联[英超]、莱万特vs赫塔费[西甲]、通德拉vs吉维森特[葡超]）；每场含 spf/rq/bf(31项)/jq(8项)/bqc(9项) 全玩法赔率；但 match_id=null，需后续 resolve
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 天狼星
+    away: 哈马比
+    date: '2026-04-14'
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4467014，瑞典超 league_id=184，status=finished，round_num=2，home_position=8/away_position=7
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 布鲁马波
+    away: 索尔纳
+    date: '2026-04-14'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 竞彩简称"布鲁马波/索尔纳"与 DB 全名"布洛马波卡纳/AIK索尔纳"不一致，resolve_match 名称别名缺失（routing_gap）
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 布洛马波卡纳
+    away: AIK索尔纳
+    date: '2026-04-14'
+  code: OK
+  count: 1
+  stub: false
+  note: fallback 用 DB 全名成功，match_id=4467008，瑞典超 184，home_position=11/away_position=9
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 通德拉
+    away: 吉维森特
+    date: '2026-04-14'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 竞彩简称"吉维森特"与 DB 全名"吉尔维森特"(team_id=11838)不一致，resolve_match 失败（routing_gap）
+- round: 2
+  atomic_id: T1-a1
+  tool: sql
+  params:
+    query: SELECT m.id,ht.name_zh,at.name_zh FROM football_match m JOIN football_team ht ON ht.id=m.home_team_id JOIN football_team at ON at.id=m.away_team_id WHERE m.match_time_str LIKE '2026-04-14%' AND m.home_team_id IN (32896,18641) LIMIT 10
+  code: OK
+  count: 1
+  stub: false
+  note: SQL fuzzy fallback（按 team_id+date）命中 match_id=4369047 通德拉vs吉尔维森特，葡超 151，2026-04-14 03:15
+- round: 2
+  atomic_id: T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 12759
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 天狼星近5场 4W1D，场均进2.4球
+- round: 2
+  atomic_id: T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 10153
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 哈马比近5场 2W3L，状态起伏
+- round: 2
+  atomic_id: T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 11575
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 布洛马波卡纳近5场 2W1D2L
+- round: 2
+  atomic_id: T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 10910
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: AIK索尔纳近5场 2W1D2L
+- round: 2
+  atomic_id: T1-a2
+  tool: get_standings
+  params:
+    league_id: 184
   code: OK
   count: 16
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 瑞典超积分榜16队，天狼星 position=1(28pts 9W1D0L)，哈马比 position=4，布洛马波卡纳 position=7，索尔纳 position=10
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4467014
+  code: OK
+  count: 10
+  stub: false
+  note: 欧赔5家（威廉希尔/立博/韦德/18Bet 等）+ 亚盘5家（handicap 0.0），初盘主2.65/和3.4/客2.4
+- round: 2
+  atomic_id: T1-a2
+  tool: get_match_result
+  params:
+    match_id: 4467014
+  code: OK
+  count: 1
+  stub: false
+  note: 天狼星vs哈马比 全场2-0，半场1-0，角球3-2，客2黄
+- round: 2
+  atomic_id: T1-a2
+  tool: get_match_result
+  params:
+    match_id: 4467008
+  code: OK
+  count: 1
+  stub: false
+  note: 布洛马波卡纳vs AIK索尔纳 全场2-2，半场0-0，角球4-9
+satisfied:
+- T1-a1
+- T1-a2
+blocking_gap:
+  type: routing_gap
+  description: resolve_match 对竞彩简称（布鲁马波/索尔纳/吉维森特）返回 ENTITY_NOT_FOUND，因 lottery_schedule.home_name/away_name
+    使用竞彩简称，与 football_match 主队的 DB 全名（布洛马波卡纳/AIK索尔纳/吉尔维森特）存在别名差异；天狼星/哈马比/通德拉
+    三队简称与全名一致可直解。数据本身存在（football_match 同日可见对应比赛），非 data_gap。
+  failed_atomic: T1-a1
+  workaround: 用 DB 全名重试 resolve_match；或 SQL 模糊查 football_team 取 team_id 后按 team_id+date 匹配 football_match。3 场均已通过 fallback 打通。
 route_complete: true
+data_quality_notes:
+- lottery_schedule 全部 7 场 sell_status=suspended（已停售，符合 4.14 历史期次特征），但赔率快照齐全可用
+- lottery_schedule.match_id 恒为 null，三串一组合必须经 resolve_match 或 SQL fallback 回填 match_id 才能做单场深度分析
+- 4.14 为周一，批次 issue=260413（竞彩按销售日编排，非比赛日），7 场覆盖瑞超/意甲/法乙/英超/西甲/葡超 6 联赛，跨运动无碰撞（全足球）
+combo_path_summary:
+  steps:
+  - get_lottery_schedule(play_type=101, date=2026-04-14) 拉批次 7 场 + 全玩法赔率
+  - 选最有把握 3 场 → resolve_match（DB全名）或 SQL fuzzy fallback 回填 match_id
+  - 每场 get_recent_form + get_standings + get_odds_snapshot +（可选 get_intel_tags/get_injury_report/get_match_lineup 评估"球队利益/演戏"）
+  - 按 bf 比分赔率 + jq 进球数赔率定单场比分/进球数，组合输出 2串一/3串一
+  verified_matches:
+  - 周一001 天狼星vs哈马比 → 4467014 (瑞超, 2-0)
+  - 周一002 布洛马波卡纳vs AIK索尔纳 → 4467008 (瑞超, 2-2)
+  - 周一007 通德拉vs吉尔维森特 → 4369047 (葡超, 03:15)
+verdict: verified
+known_gap_status:
+  previous: 未探
+  current: routing_gap (resolve_match 竞彩简称别名缺失，fallback 后数据完整可用)
+  resolution: 三串一组合路径完全打通，单场分析链全 OK，无 implementation/data gap

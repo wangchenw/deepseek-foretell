@@ -1,23 +1,238 @@
 type_id: H08
 case_id: TC-H08-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: H (数学出线)
+turns:
+- turn_index: 0
+  text: 西班牙VS沙特阿拉伯 德国VS科特迪瓦 从下面挑一个符合这场比赛赔率的模板来写激情非AI感的文案（含四篇模板：西班牙vs佛得角、比利时vs埃及、沙特vs乌拉圭、伊朗vs新西兰），强调数据真实性第一，没查到的数据别硬编
 attempts:
 - round: 1
-  atomic_id: H08-probe-1
-  tool: resolve_league
+  atomic_id: H08-T1-a1
+  tool: resolve_match
   params:
-    name: 英超
+    home: 西班牙
+    away: 沙特阿拉伯
   code: OK
+  count: 6
   stub: false
-- round: 2
-  atomic_id: H08-probe-2
+  note: 命中 2026 世界杯 league_id=1 match_id=4460924，2026-06-22 小组第8组 round_num=2，status=finished，neutral=true，home_position=3 away_position=59；多候选含 U19/友谊赛，按 league_id=1+2026 日期正确选定
+- round: 1
+  atomic_id: H08-T1-a1
+  tool: resolve_match
+  params:
+    home: 德国
+    away: 科特迪瓦
+  code: OK
+  count: 5
+  stub: false
+  note: 命中 2026 世界杯 match_id=4460915，2026-06-21 小组第5组 round_num=2，status=finished，neutral=true，home_position=9 away_position=30
+- round: 1
+  atomic_id: H08-T1-a1
+  tool: resolve_match
+  params:
+    home: 西班牙
+    away: 佛得角
+  code: OK
+  count: 1
+  stub: false
+  note: 唯一命中 2026 世界杯 match_id=4460923，2026-06-16 第8组 round_num=1（模板场次）
+- round: 1
+  atomic_id: H08-T1-a1
+  tool: resolve_match
+  params:
+    home: 比利时
+    away: 埃及
+  code: OK
+  count: 3
+  stub: false
+  note: 命中 2026 世界杯 match_id=4460920，2026-06-16 第7组 round_num=1（模板场次）
+- round: 1
+  atomic_id: H08-T1-a1
+  tool: resolve_match
+  params:
+    home: 沙特阿拉伯
+    away: 乌拉圭
+  code: OK
+  count: 4
+  stub: false
+  note: 多候选首条为 U17 世界杯(4544793, not_started 2026-11-19)，正确世界杯场为候选2 match_id=4460959，2026-06-16 第8组 round_num=1（模板场次）；routing 注意：首候选非成人世界杯，须按 league_id=1 过滤
+- round: 1
+  atomic_id: H08-T1-a1
+  tool: resolve_match
+  params:
+    home: 伊朗
+    away: 新西兰
+  code: OK
+  count: 1
+  stub: false
+  note: 唯一命中 2026 世界杯 match_id=4460956，2026-06-16 第7组 round_num=1（模板场次）
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4460924
+  code: OK
+  count: null
+  stub: false
+  note: 西班牙vs沙特 欧赔5家 initial home_win 1.06~1.15 / current 1.06~1.10 / latest 走地 1.01；亚盘 initial handicap -2.5 / current -2.75（与模板"西班牙-2.75退至-2.5"反向但量级吻合，西班牙超低赔让2.5/2.75属实）
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4460915
+  code: OK
+  count: null
+  stub: false
+  note: 德国vs科特迪瓦 欧赔5家 initial home_win 1.50~1.62 / current 1.44~1.51；亚盘 initial handicap -0.75 / current -1.25（德国中等让球，与模板豪门超低赔不同档次，LLM 选模板时需注意赔率档位匹配）
+- round: 1
+  atomic_id: H08-T1-a2
   tool: get_standings
   params:
-    league_id: 82
+    league_id: 1
   code: OK
   count: 30
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 世界杯积分榜返回30条，但为各小组 position=1 头名汇总（西班牙7分/3场、德国6分/3场、阿根廷9分…），不按 group 分组返回完整4队榜；且 total=3 表示最终赛季榜，非文案语境(小组第2轮)中间形势
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: sql
+  params:
+    query: football_points_table join by group IN(5,8) MAX(season_id)
+  code: OK
+  count: 8
+  stub: false
+  note: SQL 直查拿到第5/8组完整4队榜——第8组：西班牙7分(2胜1平 5:0)第1、佛得角3分(0胜3平 2:2)第2、乌拉圭2分第3、沙特2分(0胜2平1负 1:5)第4；第5组：德国6分(2胜1负 10:4 +6)第1、科特迪瓦6分(2胜1负 4:2 +2)第2、厄瓜多尔4分第3、库拉索1分第4。最终出线：西/佛、德/科。但此为3轮完赛最终榜，第2轮中间形势需 LLM 据逐场结果自累计
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 14227
+    n: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 西班牙近10场实际 6胜4平0负（模板"7胜3平"不符，模板数字示例性硬编）
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 11746
+    n: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 德国近10场 8胜1负1负(含世界杯)，6-15 W 7:1、6-21 W 2:1、6-26 L 1:2
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 14298
+    n: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 伊朗近5场实际 2胜3平0负进8球丢4（模板"3胜1平1负狂轰11球只丢3球"不符）
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 14400
+    n: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 新西兰近6场实际 4负1平1胜（模板"1平5负"不符；近况含 6-16 D 2:2 vs 伊朗）
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 11083
+    n: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 佛得角近10场含 6-07 W 3:0、5-31 W 3:0 两场连轰6球零封，但时序非"近2场"（近2场为6-22 D 2:2、6-27 D 0:0），模板"近2场连轰6球"时序错位
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 13464
+    team_b: 10316
+    n: 8
+  code: OK
+  count: 3
+  stub: false
+  note: 埃及vs比利时 2022-11-18 full_time 1-2（埃及客胜），文案"2022友谊赛埃及2-1击败比利时" ✅ 真实可查
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 10584
+    team_b: 13727
+    n: 8
+  code: OK
+  count: 2
+  stub: false
+  note: 沙特vs阿根廷 2022-11-22 full_time 1-2（沙特客胜阿根廷，6黄），文案"2022卡塔尔世界杯沙特2-1爆冷阿根廷" ✅ 真实可查
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 13464
+    team_b: 14227
+    n: 8
+  code: OK
+  count: 1
+  stub: false
+  note: 埃及vs西班牙 2026-04-01 full_time 0-0（友谊赛，埃及客0:0逼平），文案"0-0逼平西班牙" ✅ 真实可查
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 13464
+    team_b: 10584
+    n: 8
+  code: OK
+  count: 2
+  stub: false
+  note: 埃及vs沙特 2026-03-28 full_time 0-4（埃及客4:0横扫沙特），文案"4-0横扫沙特" ✅ 真实可查
+- round: 1
+  atomic_id: H08-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 11083
+    team_b: 14227
+    n: 8
+  code: OK
+  count: 1
+  stub: false
+  note: 佛得角vs西班牙仅 2026-06-16 世界杯 0:0 一场历史交锋
+satisfied:
+- H08-T1-a1
+- H08-T1-a2
+blocking_gap:
+  type: routing_gap
+  description: get_standings(league_id=1) 对世界杯返回各小组头名汇总(30条 position=1)且取
+    MAX(season_id) 最终赛季榜(total=3 三轮完赛)，既不按 group 返回完整4队榜，也无法反映文案语境(小组第2轮)
+    的中间出线形势。但 SQL 直查 football_points_table 按 group 过滤可拿完整组内榜，逐场结果(resolve_match/
+    h2h 已返回比分)可支撑 LLM 自累计中间轮次积分推演"数学出线"。数据完整可得，仅工具粒度与中间快照缺失，
+    不阻断 LLM eval。另 resolve_match(沙特,乌拉圭) 首候选为 U17 世界杯，须按 league_id=1 过滤方可命中成人场。
+  failed_atomic: H08-T1-a2
+  workaround: SQL JOIN football_points_table+_team+_team WHERE group IN(5,8) 取完整小组榜；
+    第2轮中间形势由 LLM 据已完赛比赛结果(resolve_match 返回 home_scores/away_scores 或 get_match_result) 自累计
 route_complete: true
+data_quality_notes:
+- 模板内置数字与 DB 真实数据多处不符（示例性硬编）：西班牙"7胜3平"实6胜4平；伊朗"3胜1平1负狂轰11球丢3"
+  实2胜3平进8丢4；新西兰"1平5负"实4负1平1胜；比利时"7胜3平37球"实含≥3平；佛得角"近2场连轰6球"时序错位
+  （两场3:0零封在6-07/5-31 而非最近2场）。文案明确"没查到的数据别硬编"，LLM 重写时应弃模板不符数字、改用
+  DB 真实近况/赔率/积分
+- 文案历史交锋典故全部真实可查(h2h 4/4 命中)：埃及2:1比利时(2022)、沙特2:1阿根廷(2022世界杯)、
+  埃及0:0西班牙(2026-04-01友谊赛)、埃及4:0沙特(2026-03-28)
+- 核心目标两场赔率档位差异显著：西班牙vs沙特欧赔 home_win ~1.06-1.13 + 亚盘让2.5/2.75（豪门超低赔档），
+  德国vs科特迪瓦欧赔 home_win ~1.44-1.62 + 亚盘让0.75/1.25（中让档）；LLM "挑符合赔率的模板"时应按档位匹配，
+  西班牙vs沙特更贴合"西班牙vs佛得角"模板的让2.5盘口语境
+- 跨运动碰撞：全部为足球世界杯 league_id=1，未误用篮球工具
+known_gap_status:
+  previous: 未探索
+  current: routing_gap (get_standings 粒度 + resolve_match U17 首候选干扰)
+  resolution: SQL 按 group 过滤 + league_id=1 过滤可解，路径完全打通，无 data_gap/implementation_gap

@@ -1,17 +1,117 @@
 type_id: D05
 case_id: TC-D05-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: D (比分玩法)
+turns:
+- turn_index: 0
+  text: 按比分投注5条标准评估比赛，并找今天还没开始比赛的北单，推荐几场比分
 attempts:
 - round: 1
-  atomic_id: D05-probe-1
-  tool: resolve_match
+  atomic_id: D05-T1-a1
+  tool: get_lottery_schedule
   params:
-    home: 皇马
-    away: 巴萨
+    play_type: '301'
+    date: '2026-06-29'
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
-route_complete: true
+  note: 北单胜负(BEIDAN_WIN_LOSS=301)→lottery_bd_odds 表，含 bf 比分列。返回10条 issue=26069
+    entries（issue_num 54-63），但全部 match_time_str=2026-06-29 00:55/02:55（已过开赛，当前
+    21:57），sell_status 全 3=已停售，bf=suspended；即"今天"日历日期内已无未开赛北单。
+- round: 2
+  atomic_id: D05-T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+    date: '2026-06-30'
+  code: OK
+  count: 4
+  stub: false
+  note: fallback 调整时间窗口到次日。返回4条未开赛北单（issue_num 64-67，match_time_str
+    06-30 00:55/03:10/04:25/06:00），sell_status 全 1=销售中(on_sale)，bf=on_sale。SQL
+    交叉验证 lottery_bd_odds WHERE match_time>NOW() 得 future_total=4、bf_selling=4，一致。
+- round: 2
+  atomic_id: D05-T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+  code: OK
+  count: 4
+  stub: false
+  note: 不传 date 默认返回当前在售条目，同样返回4条未开赛北单（64-67）。LLM 可直接用无 date
+    调用获取"未开赛北单"，规避日历日期边界问题。
+- round: 2
+  atomic_id: D05-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '301'
+    code: '64'
+    date: '2026-06-30'
+  code: OK
+  count: null
+  stub: false
+  note: 单场定位 issue_num=64 巴西VS日本（世界杯，lottery_id=26069064），返回 odds.bf 25项比分。
+    但 bf 赔率值解析畸形（见下）。
+- round: 2
+  atomic_id: D05-T1-a2
+  tool: get_lottery_schedule
+  params:
+    play_type: '301'
+    date: '2026-06-30'
+  code: OK
+  count: 4
+  stub: false
+  note: 复用获取4场未开赛北单的 bf 比分赔率用于"推荐比分"。entry.odds.bf 为 25 项 list（label
+    1:0…负其他），但每项 odds 值为畸形截断串（implementation_gap，见 blocking_gap）。
+- round: 3
+  atomic_id: D05-T1-a2
+  tool: sql
+  params:
+    query: SELECT issue_num,comp,home,away,match_time_str,sell_status,bf FROM lottery_bd_odds
+      WHERE match_time > UNIX_TIMESTAMP()
+  code: OK
+  count: 4
+  stub: false
+  note: SQL fallback 直查 lottery_bd_odds。bf 列为完整 JSON（如 {"s31":"16.70","s30":"32.38",...}
+    25 键），数据完整可用；s31=主胜1:0...sXX 编码与 _BF_LABELS 顺序一致。SQL 路径可正确恢复
+    比分赔率供推荐。
+satisfied:
+- D05-T1-a1
+blocking_gap:
+  type: implementation_gap
+  description: foretell 工具层北单 bf 比分赔率解析错误。`_parse_lottery_play("bf", raw)` 对所有
+    玩法统一走 `_split_csv_values`（按逗号拆分），但北单 lottery_bd_odds.bf 的存储格式是 JSON
+    键值串 `{"s31":"61.37","s30":"148.64",...}`（与竞彩 jczq 的 CSV 格式不同）。逗号拆分后第一
+    片段 `{"s31":"61.37"` 被整体当作 label="1:0" 的 odds 值，其余 24 个比分项的赔率全部丢失且
+    值为畸形截断串（非数字）。get_lottery_schedule 与 resolve_lottery_match 的 bf 字段均受影响
+    （bf_len=25 但 bf_numeric=False）。后果：LLM 经 foretell 工具拿不到可用的比分赔率，无法做
+    "推荐比分"合成；需 SQL 直查 lottery_bd_odds.bf 并按 s-键映射还原。
+  failed_atomic: D05-T1-a2
+  workaround: SQL 直查 lottery_bd_odds WHERE match_time>NOW() AND SUBSTRING_INDEX(sell_status,',',-1)='1'，
+    bf 列 JSON.parse 后按 _BF_LABELS 顺序映射；或修复 _parse_lottery_play 对 beidan bf 走 JSON
+    解析分支。
+route_complete: false
+data_quality_notes:
+- 北单 issue 跨自然日：issue=26069 同时含 06-26/27（已完赛）与 06-29（已开赛）与 06-30（未开赛）
+  条目；get_lottery_schedule date 参数按 match_time_str 日历日过滤，"今天未开赛"需用次日 date
+  或不传 date（默认在售）才能命中。
+- 工具 entry 不暴露 match_time_str（仅 date）与 match_id（恒 null），无法精确判断开赛时刻；需
+  以 sell_status.bf=on_sale 作为"未开赛可投"判据。
+- bf 25 项 label 顺序与竞彩一致（_BF_LABELS），北单 bf JSON 的 s-键到 label 映射需在工具层补
+  JSON 解析分支。
+cross_sport_collision:
+  status: none
+  note: 北单足球(play_type=301→lottery_bd_odds)与北单篮球胜负(404→lottery_bdsf_odds，仅 sf 无 bf)
+    表分离；D05 比分玩法仅 301 有效，无跨运动 ID 碰撞。
+known_gap_status:
+  previous: 未探查
+  current: implementation_gap（bf 解析对北单 JSON 格式失效）
+  resolution: 数据层路径已通（SQL 可用），工具层 bf 解析需补 beidan JSON 分支
+verdict_leaning: partial
+key_findings:
+- 北单比分玩法实体可解析：get_lottery_schedule(301) 不传 date 返回4场未开赛北单（巴西VS日本、
+  IA阿克拉内斯VS弗拉姆、德国VS巴拉圭、荷兰VS摩洛哥），bf sell_status=on_sale，T1-a1 satisfied。
+- 工具层 bf 赔率解析对北单 JSON 格式失效（CSV 拆分误用），25 项比分赔率值为畸形截断串、非数字，
+  阻断"推荐比分"合成，属 implementation_gap。
+- SQL 直查 lottery_bd_odds.bf 可恢复完整 25 项比分赔率 JSON，数据层路径完整；route_complete=false
+  仅因工具层 bug。

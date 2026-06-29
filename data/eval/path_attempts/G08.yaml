@@ -1,11 +1,132 @@
 type_id: G08
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+type_name: 同样逻辑
+case_id: TC-G08-001
+explored_at: '2026-06-29'
+source: path_explorer
+verdict_lean: fail
+turns_summary:
+  turn0: 隐含首轮（G01 模式）—— resolve_lottery_match 004@101 未命中，fallback get_lottery_schedule 101 列表 OK
+  turn1: 同样逻辑追问，NBA 深度分析模板（元数据/伤病/效率/盘口）—— maintain_context 编排层 OK，但深度维度工具 football-only
+attempts:
+# ===== turn0：G01 模式（隐含上一轮） =====
+- turn: 0
+  round: 1
+  atomic_id: G08-T0-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '004'
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 周二004 巴黎VS拜仁 竞彩编码未命中（复现 G01 data_gap）
+- turn: 0
+  round: 2
+  atomic_id: G08-T0-a1
+  fallback: list_active_lottery
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  count: 15
+  stub: false
+  note: 列表 fallback 成功，可拿当日竞彩足球 15 场（含 周一074 巴西VS日本 世界杯）
+# ===== turn1：同样逻辑 + NBA 深度模板 =====
+- turn: 1
+  round: 1
+  atomic_id: T1-g0
+  category: maintain_context
+  status: orchestration_satisfied
+  note: 沿用上一轮分析逻辑，属 agent 编排层（checkpointer/context），无需 DB 工具
+- turn: 1
+  round: 1
+  atomic_id: T1-a1
+  category: maintain_context
+  status: orchestration_satisfied
+  note: 沿用 turn0 维度框架，编排层
+- turn: 1
+  round: 1
+  atomic_id: T1-a2-verify-resolve
+  tool: resolve_match
+  params:
+    home: 湖人
+    away: 凯尔特人
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 验证 turn1 "换一场 NBA" 路径——NBA 球队实体未入库
+- turn: 1
+  round: 2
+  atomic_id: T1-a2-verify-resolve
+  fallback: swap_home_away
+  tool: resolve_match
+  params:
+    home: 凯尔特人
+    away: 湖人
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: swap 主客仍 ENTITY_NOT_FOUND，NBA match 实体确属 data_gap
+- turn: 1
+  round: 2
+  atomic_id: T1-a2-cross-sport
+  fallback: basketball_lottery_schedule
+  tool: get_lottery_schedule
+  params:
+    play_type: '201'
+  code: OK
+  count: 3
+  stub: false
+  note: 竞彩篮球列表可拉（世预男篮 卡塔尔VS沙特 等），但非 NBA
+- turn: 1
+  round: 2
+  atomic_id: T1-a2-cross-sport
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-29'
+    sport: basketball
+    tier: top
+  code: DATA_MISSING
+  stub: false
+  note: 今日篮球 51 场但顶级 0（NBA 缺），tier=top 落空
+- turn: 1
+  round: 3
+  atomic_id: T1-a2-cross-sport
+  fallback: next_day_basketball
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-30'
+    sport: basketball
+  code: OK
+  count: 26
+  stub: false
+  note: 次日篮球赛程可拉（世亚预 等），证明 basketball 调度通；NBA 仍缺
+- turn: 1
+  round: 1
+  atomic_id: T1-a2
+  category: synthesize_answer
+  status: blocked
+  note: NBA 深度模板需伤病量化/效率对比(进攻防守效率/Pace/三分%)/盘口追踪，对应工具均 football-only
+satisfied:
+- T1-g0
+- T1-a1
+- G08-T0-a1-fallback
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
+  type: implementation_gap
+  description: |
+    turn1 NBA 深度分析模板无法落地：
+    (1) 效率对比维度——get_standings/get_team_season_stats/get_recent_form/get_h2h
+        均只接受 football_team.id/football_competition.id，无 basketball 效率/Pace/三分命中率工具；
+    (2) 盘口追踪维度——get_odds_snapshot/get_odds_trend/get_kelly/get_betfair 均只接受
+        football_match.id，无篮球盘口工具；
+    (3) 伤病量化表——player 工具仅资料/身价/转会/荣誉，无 injury/缺阵影响接口；
+    (4) 叠加 NBA match 实体 data_gap：resolve_match 湖人VS凯尔特人 ENTITY_NOT_FOUND（swap 同），
+        与 B09 NOT_APPLICABLE 一致，NBA 赛事未入库。
+    篮球赛程本身可经 get_schedule_by_date sport=basketball(2026-06-30 count=26) 与
+    get_lottery_schedule play_type=201(count=3, 世预男篮) 拉到，但深度分析维度工具缺失。
+  failed_atomic: T1-a2
+  secondary_gap:
+    type: data_gap
+    description: NBA match 实体未入库（resolve_match ENTITY_NOT_FOUND），篮球仅有世预男篮/世亚预
 route_complete: false
+key_findings:
+- turn0 复现 G01：resolve_lottery_match 004@101 ENTITY_NOT_FOUND，get_lottery_schedule 101 fallback OK count=15
+- turn1 "同样逻辑" 的 maintain_context 属 agent 编排层（checkpointer），无需 DB 工具即满足
+- NBA 深度模板被 implementation_gap 阻断：stats/odds 工具 football-only，无篮球效率/盘口/伤停工具，叠加 NBA match data_gap

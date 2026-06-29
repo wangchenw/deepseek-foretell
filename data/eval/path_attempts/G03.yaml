@@ -1,11 +1,107 @@
 type_id: G03
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+type_name: 各比分概率
+case_id: TC-G03-REG-006
+explored_at: '2026-06-29'
+source: path_explorer
+scenario: G
+entity_entry: context
+sport: any
+tags: [follow_up]
+# G03 = G01 上下文上的多轮追问。turn0 承袭 G01 (周二004 巴黎VS拜仁)；
+# turn1 追问"各比分概率/比分矩阵"。atomic 仅 maintain_context + synthesize_answer。
+attempts:
+# ---- turn0: 承袭 G01 实体解析 ----
+- round: 1
+  turn: 0
+  atomic_id: G03-T0-context
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '004'
+  code: ENTITY_NOT_FOUND
+  stub: false
+  note: 与 G01 同；周二004 巴黎VS拜仁 在当前期(260629)未命中
+- round: 2
+  turn: 0
+  atomic_id: G03-T0-context
+  fallback: list_active_lottery
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  stub: false
+  count: 15
+  note: 列表 fallback 成功；9/15 条带完整 bf=31 项比分赔率，6 条 bf 为空(未开售比分玩法)
+# ---- turn1: 追问"各比分概率/比分矩阵" ----
+# 核心数据源 = 竞彩 bf 赔率(31 项比分，赔率反推隐含概率)
+- round: 1
+  turn: 1
+  atomic_id: G03-T1-a2
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  stub: false
+  count: 15
+  bf_outcomes: 31
+  note: bf 字段为 31 项比分(label+odds)结构(1:0..5:2 / 胜其他 / 0:0..3:3 / 平其他 / 0:1..2:5 / 负其他)，
+    赔率取倒数归一即得各比分隐含概率矩阵；无专用 score_breakdown 工具，bf 赔率即权威源
+# 辅助源 1: 进失球概率(按 15 分钟时段分布，辅助比分建模)
+- round: 1
+  turn: 1
+  atomic_id: G03-T1-a2
+  tool: get_goals_lost_rate
+  params:
+    match_id: 4564893
+  code: OK
+  stub: false
+  count: 7
+  note: 返回主客进/失球速率按 1~15/16~30/.../90+ 七时段分布；样本 match 取自最近完赛
+# 辅助源 2: 半全场统计(进球/射正/控球，辅助比分倾向)
+- round: 1
+  turn: 1
+  atomic_id: G03-T1-a2
+  tool: get_match_half_stats
+  params:
+    match_id: 4564893
+    scope: ft
+  code: OK
+  stub: false
+  note: 返回 home/away_goals + shots + shot_on_target + ball_possession + attack/dangerous
+# 辅助源 3: h2h 历史比分(score_breakdown.full_time/half_time)
+- round: 1
+  turn: 1
+  atomic_id: G03-T1-a2
+  tool: get_h2h
+  params:
+    team_a: 38942
+    team_b: 39201
+    limit: 5
+  code: OK
+  stub: false
+  count: 2
+  note: 返回历史交锋 score_breakdown(full_time/half_time/红黄牌/角球)；参数名 team_a/team_b 非 team_a_id
+satisfied:
+- G03-T1-a2   # synthesize 比分矩阵数据路径已验证(bf 赔率 + 3 辅助源均 OK)
+# maintain_context (T1-g0 / T1-a1) 属 agent 编排层(checkpointer)，不经工具判定
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
-  failed_atomic: null
+  type: data_gap
+  description: |
+    比分矩阵追问的数据路径本身可用——竞彩 bf 赔率(31 项比分)经 get_lottery_schedule 结构化返回，
+    配合 get_goals_lost_rate / get_match_half_stats / get_h2h 可综合给出各比分概率。
+    但承袭 G01 的上下文实体(周二004 巴黎VS拜仁)在当前期 ENTITY_NOT_FOUND，
+    无法取到该具体场次的 bf 赔率，故针对"该场比赛"的比分矩阵无法合成。
+    此为继承自 G01 的 data_gap，非 G03 追问能力本身的实现缺口。
+  failed_atomic: G03-T0-context
+  inherited_from: G01
 route_complete: false
+verdict: partial
+key_findings:
+- 无专用 score_breakdown 分布工具；各比分概率权威源 = 竞彩 bf 赔率(31 项 label+odds)，
+  赔率倒数归一即隐含概率矩阵。get_lottery_schedule 已结构化返回 bf(9/15 当前期条目满 31 项)。
+- 辅助源 get_goals_lost_rate(进失球时段分布,7 段) / get_match_half_stats(半全场统计) /
+  get_h2h(历史 score_breakdown) 均 OK，可支撑比分矩阵的综合建模。
+- 追问能力路径成立，但被上游 G01 实体解析 data_gap 阻断(周二004 当前期未命中)；
+  对可解析场次该追问可完整回答。maintain_context 依赖 checkpointer，未在工具层测试。
+cross_sport_note: 当前 play_type=101 全为足球(世界杯)赛事，未触发篮球 team_id 碰撞；
+  bf 玩法仅竞彩足球有，篮球无对应比分赔率结构。

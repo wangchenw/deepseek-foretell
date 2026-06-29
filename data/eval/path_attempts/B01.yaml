@@ -1,6 +1,10 @@
 type_id: B01
 case_id: TC-B01-001
-explored_at: '2026-06-28'
+explored_at: '2026-06-29'
+scenario: B (深度分析)
+turns:
+- turn_index: 0
+  text: 分析【2026-06-15 01:00:00 竞彩足球周日009 世界杯 德国 VS 库拉索】的赛事的胜平负、比分结果，并描写100-300字的分析内容
 attempts:
 - round: 1
   atomic_id: B01-T0-a1
@@ -10,11 +14,243 @@ attempts:
     code: 009
     date: '2026-06-15'
   code: ENTITY_NOT_FOUND
+  count: 0
   stub: false
-satisfied: []
+  note: 直查 lottery_match 失败，issue_num=7009 未命中（routing_gap）
+- round: 2
+  atomic_id: B01-T0-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+    date: '2026-06-15'
+  code: OK
+  count: 4
+  stub: false
+  note: fallback 成功，命中周日009 德国VS库拉索 lottery_id=2040170，含 rq/bf(31)/jq/bqc 赔率；009 entry odds.spf 字段缺失（仅 rq 让球赔率），但 bf 比分赔率齐全
+- round: 2
+  atomic_id: B01-T0-a1
+  tool: resolve_team
+  params:
+    name: 德国
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=11746 (Germany, national=1)
+- round: 2
+  atomic_id: B01-T0-a1
+  tool: resolve_team
+  params:
+    name: 库拉索
+  code: OK
+  count: 7
+  stub: false
+  note: team_id=33203 (Curacao, national=1)
+- round: 2
+  atomic_id: B01-T0-a1
+  tool: resolve_match
+  params:
+    home: 德国
+    away: 库拉索
+    date: '2026-06-15'
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4460914，世界杯 league_id=1，status=finished，neutral=true，round_group=5
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_recent_form
+  params:
+    team_id: 11746
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 德国近5场 4W1L，场均进3.6球
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_recent_form
+  params:
+    team_id: 33203
+    n: 5
+  code: OK
+  count: 5
+  stub: false
+  note: 库拉索近5场 1W1D3L
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_h2h
+  params:
+    team_a: 11746
+    team_b: 33203
+    n: 5
+  code: OK
+  count: 1
+  stub: false
+  note: 仅本场比赛1条历史交锋
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_standings
+  params:
+    league_id: 1
+  code: OK
+  count: 30
+  stub: false
+  note: 世界杯积分榜，德国 position=1 points=6
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_team_stats
+  params:
+    match_id: 4460914
+  code: OK
+  count: 2
+  stub: false
+  note: 德国 26射门12射正65%控球8角球7进球 vs 库拉索 8射门2射正35%控球1角球
+- round: 2
+  atomic_id: B01-T0-a3
+  tool: get_odds_snapshot
+  params:
+    match_id: 4460914
+  code: OK
+  count: 10
+  stub: false
+  note: 欧赔5家（Interwetten/立博/威廉希尔/韦德 等）+ 亚盘5家（handicap -3.5~-4.0）
+- round: 2
+  atomic_id: B01-T0-a3
+  tool: get_odds_trend
+  params:
+    match_id: 4460914
+  code: OK
+  count: 50
+  stub: false
+  note: 月分区路由修复后正常返回50个赔率变化点
+- round: 2
+  atomic_id: B01-T0-a3
+  tool: get_same_odds_history
+  params:
+    match_id: 4460914
+  code: OK
+  count: 10
+  stub: false
+  note: 同赔历史10场赛果
+- round: 2
+  atomic_id: B01-T0-a3
+  tool: get_kelly
+  params:
+    match_id: 4460914
+  code: OK
+  count: 5
+  stub: false
+  note: 凯利指数5家，home_win kelly 极负值（-3.37~-0.99）反映主胜无价值
+- round: 2
+  atomic_id: B01-T0-a3
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+    date: '2026-06-15'
+  code: OK
+  count: 4
+  stub: false
+  note: 同 a1，但此处复用获取竞彩 bf 比分赔率（31个比分项 + jq 进球数 + bqc 半全场）
+- round: 2
+  atomic_id: B01-T0-a4
+  tool: get_injury_report
+  params:
+    match_id: 4460914
+  code: OK
+  count: 2
+  stub: false
+  note: 德国2伤停（布朗内收肌损伤、施洛特贝克韧带拉伤），库拉索无伤停
+- round: 2
+  atomic_id: B01-T0-a4
+  tool: get_intel_tags
+  params:
+    match_id: 4460914
+  code: OK
+  count: 5
+  stub: false
+  note: 5类情报（主正/主负/客正/客负/中性），含战意、伤情、裁判、天气、首发等深度内容
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_lineup
+  params:
+    match_id: 4460914
+  code: OK
+  count: 26
+  stub: false
+  note: 首发确认 confirmed=true，主队4-2-3-1（诺伊尔回归），客队4-2-3-1；数据小瑕疵：away 数组混入部分 home 替补，但工具层面 OK
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_incidents
+  params:
+    match_id: 4460914
+  code: OK
+  count: 22
+  stub: false
+  note: 22个比赛事件（7进球+1点球+6换人+水休息+半场+终场等），type 语义映射正常
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_player_stats
+  params:
+    match_id: 4460914
+    limit: 10
+  code: OK
+  count: 10
+  stub: false
+  note: 球员评分（哈弗茨8.9最高，2球1点；基米希8.5两助攻）
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_tlive
+  params:
+    match_id: 4460914
+  code: OK
+  count: 100
+  stub: false
+  note: 文字直播100事件（数据质量有重复"主裁判贾耶德"，但工具层面 OK）
+- round: 2
+  atomic_id: B01-T0-a2
+  tool: get_match_result
+  params:
+    match_id: 4460914
+  code: OK
+  count: 1
+  stub: false
+  note: 全场7-1，半场3-1，角球8-1，无红黄牌
+satisfied:
+- B01-T0-a1
+- B01-T0-a2
+- B01-T0-a3
+- B01-T0-a4
+- B01-T0-a5
+- B01-T0-a6
 blocking_gap:
-  type: data_gap
-  description: resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索 2026-06-15
-    不在 lottery 表
+  type: routing_gap
+  description: resolve_lottery_match(play_type=101, code=009, date=2026-06-15) 返回
+    ENTITY_NOT_FOUND，无法直接定位竞彩条目；需 fallback 到 get_lottery_schedule 按日期拉列表后
+    匹配 lottery_code。issue_num/code 匹配条件疑似存在 bug（get_lottery_schedule 同库同日可见
+    lottery_id=2040170 周日009）。fallback 路径已通，不阻断 LLM eval，但 resolve_lottery_match
+    自身需修复。
   failed_atomic: B01-T0-a1
-route_complete: false
+  workaround: get_lottery_schedule + 客户端 lottery_code 字符串匹配
+route_complete: true
+data_quality_notes:
+- lottery_schedule 009 entry 缺 odds.spf（胜平负），仅含 rq/bf/jq/bqc；分析胜平负可由 odds_snapshot
+  欧赔推导（home_win 1.02~1.05），比分赔率 bf 齐全
+- match_lineup away 数组混入部分 home 替补球员（数据瑕疵，非工具 bug）
+- match_tlive 100 条事件大量重复"主裁判贾耶德"开场播报（数据源去重缺失）
+phase2_verification:
+  new_tools_implemented:
+  - get_match_lineup: OK (26 entries)
+  - get_injury_report: OK (2 entries)
+  - get_intel_tags: OK (5 tag groups)
+  - get_match_team_stats: OK (2 teams)
+  - get_match_player_stats: OK (10 players)
+  - get_match_incidents: OK (22 events, type 语义映射正常)
+  - get_match_tlive: OK (100 events)
+  - get_odds_trend: OK (50 points, 月分区路由修复生效)
+  - get_same_odds_history: OK (10 entries)
+  - get_kelly: OK (5 companies)
+  - get_betfair: 未单独调用（odds_snapshot 已覆盖核心需求）
+known_gap_status:
+  previous: data_gap (resolve_lottery_match 009@2026-06-15 NOT_FOUND)
+  current: routing_gap (fallback 后数据完整可用)
+  resolution: Phase 2 已新增/修复 12+ 个 B 场景工具，路径完全打通

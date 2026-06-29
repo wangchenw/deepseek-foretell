@@ -1,23 +1,70 @@
 type_id: H02
 case_id: TC-H02-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+type_name: 降级确定
+entity_entry: league
+sport: any
+note: |
+  atomic 文件存在文案/目标错配 —— type_name=降级确定、entity_entry=league,
+  但 user 文案却是"分析3场赛事+推荐半全场最稳一场",且 T1-a1 target.entity=match
+  与 entity_entry=league 矛盾。疑似生成模板错配。本探索按任务方法论
+  (resolve_league + get_standings 降级判定)执行,以韩K联(用户文案提及韩职球队)为样本。
 attempts:
-- round: 1
-  atomic_id: H02-probe-1
-  tool: resolve_league
-  params:
-    name: 英超
-  code: OK
-  stub: false
-- round: 2
-  atomic_id: H02-probe-2
-  tool: get_standings
-  params:
-    league_id: 82
-  code: OK
-  count: 30
-  stub: false
-satisfied: []
-blocking_gap: null
+  - round: 1
+    atomic_id: T1-a1
+    tool: resolve_league
+    params: {name: 韩职}
+    code: ENTITY_NOT_FOUND
+    count: 0
+    stub: false
+    note: 别名"韩职"未收录,非 data_gap(库内有该联赛),属 routing/alias gap。
+  - round: 2
+    atomic_id: T1-a1
+    tool: resolve_league
+    params: {name: 韩K联}
+    code: OK
+    count: 1
+    stub: false
+    resolved:
+      league_id: 581
+      name: 韩K联
+      name_en: Korean K League 1
+    note: fallback 别名成功,确认 entity_entry=league 可解析。
+  - round: 2
+    atomic_id: T1-a2
+    tool: get_standings
+    params: {league_id: 581}
+    code: OK
+    count: 12
+    stub: false
+    note: |
+      返回当前赛季完整 12 队积分榜(含 position/points/won/draw/loss/goals/
+      goals_against/goal_diff + 主客分列)。榜尾:12 光州FC 7分(1胜4平10负),
+      11 金泉尚武 14分,10 大田市民 16分。各队均 played=15。
+  - round: 3
+    atomic_id: T1-a2
+    tool: sql
+    params:
+      query: SELECT MAX(round_num) FROM football_match WHERE competition_id=581 AND season_id=(current)
+    code: OK
+    count: 1
+    stub: false
+    note: |
+      SQL 直查 football_match 确认韩K联常规赛 max_round=33(current season
+      在 football_match 中 season_id=3976,与 football_season.id=13903 不同空间,
+      但 get_standings 内部已用 points_table.MAX(season_id) 正确取到当前赛季)。
+      已踢 15 轮 → 剩余 18 轮。榜尾光州FC 理论最高 7+18*3=61 分 ≫ 安全线 14 分
+      → 降级未确定。合成语义(降级是否确定)可由 standings + 剩余轮次算出。
+satisfied:
+  - T1-a1
+  - T1-a2
+blocking_gap:
+  type: none
+  description: 无阻塞。resolve_league 别名"韩职"缺失但"韩K联"可解析(routing 已绕过);get_standings 返回完整榜尾数据;剩余轮次经 SQL 确认。降级判定合成路径完整,当前赛段答案=降级未确定。
+  failed_atomic: null
 route_complete: true
+verdict: verified
+key_findings:
+  - atomic 文案/目标与 type_name 错配(user 文案=3场赛事+半全场推荐,但 type=降级确定、entity_entry=league;T1-a1 target.entity=match 与 league 矛盾),疑似生成模板错配,建议复核 H02 atomic 分解。
+  - resolve_league 别名不全:"韩职"→ENTITY_NOT_FOUND,fallback"韩K联"→league_id=581 OK,属可绕过的 routing/alias gap 而非 data_gap。
+  - 降级确定为合成语义:get_standings(581) 给出榜尾排名+积分+已赛场次,SQL 确认常规赛 33 轮/剩 18 轮,合成得出"降级未确定"(榜尾理论最高 61 分 ≫ 安全线 14 分)。数据路径完整,verdict=verified。

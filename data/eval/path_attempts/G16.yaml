@@ -1,11 +1,107 @@
 type_id: G16
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+case_id: TC-G16-FU-001
+explored_at: '2026-06-29'
+
+attempts:
+# ---- turn 1: 首轮分析(瑞典 vs 突尼斯)+ 盘口变化追问 ----
+# 上下文路由:解析球队与比赛实体
+- round: 1
+  atomic_id: T1-g0
+  tool: sql
+  params:
+    query: football_team WHERE name_zh IN ('瑞典','突尼斯')
+  code: OK
+  stub: false
+  count: 2
+  note: >-
+    SQL 直查 football_team 命中两支国家队:瑞典 id=10869(national=1)、
+    突尼斯 id=13613(national=1)。绕过 PowerShell 中文引号问题未走 resolve_team,
+    但 resolve_match 已用球队名成功路由,等价验证。
+
+- round: 1
+  atomic_id: T1-g0
+  tool: resolve_match
+  params:
+    home: 瑞典
+    away: 突尼斯
+    date: '2026-06-15'
+  code: OK
+  stub: false
+  count: 1
+  note: >-
+    resolve_match(主+客+date) OK,唯一定位 match_id=4460953、league=世界杯
+    (competition_id=1)、status=finished、match_time_beijing=2026-06-15 10:00。
+    ⚠️ neutral=true(中立场),用户文案称"瑞典主场"与 DB 中立场标记不符——
+    轻微上下文偏差,但不阻塞数据路径。环境数据:16°C/湿度82%/风6.1m/s。
+
+# ---- turn 1 盘口变化追问:核心数据源 get_odds_snapshot + get_odds_trend ----
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4460953
+  code: OK
+  stub: false
+  count: 10
+  note: >-
+    OK,返回 5 家欧赔(立博/韦德/onex/Bet365/平均)+ 5 家亚盘(平均/皇冠/利记/盈禾/马会),
+    每家含 initial/current/latest 三时点。亚盘 handicap 变化可读:
+    平均盘 initial=-1.0 → current=-0.5 → latest=-0.25(向主场方向 +0.5/+0.75),
+    即"让分变了/+0.5 了"的可量化证据;皇冠/利记 initial=-0.5 → current=-0.5 →
+    latest=-0.25;马会 initial=-0.75 → current=-0.75 → latest=-3.0(走地极端值)。
+    欧赔 home_win 初盘 1.83-1.91 → 即时 1.85-1.87 → 走地塌缩至 1.0(主队领先)。
+
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4460953
+  code: OK
+  stub: false
+  count: 50
+  note: >-
+    OK,返回 50 条欧赔时序变化点(18Bet/10bet/Interwetten/onex/Bet365/韦德/平博/
+    盈禾/皇冠 等),每条含 company_id/company_name/odds{home_win,draw,away_win}/
+    in_play/suspended/changed_at(时间戳)。可重建初盘→即时盘的欧赔走势曲线。
+    ⚠️ get_odds_trend 仅返回欧赔维度,不含亚盘 handicap 时序;亚盘盘口变化
+    需依赖 get_odds_snapshot 的 initial/current/latest 三时点对比——两者互补,
+    已足够支撑"盘口变化追问"合成。
+
+satisfied:
+- T1-g0
+- T1-a1
+- T1-a2
+
 blocking_gap:
-  type: data_missing_gap
-  description: 无探针步骤或未注册 probe
+  type: none
+  description: >-
+    全部 atomic 数据路径已通。T1-g0/T1-a1(maintain_context)属 agent 编排层
+    (checkpointer 维持瑞典 vs 突尼斯 match_id 上下文),非 foretell MySQL 工具链;
+    T1-a2(synthesize_answer)由 get_odds_snapshot(亚盘 handicap 三时点变化)+
+    get_odds_trend(50 条欧赔时序)双数据源支撑,盘口变化可量化合成。
   failed_atomic: null
-route_complete: false
+
+route_complete: true
+
+caveats:
+- id: T1-g0
+  category: maintain_context
+  note: >-
+    多轮追问的上下文维持(checkpointer 保存 match_id=4460953、球队、赛事)属
+    agent 编排层,不在 foretell 工具链探路范围;数据齐备后由上层 agent 完成。
+- id: T1-a1
+  category: maintain_context
+  note: 同 T1-g0,引用首轮分析结论(近10场状态/伤停/交锋/主客/战术)进入盘口追问。
+- 中立场偏差: 用户文案"瑞典主场"与 DB neutral=true 不符,合成时应以中立场口径,
+  不影响盘口变化数据本身。
+- 跨运动碰撞: 瑞典/突尼斯均为 football_team 国家队,resolve_match 命中足球世界杯,
+  未触发篮球 ID 碰撞。
+
+verdict_lean: pass
+key_findings:
+- 盘口变化追问数据路径完整:resolve_match(瑞典,突尼斯,2026-06-15)→ match_id=4460953
+  → get_odds_snapshot(亚盘 handicap initial=-1.0/current=-0.5/latest=-0.25,可量化
+  "+0.5/+0.75 让分变化")+ get_odds_trend(50 条欧赔时序变化点)。两工具均 OK 非 stub。
+- get_odds_trend 仅覆盖欧赔时序,亚盘 handicap 时序变化需靠 get_odds_snapshot 的
+  initial/current/latest 三时点对比补足——两源互补,合成"盘口变化"充足。
+- 用户"瑞典主场"与 DB neutral=true 中立场标记不符,合成需以中立场口径修正,但不阻塞路径。

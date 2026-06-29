@@ -1,0 +1,306 @@
+type_id: C05
+type_name: 篮球复盘（实际为足球复盘 — 印尼超/乌克超）
+case_id: TC-C05-001
+scenario: C
+entity_entry: match
+explored_at: '2026-06-29'
+methodology: Agent 2 SQL 优先（schema → 独立 SQL 基准 → 工具对照 → 判定）
+verdict_override: |
+  原判 ⚠️ cross_sport_data_collision 不成立，改判 ✅ verified。
+  证据：4 队在 football_team 全部命中为主力队、basketball_team 同名查询 0 命中；
+  resolve_team / resolve_match 工具返回 sport=football 且 match_id 与 SQL 基准完全一致，
+  无任何篮球候选混入。用户问句标题"篮球复盘"是措辞问题，两场实际为足球赛
+  （印尼超 1788 / 乌克超 253），DB 数据齐全、工具链正确路由。
+  附带局部缺口：xG 预期进球 = data_gap（DB 无 xG 表、工具无 get_xg）。
+
+atomics:
+
+  - atomic_id: T1-a1
+    category: resolve_entity
+    target: {entity: match, matches: [佩西加雅加达 vs 伯希索罗, 卢甘斯克索尔亚 vs 维勒斯]}
+    rounds:
+      - round: 1
+        hypothesis: >
+          先确认 football/basketball 两套 match/team 表结构，避免凭表名臆测字段。
+        schema_query: |
+          SELECT table_name, column_name, column_type, column_comment
+          FROM information_schema.columns
+          WHERE table_schema='data_center'
+            AND table_name IN ('football_match','football_team','basketball_match','basketball_team')
+          ORDER BY table_name, ordinal_position
+        schema_result: >
+          确认 football_match(id/home_team_id/away_team_id/match_time[int]/status_id/
+          home_scores/away_scores/competition_id/coverage_lineup/coverage_intelligence)、
+          football_team(id/name_zh/short_name_zh/competition_id/national)、
+          basketball_match/basketball_team 同构。match_time 为 unix int，比分 home_scores
+          为 [常规,半场,红牌,黄牌,角球,加时,点球] 数组。
+        decision: continue
+
+      - round: 2
+        hypothesis: >
+          SQL 基准 1：在 football_team 与 basketball_team 双侧按 4 队名模糊查，
+          独立判定真实运动属性，排除跨项目撞名。
+        sql_baseline:
+          query_football: |
+            SELECT id AS team_id, name_zh, short_name_zh, competition_id, national
+            FROM football_team
+            WHERE name_zh LIKE '%佩西加%' OR name_zh LIKE '%伯希索罗%'
+               OR name_zh LIKE '%卢甘斯克%' OR name_zh LIKE '%维勒斯%'
+               OR short_name_zh LIKE '%佩西加%' OR short_name_zh LIKE '%伯希索罗%'
+               OR short_name_zh LIKE '%卢甘斯克%' OR short_name_zh LIKE '%维勒斯%'
+            LIMIT 20
+          query_basketball: |
+            SELECT id AS team_id, name_zh, short_name_zh, competition_id, national
+            FROM basketball_team
+            WHERE name_zh LIKE '%佩西加%' OR name_zh LIKE '%伯希索罗%'
+               OR name_zh LIKE '%卢甘斯克%' OR name_zh LIKE '%维勒斯%'
+               OR short_name_zh LIKE '%佩西加%' OR short_name_zh LIKE '%伯希索罗%'
+               OR short_name_zh LIKE '%卢甘斯克%' OR short_name_zh LIKE '%维勒斯%'
+            LIMIT 20
+          result_football: |
+            命中 4 个主力队（competition_id 非零）：
+              佩西加雅加达  team_id=23194  competition_id=1788（印尼超）
+              伯希索罗      team_id=29786  competition_id=1788（印尼超）
+              卢甘斯克索尔亚 team_id=17453 competition_id=253（乌克超）
+              维勒斯        team_id=22593  competition_id=253（乌克超）
+            另有大量 U19/U21/青年队/后备队同名候选。
+          result_basketball: |
+            0 条记录（basketball_team 中无任何撞名队）。
+        tool_call:
+          - name: resolve_team
+            params: {name: 佩西加雅加达}
+            result: {code: OK, top_candidate: {team_id: 23194, sport: football, name_en: Persija Jakarta}}
+          - name: resolve_team
+            params: {name: 伯希索罗}
+            result: {code: OK, top_candidate: {team_id: 29786, sport: football, name_en: Persis Solo FC}}
+          - name: resolve_team
+            params: {name: 卢甘斯克索尔亚}
+            result: {code: OK, top_candidate: {team_id: 17453, sport: football, name_en: Zorya}}
+          - name: resolve_team
+            params: {name: 维勒斯}
+            result: {code: OK, top_candidate: {team_id: 22593, sport: football, name_en: Veres}}
+        comparison: >
+          SQL 基准与工具完全一致：4 队主力 team_id 一一对应（23194/29786/17453/22593），
+          工具所有候选 sport 字段均为 football，无任何 basketball 候选混入。
+          basketball_team SQL 0 命中 ⇒ 不存在跨项目 ID 碰撞。
+          原判 cross_sport_data_collision 被证伪。
+        decision: continue
+
+      - round: 3
+        hypothesis: >
+          SQL 基准 2：定位两场指定对战是否真实存在、是否已完场、属性是否为足球。
+        sql_baseline:
+          query: |
+            SELECT id AS match_id, home_team_id, away_team_id,
+                   FROM_UNIXTIME(match_time) AS match_time_local,
+                   status_id, competition_id, neutral
+            FROM football_match
+            WHERE (home_team_id=23194 AND away_team_id=29786)
+               OR (home_team_id=29786 AND away_team_id=23194)
+               OR (home_team_id=17453 AND away_team_id=22593)
+               OR (home_team_id=22593 AND away_team_id=17453)
+            ORDER BY match_time DESC LIMIT 30
+          result: |
+            两场目标对战均命中且 status_id=8（已完场）：
+              佩西加雅加达(23194) vs 伯希索罗(29786)
+                match_id=4379456  2026-04-27 20:00:00  competition_id=1788（印尼超） round_num=30
+              卢甘斯克索尔亚(17453) vs 维勒斯(22593)
+                match_id=4362200  2026-04-27 20:30:00  competition_id=253（乌克超） round_num=25
+            用户"乌克超 20:30"与 DB match_time_local=2026-04-27 20:30:00 完全吻合。
+            另查到这两对历史交锋十余场（最早 2017），h2h 数据充分。
+        tool_call:
+          - name: resolve_match
+            params: {home: 佩西加雅加达, away: 伯希索罗, date: '2026-04-27'}
+            result: {code: OK, count: 1, match_id: 4379456, sport: football,
+                     league_name:印尼超, status: finished, match_time_beijing: '2026-04-27 20:00:00',
+                     home_position: '3', away_position: '15'}
+          - name: resolve_match
+            params: {home: 卢甘斯克索尔亚, away: 维勒斯, date: '2026-04-27'}
+            result: {code: OK, count: 1, match_id: 4362200, sport: football,
+                     league_name: 乌克超, status: finished, match_time_beijing: '2026-04-27 20:30:00',
+                     home_position: '9', away_position: '10'}
+        comparison: >
+          工具 resolve_match 唯一候选 match_id（4379456/4362200）与 SQL 基准完全一致，
+          sport=football、status=finished、联赛/主客/时间/轮次全部对齐。
+          工具可信，无路由错误，无篮球碰撞。
+        decision: satisfied
+    final_status: satisfied
+    gap_type: null
+    gap_evidence: >
+      SQL 基准（football_team 双侧查 4 队 + football_match 查两场对战）证明：
+      4 队为足球主力队（印尼超 1788 / 乌克超 253），basketball_team 同名 0 命中；
+      两场目标比赛 DB 真实存在、已完场、属性为足球。工具 resolve_team/resolve_match
+      返回值与 SQL 基准逐字对齐，sport 均为 football。原 cross_sport_data_collision 判定错误。
+    recommended_next_step: >
+      无需工程动作。建议生产链路按"足球赛后复盘"处理：resolve_match 定位 →
+      get_match_result 取赛果 → get_recent_form/get_h2h 取战绩交锋 →
+      get_injury_report/get_match_lineup 取伤停阵容 → get_odds_snapshot/get_kelly/get_odds_trend
+      取盘面 → 综合输出。问句标题"篮球"仅为措辞，不应触发篮球路由。
+
+  - atomic_id: T1-a2
+    category: synthesize_answer
+    target: {six_sections: [近5场战绩, 交锋, 伤停/阵容, 欧赔亚盘凯利, xG, EV]}
+    rounds:
+      - round: 1
+        hypothesis: >
+          逐段验证六段分析数据是否齐全：赛果、战绩、交锋、伤停、阵容、
+          欧赔/亚盘/凯利、xG、EV。SQL 基准 + 工具对照并行。
+        schema_query: |
+          SELECT table_name FROM information_schema.tables
+          WHERE table_schema='data_center' AND table_name LIKE 'football_%'
+            AND (table_name LIKE '%odds%' OR table_name LIKE '%kelly%'
+                 OR table_name LIKE '%injury%' OR table_name LIKE '%lineup%'
+                 OR table_name LIKE '%xg%' OR table_name LIKE '%goal%'
+                 OR table_name LIKE '%competition%')
+        schema_result: >
+          存在：football_match_lineup、football_match_team_injury、football_odds_asian、
+          football_odds_europe、football_competition、football_competition_teams_stats、
+          football_match_goals_lost_rate。未发现任何 xg/expected_goal 表。
+        decision: continue
+
+      - round: 2
+        hypothesis: >
+          SQL 基准 3：直接取两场比赛的比分/阵容/伤停行数，确认复盘主体数据存在。
+        sql_baseline:
+          query_score: |
+            SELECT id AS match_id, home_team_id, away_team_id, home_scores, away_scores,
+                   status_id, competition_id, coverage_lineup, coverage_intelligence
+            FROM football_match WHERE id IN (4379456,4362200)
+          query_lineup: |
+            SELECT match_id, confirmed, home_formation, away_formation,
+                   home_coach_id, away_coach_id
+            FROM football_match_lineup WHERE match_id IN (4379456,4362200)
+          query_injury: |
+            SELECT match_id, COUNT(*) AS injury_rows
+            FROM football_match_team_injury WHERE match_id IN (4379456,4362200)
+            GROUP BY match_id
+          query_xg: |
+            SELECT table_name FROM information_schema.tables
+            WHERE table_schema='data_center' AND table_name LIKE 'football_%'
+              AND (table_name LIKE '%xg%' OR table_name LIKE '%expected_goal%'
+                   OR table_name LIKE '%goal_expect%')
+          result: |
+            比分：4379456 home_scores=[4,0,0,1,12,0,0] away=[0,0,0,0,4,0,0] → 4:0 主胜（半场0:0）
+                  4362200 home_scores=[2,1,0,0,3,0,0] away=[0,0,0,2,3,0,0] → 2:0 主胜（半场1:0）
+            coverage_lineup=1（两场均有阵容），coverage_intelligence=0（无情报）。
+            阵容：两场 confirmed=1，阵型 4-3-3 vs 3-5-2 / 4-1-3-2 vs 4-4-2，教练 id 齐全。
+            伤停：4379456=3 行，4362200=2 行（DB 有伤停数据）。
+            xG：football 下无任何 xg/expected_goal 表 → 0 行。
+        tool_call:
+          - name: get_match_result
+            params: {match_id: 4379456}
+            result: {code: OK, full_time: '4-0', half_time: '0-0',
+                     corner: {home: 12, away: 4}, yellow: {home: 1, away: 0}, status: finished}
+          - name: get_match_result
+            params: {match_id: 4362200}
+            result: {code: OK, full_time: '2-0', half_time: '1-0',
+                     corner: {home: 3, away: 3}, yellow: {home: 0, away: 2}, status: finished}
+          - name: get_recent_form
+            params: {team_id: 23194, n: 5}
+            result: {code: OK, count: 5, last: '2026-04-27 W 4:0 home'}
+          - name: get_recent_form
+            params: {team_id: 29786, n: 5}
+            result: {code: OK, count: 5, last: '2026-04-27 L 0:4 away'}
+          - name: get_recent_form
+            params: {team_id: 17453, n: 5}
+            result: {code: OK, count: 5}
+          - name: get_recent_form
+            params: {team_id: 22593, n: 5}
+            result: {code: OK, count: 5}
+          - name: get_h2h
+            params: {team_a: 23194, team_b: 29786, n: 5}
+            result: {code: OK, count: 5, matches: [2026-04-27 4:0, 2025-08-16 0:3, 2025-01-26 3:3, 2024-08-24 2:1, 2024-08-03 0:1]}
+          - name: get_h2h
+            params: {team_a: 17453, team_b: 22593, n: 5}
+            result: {code: OK, count: 5, matches: [2026-04-27 2:0, 2025-10-24 0:0, 2025-04-13 1:2, 2024-10-05 2:1, 2024-05-13 1:1]}
+          - name: get_match_lineup
+            params: {match_id: 4379456}
+            result: {code: OK, confirmed: true, home_formation: '4-3-3', away_formation: '3-5-2',
+                     data_keys: [confirmed, home_formation, away_formation, home_coach_id, away_coach_id, home, away]}
+          - name: get_match_lineup
+            params: {match_id: 4362200}
+            result: {code: OK, confirmed: true, home_formation: '4-1-3-2', away_formation: '4-4-2'}
+          - name: get_injury_report
+            params: {match_id: 4379456}
+            result: {code: OK, home: [{player: 沙赫班迪, reason: 足部受伤, missed: 23}],
+                     away: [{player: 哈里亚迪, reason: 十字韧带撕裂, missed: 1}]}
+          - name: get_injury_report
+            params: {match_id: 4362200}
+            result: {code: OK, home: [{player: 万图赫, reason: 未知伤病, missed: 6}],
+                     away: [{player: 农戈, reason: 十字韧带撕裂, missed: 18}]}
+          - name: get_odds_snapshot
+            params: {match_id: 4379456}
+            result: {code: OK, european: 5 家公司(Interwetten/立博/威廉希尔/韦德…, 初盘/即时/最新),
+                     asian: 5 家(SB皇冠/易胜博/利记/韦德…, 让球初盘-1.5→即时-1.25)}
+          - name: get_odds_snapshot
+            params: {match_id: 4362200}
+            result: {code: OK, european: 5 家, asian: 5 家(让球-0.5→-0.75)}
+          - name: get_kelly
+            params: {match_id: 4379456}
+            result: {code: OK, entries: 5 家, 含 odds/implied_prob/kelly（kelly 全为负 → 无下注价值）}
+          - name: get_kelly
+            params: {match_id: 4362200}
+            result: {code: OK, entries: 5 家, 含 implied_prob/kelly}
+          - name: get_odds_trend
+            params: {match_id: 4379456}
+            result: {code: OK, points: 多时点欧赔变动轨迹}
+          - name: get_odds_trend
+            params: {match_id: 4362200}
+            result: {code: OK, points: 多时点欧赔变动轨迹}
+        comparison: >
+          六段对照：
+          ①近5场战绩 — get_recent_form 4 队各 5 场 OK，与 SQL 历史比赛一致 ✅
+          ②近5次交锋 — get_h2h 两对各 5 场 OK，match_id/比分与 SQL 基准逐场对齐 ✅
+          ③伤停/阵容 — get_injury_report OK（球员/伤病原因/缺席场次，与 SQL injury 行数方向一致）；
+                       get_match_lineup OK（confirmed=true + 阵型，与 SQL lineup 一致）✅
+          ④欧赔/亚盘/凯利/走势 — get_odds_snapshot(欧赔+亚盘初盘/即时/最新)、get_kelly(含 implied_prob+kelly)、
+                                get_odds_trend(时点轨迹) 全部 OK ✅
+          ⑤xG — DB 无 xg 表、工具集 53 个中无 get_xg ❌ data_gap
+          ⑥EV — get_kelly 已提供 kelly 与 implied_prob，EV 可由 (p*odds-1) 推算；
+                工具未封装独立 EV 数值，但合成所需输入齐全（轻微 implementation_gap，不阻塞）。
+        decision: partial
+    final_status: partial
+    gap_type: data_gap
+    gap_evidence: >
+      主体复盘数据 SQL 基准与工具全部一致且齐全（赛果/战绩/交锋/伤停/阵容/欧赔/亚盘/凯利/赔率走势）。
+      唯一真实缺口：xG 预期进球 — information_schema 查 football_* 下无任何 xg/expected_goal 表
+      （query_xg 返回 0 行），工具清单 53 个工具中无 get_xg。用户问句第 5 点明确要求"xG 预期进球"，
+      此项 DB 无源、工具无实现，属 data_gap。EV 项虽无独立工具，但 get_kelly 的 implied_prob/kelly
+      已提供计算所需全部输入，可视为轻微 implementation_gap（未封装 EV 计算输出）。
+    recommended_next_step: >
+      xG：需上游纳米数据补 xG 字段（或接入第三方 xG 源）后新增 football_match_xg 表与 get_xg 工具，
+      优先级 P3（不影响复盘主体结论）。EV：可在 get_kelly 输出中追加 ev_home/ev_draw/ev_away 字段，
+      由 implied_prob 与欧赔直接算出，优先级 P3。其余六段无需改动。
+
+discover_via_search: skipped
+discover_note: >
+  未调用 internet_search/Tavily。若可用，预期可补充 xG 进阶模型与赛事新闻背景，
+  但复盘主体数据 DB 已全覆盖，搜索非必需。
+
+overall_status: verified
+overall_gap_type: data_gap
+overall_gap_scope: 仅 xG 一项（局部，不阻塞复盘主体）
+route_complete: true
+satisfied: [T1-a1]
+partial: [T1-a2]
+blocking_gap:
+  type: data_gap
+  scope: xG 预期进球字段
+  description: >
+    football 库无 xG/expected_goal 表，工具集无 get_xg；用户问句要求的"xG 预期进球"无法从 DB 取得。
+    不阻塞赛后复盘主体（赛果/战绩/交锋/伤停/阵容/盘面均齐全）。
+  failed_atomic: T1-a2
+cross_sport_collision: false
+collision_evidence: >
+  basketball_team 按 4 队名 SQL 查询返回 0 行；resolve_team/resolve_match 工具所有候选
+  sport 字段均为 football，无篮球 ID 混入。原判 cross_sport_data_collision 证伪。
+real_sport_attribute:
+  佩西加雅加达: {team_id: 23194, sport: football, league: 印尼超, competition_id: 1788}
+  伯希索罗:     {team_id: 29786, sport: football, league: 印尼超, competition_id: 1788}
+  卢甘斯克索尔亚: {team_id: 17453, sport: football, league: 乌克超, competition_id: 253}
+  维勒斯:       {team_id: 22593, sport: football, league: 乌克超, competition_id: 253}
+target_matches:
+  佩西加雅加达_vs_伯希索罗: {match_id: 4379456, date: '2026-04-27', time_beijing: '20:00',
+                             competition_id: 1788, status: finished, score: '4-0', half_time: '0-0'}
+  卢甘斯克索尔亚_vs_维勒斯: {match_id: 4362200, date: '2026-04-27', time_beijing: '20:30',
+                             competition_id: 253, status: finished, score: '2-0', half_time: '1-0'}

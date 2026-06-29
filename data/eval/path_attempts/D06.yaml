@@ -1,17 +1,284 @@
 type_id: D06
+type_name: 单场方案
 case_id: TC-D06-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: D (方案/推荐)
+sport: any
+entity_entry: match
+turns:
+- turn_index: 0
+  text: '曼联 VS 利物浦 1/2球；门兴 VS 多特蒙德 1/2球；尤文 VS 维罗纳 2/3球；国米 VS 帕尔马 1/2球；西班牙人 VS 皇马 0/2球（5 注单场进球数方案）'
 attempts:
+# ===== T1-a1 resolve_entity(match) : 5 场主客队解析 =====
 - round: 1
-  atomic_id: D06-probe-1
-  tool: resolve_match
-  params:
-    home: 皇马
-    away: 巴萨
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 曼联}
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  note: team_id=10135 (Manchester United, football, national=0)，top1 命中
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 利物浦}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10249 (Liverpool, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 门兴}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10034 (Borussia M'gladbach, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 多特蒙德}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10030 (Borussia Dortmund, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 尤文}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10467 (Juventus, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 维罗纳}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=11848 (Hellas Verona, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 国米}
+  code: OK
+  count: 1
+  stub: false
+  note: team_id=10692 (Inter Milan, football)，唯一命中
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 帕尔马}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10907 (Parma, football)；注意 candidates 含拉斯帕尔马斯等"帕尔马"字串噪声，top1 正确
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 西班牙人}
+  code: OK
+  count: 10
+  stub: false
+  note: team_id=10220 (RCD Espanyol, football)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_team
+  params: {name: 皇马}
+  code: OK
+  count: 1
+  stub: false
+  note: team_id=10217 (Real Madrid, football)，唯一命中
+# ===== T1-a1 resolve_match（无 date，round1 即命中，无需 fallback）=====
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_match
+  params: {home: 曼联, away: 利物浦}
+  code: OK
+  count: 10
+  stub: false
+  note: ambiguous→top1 已完赛 match_id=4343345 (2026-05-03 英超 R35)；另含未开赛 4558506 (2027-01-23
+    英超 R22)。sport=football，无跨运动碰撞
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_match
+  params: {home: 门兴, away: 多特蒙德}
+  code: OK
+  count: 10
+  stub: false
+  note: top1 match_id=4347632 (2026-05-03 德甲 R32, finished)；无未开赛 vs 多特
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_match
+  params: {home: 尤文, away: 维罗纳}
+  code: OK
+  count: 10
+  stub: false
+  note: top1 match_id=4339714 (2026-05-04 意甲 R35, finished)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_match
+  params: {home: 国米, away: 帕尔马}
+  code: OK
+  count: 10
+  stub: false
+  note: top1 未开赛 match_id=4549097 (2026-10-12 意甲 R6)；次条已完赛 4339713 (2026-05-04 意甲
+    R35)
+- round: 1
+  atomic_id: D06-T1-a1
+  tool: resolve_match
+  params: {home: 西班牙人, away: 皇马}
+  code: OK
+  count: 10
+  stub: false
+  note: top1 match_id=4358393 (2026-05-04 西甲 R34, finished)
+# ===== T1-a1 fallback : 确认 3 场"仅历史"场次是否真无未开赛 =====
+- round: 2
+  atomic_id: D06-T1-a1
+  tool: get_team_schedule
+  params: {team_id: 10034, direction: upcoming, limit: 5}
+  code: OK
+  count: 1
+  stub: false
+  note: 门兴 upcoming 仅 1 场(4550503, 2026-08-22 德国杯 vs 肖特美因茨)，无 vs 多特蒙德未开赛；upcoming
+    语义正常返回
+# ===== T1-a2 synthesize_answer : 方案数据路径（竞彩 jq 进球数 = "1/2球" 语义）=====
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: direct_sql
+  params: {table: lottery_jczq_odds, filter: 'home/away LIKE 5 对阵'}
+  code: OK
+  count: 4
+  stub: false
+  note: 4/5 命中竞彩足球 jq 进球数赔率（issue=260503, 2026-05-03/04，sell_status=3 停售/已完赛）。
+    门兴vs多特(7019) jq=19.00,6.90,4.25,3.35,4.10,7.60,12.00,15.50；尤文vs维罗纳(7020) jq=19.00,6.35,4.10,3.40,4.40,7.40,13.00,15.00；国米vs帕尔马(7026)
+    jq=20.00,6.50,4.40,3.40,4.25,7.00,12.00,15.00；西班牙人vs皇马(7028) jq=19.00,6.50,4.00,3.45,4.50,7.00,12.00,17.00。8
+    项分别对应 0/1/2/3/4/5/6/7+ 球，与用户"1/2球""2/3球""0/2球"notation 完全吻合
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: direct_sql
+  params: {table: lottery_jczq_odds, filter: 'home LIKE %曼联%'}
+  code: OK
+  count: 0
+  stub: false
+  note: 曼联vs利物浦 未列入竞彩足球销售（英超该场不在 jczq 开售范围，仅"安曼联"等无关记录），data_gap
+    部分；可由 football_match + 大小球赔率补救
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_over_under_odds
+  params: {match_id: 4358393}
+  code: OK
+  count: 5
+  stub: false
+  note: 西班牙人vs皇马 大小球赔率 5 家（盈禾/皇冠/立博/利记/+1匿名），盘口 total 2.5/3.0/3.25，over/under
+    齐全；直接支撑"进球数方案"语义
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_over_under_odds
+  params: {match_id: 4558506}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 曼联vs利物浦 未开赛(2027-01-23) 无大小球赔率（far-future 未录入）
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_over_under_odds
+  params: {match_id: 4549097}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 国米vs帕尔马 未开赛(2026-10-12) 无大小球赔率
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4558506}
+  code: SKIP_MATCH
+  count: 0
+  stub: false
+  note: 未开赛 4558506 欧赔与亚盘均缺失
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4549097}
+  code: SKIP_MATCH
+  count: 0
+  stub: false
+  note: 未开赛 4549097 欧赔与亚盘均缺失
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_recommendations
+  params: {match_id: 4358393}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 心水推荐无该场数据
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_recommendations
+  params: {match_id: 4347632}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 心水推荐无该场数据
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: direct_sql
+  params: {table: data_macao_recommend, filter: 'source_match_id IN 5 场+2 未开赛'}
+  code: OK
+  count: 0
+  stub: false
+  note: data_macao_recommend 全表 8583 行，但 7 个目标 match_id(source_match_id)均无关联记录；get_recommendations
+    的 DATA_MISSING 属实(非工具 bug)，方案需 LLM 自行合成
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_intel_tags
+  params: {match_id: 4347632}
+  code: OK
+  count: 5
+  stub: false
+  note: 门兴vs多特 5 类情报(主正/主负/客正/客负/中性)，含近况、交锋(门兴近6次1平5负)、伤停(克莱因丁斯特/卡斯特罗普停赛、阿德耶米/恩梅查/聚勒伤)、战意，深度分析内容齐全
+- round: 1
+  atomic_id: D06-T1-a2
+  tool: get_recent_form
+  params: {team_id: 10030, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 多特近5场 3W2L，场均进2.0球；含 2026-05-03 vs 门兴 0-1 客负
+satisfied:
+- D06-T1-a1
+- D06-T1-a2
+blocking_gap:
+  type: data_gap
+  description: |
+    "方案"为 LLM 合成任务，无原生方案/预测工具。最贴近的 data_macao_recommend(心水推荐)全表 8583 行，
+    但 5 个目标 match_id 均无关联记录，get_recommendations 全 DATA_MISSING——"推荐类"数据源对该 case 不可用。
+    另两处部分 data_gap：(1) 曼联vs利物浦 未列入竞彩足球 jq 销售范围(lottery_jczq_odds 无该对阵)，
+    仅靠 football_match + 大小球赔率补救；(2) 两场 far-future 未开赛(曼联vs利物浦 2027-01-23、国米vs帕尔马
+    2026-10-12)无任何赔率(欧赔/亚盘/大小球均 SKIP_MATCH/DATA_MISSING)。
+    但用户 5 注实际对应 2026-05-03/04 竞彩期 260503(4/5 命中 jq 进球数)，已完赛，方案为回顾性；
+    合成所需数据(竞彩 jq + 大小球 + 情报 + 近况 + 欧赔/亚盘)对已完赛场齐全，路径打通。
+  failed_atomic: D06-T1-a2
+  workaround: |
+    已完赛场用 lottery_jczq_odds.jq(进球数赔率)+ get_over_under_odds(大小球)+ get_intel_tags +
+    get_recent_form + get_odds_snapshot(欧赔/亚盘，B01 已验证)合成方案；曼联vs利物浦 缺竞彩 jq 时退回
+    football_match + 大小球/欧赔路径；未开赛远期场次如实告知"暂无赔率"。
 route_complete: true
+data_quality_notes:
+- 用户"1/2球""2/3球""0/2球"notation 精确对应竞彩足球 jq 进球数玩法(0/1/2/3/4/5/6/7+ 球 8 项赔率)，4/5
+  命中 issue=260503
+- 5 注对应比赛均已完赛(2026-05-03/04)，sell_status=3 停售；方案性质为回顾性分析而非前瞻投注
+- 曼联vs利物浦 不在竞彩足球销售库(英超该场未开售)，需退回 football_match + 大小球/欧赔路径补数据
+- data_macao_recommend(心水推荐)虽有 8583 行但无该 5 场关联，"推荐"数据源不可用；方案须 LLM 基于 jq/赔率/情报合成
+- 远期未开赛(2027-01/2026-10)无赔率录入，若用户实指未来场次则需告知暂无赔率数据
+cross_sport_check:
+  collision: false
+  note: 10 支球队 resolve_team 全部 sport=football，team_id 与 basketball_team 未发生混淆；sport=any
+    下无跨运动数据碰撞
+verdict: verified_with_caveats
+verdict_reason: |
+  resolve_entity(match) 全部满足(5/5 解析、football、无跨运动碰撞)；方案合成数据路径打通——竞彩 jq 进球数
+  4/5 命中(精确匹配用户"X/Y球"语义)+大小球+情报+近况+欧赔/亚盘齐全。但存在三处数据瑕疵(非阻断)：曼联缺
+  竞彩 jq、心水推荐表无该 5 场关联、目标场次均已完赛(回顾性)。route_complete=true，verdict 倾向
+  verified_with_caveats。

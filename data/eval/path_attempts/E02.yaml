@@ -1,16 +1,134 @@
 type_id: E02
 case_id: TC-E02-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
 attempts:
 - round: 1
-  atomic_id: E02-probe-1
+  atomic_id: E02-T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
   code: OK
-  count: 16
   stub: false
-satisfied: []
+  count: 15
+  note: 竞彩足球批次（世界杯 issue 260629/260630）拉取成功，含 spf/rq/bf/jq/bqc
+    全玩法赔率；entries 内 match_id 多为 null，需 resolve_lottery_match 回填
+- round: 1
+  atomic_id: E02-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 周日004
+  code: OK
+  stub: false
+  note: 返回韦斯特罗 vs 哥德堡（瑞超 2026-05-31，sell_status=suspended）；match_id=null
+    且无 match_candidates，仅定位到 lottery 实体未回填 football_match
+- round: 1
+  atomic_id: E02-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 周日005
+  code: OK
+  stub: false
+  count: 1
+  note: 返回赫根 vs 哈马比，match_candidates[0].match_id=4467075，sport=football，status=finished
+- round: 2
+  atomic_id: E02-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 周一074
+  code: OK
+  stub: false
+  count: 1
+  note: 即将开赛样本——巴西 vs 日本 2026-06-30 世界杯，match_candidates[0].match_id=4459720，
+    sport=football，status=not_started，neutral=true；cross_sport 校验通过（sport 与 play_type=101 一致）
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  dimension: 数据指数
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 50
+  dimension: 数据变量
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_same_odds_history
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 10
+  dimension: 历史盘口
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_intel_tags
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  count: 5
+  dimension: 伤停战意/情报
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_match_lineup
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  dimension: 战术对位（confirmed/formation/coach/home/away 均返回）
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_betfair
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  dimension: 市场资金（trade_index/ratio/amount/live_price/profit_index/hot_cold_index/kelly_variance）
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_injury_report
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  dimension: 伤停（需 match_id 而非 team_id，首轮 team_id 传参被拒，改 match_id 后 OK）
+- round: 2
+  atomic_id: E02-T1-a2
+  tool: get_recent_form
+  params:
+    team_id: 10477
+    limit: 5
+  code: OK
+  stub: false
+  count: 5
+  dimension: 基本面/近期战绩（巴西；日本 team_id=14529 同样 OK count=5）
+- round: 1
+  atomic_id: E02-T1-a2
+  category: discover_via_search
+  status: skipped
+  note: Eval 约束禁止 internet_search/Tavily；七大维度均已有 DB 直查路径，无需外部检索
+satisfied:
+- E02-T1-a1
+- E02-T1-a2
 blocking_gap: null
 route_complete: true
+notes:
+  cross_sport: sport=any 但当前竞彩批次（101）全部为 football（世界杯）；resolve_lottery_match
+    的 match_candidates 显式返回 sport=football，未发现静默返回异类数据，无 cross_sport_data_collision
+  param_caveats:
+  - get_injury_report 接受 match_id（非 team_id）
+  - get_standings 接受 league_id（非 competition_id）
+  - get_h2h 接受 team_a/team_b（非 home_team_id/away_team_id）
+  orchestration: route_matrix 预期 screening-agent/delegate_subagent 编排未实装（delegate_subagent
+    非工具），但批次筛选+单场深度分析+四串一组合所需数据路径已全部用现有 foretell 工具打通，组合步骤为 LLM 综合
+  verdict_lean: pass

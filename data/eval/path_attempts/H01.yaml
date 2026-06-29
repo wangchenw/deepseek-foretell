@@ -1,11 +1,114 @@
 type_id: H01
-case_id: null
-explored_at: '2026-06-28'
-source: route_matrix
-attempts: []
-satisfied: []
+type_name: 争冠悬念
+case_id: TC-H01-001
+explored_at: '2026-06-29'
+scenario: H (争冠悬念)
+entity_entry: league
+sport: any (实际足球，league_id 来自 football_competition)
+turns:
+- turn_index: 0
+  text: 英超争冠还有悬念吗
+attempts:
+- round: 1
+  atomic_id: H01-T1-a1
+  tool: resolve_league
+  params:
+    name: 英超
+  code: OK
+  count: 3
+  stub: false
+  note: top candidate league_id=82 (English Premier League, sport=football)；别名命中
+    英格兰超级联赛/English Premier League；另含 3004 英亚杯、7281 英超夏季赛（噪声候选，LLM 可按
+    type=1 联赛 + order_sort 选 82）
+- round: 1
+  atomic_id: H01-T1-a2
+  tool: get_seasons
+  params:
+    competition_id: 82
+  code: OK
+  count: 10
+  stub: false
+  note: 当前赛季 season_id=14320 (2026-2027, is_current=1, has_table=1)；上赛季
+    13242 (2025-2026, is_current=0)；赛季起止 13242=2025-08-15~2026-05-25，14320=2026-08-22~2027-05-30
+- round: 1
+  atomic_id: H01-T1-a2
+  tool: get_standings
+  params:
+    league_id: 82
+  code: OK
+  count: 20
+  stub: false
+  note: 工具按 MAX(season_id) 取 14320（2026-2027 新赛季），返回 20 队但 points/played
+    全 0（赛季未开打）。对"争冠悬念"判定无效——存在 season 选择语义 gap
+- round: 2
+  atomic_id: H01-T1-a2
+  tool: sql
+  params:
+    query: football_points_table JOIN football_points_table_team WHERE competition_id=82
+      AND season_id=13242 ORDER BY position
+  code: OK
+  count: 20
+  stub: false
+  note: fallback 直查上赛季终榜。阿森纳 85 分 pos=1 冠军，曼城 78 分 pos=2（差 7 分），曼联
+    71 分 pos=3（差 14 分）。20 队 total=38 全部完赛
+- round: 2
+  atomic_id: H01-T1-a2
+  tool: sql
+  params:
+    query: football_match status 分布 WHERE competition_id=82 AND season_id=13242
+      GROUP BY status_id
+  code: OK
+  count: 1
+  stub: false
+  note: 2025-2026 赛季 380 场全部 status_id=8（完场），赛季已彻底结束 → 争冠已定
+- round: 2
+  atomic_id: H01-T1-a2
+  tool: sql
+  params:
+    query: football_match status 分布 WHERE competition_id=82 AND season_id=14320
+      GROUP BY status_id
+  code: OK
+  count: 1
+  stub: false
+  note: 2026-2027 赛季 380 场全部 status_id=1（未开赛），最早 match_time_str=2026-08-22
+    03:00:00，最晚 2027-05-30 → 新赛季尚未开始，悬念未开
+satisfied:
+- H01-T1-a1
+- H01-T1-a2
 blocking_gap:
-  type: data_gap
-  description: 探针问法为占位，需人工补 probe_turns
-  failed_atomic: null
-route_complete: false
+  type: routing_gap
+  description: get_standings 内部按 MAX(season_id) 取当前赛季，在跨赛季休赛期（is_current=1
+    的新赛季尚未开打）会返回全 0 空榜，无法支撑"争冠悬念"判定。需 LLM 结合 get_seasons 判断赛季阶段，并
+    SQL fallback 到刚结束赛季（season_id=13242）取真实终榜。数据本身完整可用，不阻断 LLM eval，属
+    工具 season 选择策略的语义 gap，非数据缺失。
+  failed_atomic: H01-T1-a2
+  workaround: get_seasons 识别 is_current + 起止时间 → SQL 直查 football_points_table(_team)
+    指定 season_id=13242 取终榜；SQL 查 football_match status 分布确认赛季阶段
+route_complete: true
+data_quality_notes:
+- 2026-06-29 处于英超跨赛季休赛期：2025-2026 已完赛（阿森纳 85 分夺冠，7 分优势），2026-2027
+  未开赛（8-22 揭幕）。"争冠悬念"合成结论=上赛季无悬念（已定冠），新赛季悬念未开
+- "争冠悬念"为合成语义（积分差 + 剩余轮次 + 赛季阶段），无专用工具，由 get_standings/SQL终榜
+  + get_seasons + match status 分布 合成
+- resolve_league 候选含噪声（英亚杯 3004、英超夏季赛 7281），需 LLM 按 type=1 联赛语义选 league_id=82
+verdict: answerable_with_synthesis
+verdict_reason: 数据路径完整。resolve_league 命中英超 league_id=82；get_seasons + SQL 赛程状态
+  确认 2026-06-29 处于休赛期；SQL 直查 2025-2026 终榜得阿森纳 85 分夺冠（领先曼城 7 分）。"争冠悬念"
+  由 standings+赛程+赛季阶段合成判定：上赛季已无悬念，新赛季悬念未开。get_standings 在休赛期返回空榜
+  属 season 选择语义 gap，SQL fallback 已解，不阻断作答。
+phase2_verification:
+  new_tools_used:
+  - get_seasons: OK (10 seasons, is_current=1=14320)
+  - get_standings: OK 但 season 选择在休赛期失效（返回空榜），需 SQL fallback
+  - resolve_league: OK (league_id=82)
+  sql_fallback_used: true
+  sql_tables:
+  - football_points_table
+  - football_points_table_team
+  - football_team
+  - football_match
+  - football_season
+known_gap_status:
+  previous: 未探索
+  current: routing_gap (get_standings 休赛期 season 选择)
+  resolution: get_seasons + SQL season_id 指定终榜，路径完全打通

@@ -1,16 +1,76 @@
 type_id: E09
 case_id: TC-E09-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
 attempts:
 - round: 1
-  atomic_id: E09-probe-1
-  tool: get_lottery_schedule
+  atomic_id: E09-T1-a1
+  tool: get_schedule_by_date
   params:
-    play_type: '101'
+    date: '2026-06-12'
+    tier: top
   code: OK
-  count: 16
+  count: 2
   stub: false
-satisfied: []
-blocking_gap: null
+  note: tier=top 自动收敛到世界杯(league_id=1)；total_count=263、tier_count=2，返回墨西哥vs南非、韩国vs捷克，批量解析 match 实体成功
+- round: 1
+  atomic_id: E09-T1-a1
+  tool: get_schedule_by_date
+  params:
+    date: '2026-06-30'
+    tier: top
+  code: OK
+  count: 3
+  stub: false
+  note: 明日(2026-06-30)世界杯 3 场未开赛(巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥)，批量 upcoming 路径成立
+- round: 1
+  atomic_id: E09-T1-a1
+  tool: sql
+  params:
+    query: SELECT status_id,COUNT(*) FROM football_match WHERE competition_id=1
+      AND season_id=13776 GROUP BY status_id
+  code: OK
+  count: 2
+  stub: false
+  note: WC2026 season_id=13776(is_current=1)，73 已完赛 + 31 未开赛，DB 实体充足
+- round: 1
+  atomic_id: E09-T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459820
+  code: OK
+  stub: false
+  note: 首场墨西哥vs南非，欧赔 5 家+亚盘 5 家，initial/current/latest 三段齐全(盘口走向)
+- round: 1
+  atomic_id: E09-T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4459820
+  code: OK
+  count: 50
+  stub: false
+  note: 欧赔变动 50 个时点(Bet365/威廉/立博/平博等)，盘口走向时序数据完整
+- round: 1
+  atomic_id: E09-T1-a2
+  tool: get_betfair
+  params:
+    match_id: 4459820
+  code: OK
+  stub: false
+  note: 必发指数 trade_ratio/trade_amount(资金流动)+profit_index/hot_cold_index/listing_ratio(庄家收割方式)齐备
+satisfied:
+- E09-T1-a1
+- E09-T1-a2
+blocking_gap:
+  type: none
+  description: ''
+  failed_atomic: ''
 route_complete: true
+verdict: pass
+key_findings:
+- 世界杯 competition_id=1、season_id=13776(2026 美加墨，is_current=1)，DB 有 104 场(73 完赛+31 未开赛)，批量实体解析无缺口
+- get_schedule_by_date(date, tier=top) 自动收敛到世界杯场次(历史日 2 场、明日 3 场)，是批量世界杯的入口路径，无需 resolve_league
+- 单场深度分析三件套(盘口走向 get_odds_trend / 即时盘 get_odds_snapshot / 资金流+庄家收割 get_betfair)对 WC 场次全部 OK，synthesize_answer 数据齐备
+notes:
+- 用户后续 turn 提及"中国体彩赔率"(lottery_jczq_odds)，属后续 turn 范围，Phase 1 未单列 atomic；如需评估应补充 resolve_lottery_match/get_lottery_schedule
+  对 WC 场次的覆盖(play_type=101 竞彩足球)
+- 跨运动碰撞：世界杯为足球 competition_id=1，与篮球无关；basketball_team 共享 id 空间但本路径未触及篮球工具

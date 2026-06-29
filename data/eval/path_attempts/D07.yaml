@@ -1,17 +1,111 @@
 type_id: D07
 case_id: TC-D07-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: D
+probe_summary: 篮球让分购彩（entity_entry=match，sport=basketball）。用户文案"明天竞彩篮球场次分析"。
+  验证竞彩篮球（play_type=201）可售场次 + 让分（rf）赔率路径完整性，并重点排查 deep 工具跨运动碰撞。
 attempts:
 - round: 1
-  atomic_id: D07-probe-1
-  tool: resolve_match
-  params:
-    home: 皇马
-    away: 巴萨
+  atomic_id: D07-T1-a1
+  tool: get_lottery_schedule
+  params: {play_type: '201', date: '2026-06-30'}
+  code: OK
+  count: 2
+  stub: false
+  note: 命中明天 2 场竞彩篮球可售场次（issue=260629）。周一301 卡塔尔vs沙特（世预男篮，
+    rf 让分 handicap=-3.5 home/away=1.7/1.7；dxf 总分 149.5；sfc 胜分差 12 档），
+    周一302 伊拉克vs约旦（rf handicap=19.5；dxf 148.5）。odds.rf/sf/dxf/sfc 已结构化。
+    sell_status 显示 rf/dxf 仅过关、sfc 单关+过关。让分赔率核心数据齐全。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: resolve_basketball_team
+  params: {name: 卡塔尔}
   code: OK
   count: 10
   stub: false
-satisfied: []
-blocking_gap: null
+  note: 命中卡塔尔国家队 team_id=10505（national=1，sport=basketball）。与 lottery 场次
+    "卡塔尔vs沙特"及 basketball_match id=3871451(home_team_id=10505) 完全对应。
+    必须用 resolve_basketball_team，resolve_team 只查 football_team 会返回足球候选。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: get_schedule_by_date
+  params: {date: '2026-06-30', sport: basketball, tier: all}
+  code: OK
+  count: 23
+  stub: false
+  note: 篮球赛程工具返回 23 场，含 match_id=3871451 卡塔尔vs沙特（league_id=1531 世亚预，
+    status=not_started）。与 lottery 场次交叉验证一致；competition_id=1531=世界杯亚洲区预选赛。
+    lottery 返回 match_id=null，通过 home_name+date 可匹配回 basketball_match.id。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: get_schedule_by_date
+  params: {date: '2026-06-30', sport: basketball, league_preset: NBA, tier: all}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: league_preset=NBA 过滤后 0 场（total_count=23 但 tier_count=0）。NBA 6 月底休赛期无赛，
+    明天竞彩篮球主推世预男篮。type_name 标注"NBA 让分投注"但用户文案为泛竞彩篮球，路径不依赖 NBA。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: get_team_schedule
+  params: {team_id: 10505, direction: all, limit: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 跨运动碰撞测试（football 工具传篮球 team_id）。返回 OK count=5 但内容是保甲"索菲亚火车头"
+    足球俱乐部赛程（football_team.id=10505=索菲亚火车头，与 basketball_team.id=10505=卡塔尔
+    同 ID 碰撞）。工具签名无 sport 参数，静默返回同 ID 足球数据 → cross_sport_data_collision
+    false positive。SQL 坐实 football_team.id=10505 name_zh=索菲亚火车头 national=0。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: get_over_under_odds
+  params: {match_id: 3871451}
+  code: OK
+  count: 5
+  stub: false
+  note: 跨运动碰撞测试（football 大小球工具传篮球 match_id）。返回 OK 含 5 家公司 over_under，
+    total=2.25/2.5/2.75（足球大小球盘口，篮球大小分应为 149.5/148.5）。football_match.id=3871451
+    存在（2023-04-09 足球赛 home=32452 away=39916），与 basketball_match.id=3871451 同 ID 碰撞
+    → match_id 空间亦存在 cross_sport_data_collision false positive。
+- round: 1
+  atomic_id: D07-T1-a1
+  tool: get_official_handicap_odds
+  params: {match_id: 3871451}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: football 官方让球盘传篮球 match_id 返回 DATA_MISSING（football_odds_official_handicap
+    表无该 id）。无碰撞但也不提供篮球让分数据。篮球让分正确来源是 lottery_jclq_odds.rf（经
+    get_lottery_schedule play_type=201 获取），非 deep odds 工具。
+satisfied:
+- D07-T1-a1
+- D07-T1-a2
+blocking_gap:
+  type: none
+  description: |
+    核心路径完整：get_lottery_schedule(play_type=201, date=明天) 直接返回竞彩篮球可售场次
+    及让分（rf）/胜负（sf）/大小分（dxf）/胜分差（sfc）结构化赔率；resolve_basketball_team
+    + get_schedule_by_date(sport=basketball) 交叉验证篮球实体与赛程存在。T1-a1 resolve_entity(match)
+    经 lottery 通道满足，T1-a2 synthesize_answer 有充足数据可综合 2 场竞彩篮球让分分析。
+    无 blocking gap。
+cross_sport_collision:
+  confirmed: true
+  risk: high
+  description: |
+    deep 工具（get_team_schedule / get_over_under_odds / get_recent_form / get_team_season_stats
+    等）签名无 sport 参数且 SQL 查 football_* 表。football_team 与 basketball_team 共享同一 id
+    整数空间，football_match 与 basketball_match 同样共享 match_id 空间。传入篮球 team_id/match_id
+    会静默返回同 ID 的足球数据（false positive）：
+      - team_id=10505：basketball=卡塔尔(国家队) vs football=索菲亚火车头(保甲俱乐部)
+      - match_id=3871451：basketball=2026-06-30 卡塔尔vs沙特 vs football=2023-04-09 足球赛
+    实测 get_team_schedule 返回保甲赛程、get_over_under_odds 返回足球大小球盘（total 2.25）。
+  mitigation: |
+    D07 让分购彩走竞彩通道（get_lottery_schedule 201 + resolve_lottery_match 201）天然规避
+    碰撞；实体解析必须用 resolve_basketball_team/resolve_basketball_league，赛程用
+    get_schedule_by_date(sport=basketball)。禁止对篮球实体调用无 sport 参数的 football deep 工具。
 route_complete: true
+verdict: ✅
+verdict_reason: 篮球让分购彩核心数据路径完整（lottery 201 通道返回 rf 让分赔率 + 篮球实体交叉验证一致），
+  2 个 atomic 全部 satisfied。唯一风险是 deep 工具跨运动 ID 碰撞（team_id/match_id 整数空间重叠），
+  但正确路径（竞彩通道 + basketball 专用工具）已规避，非 blocking。建议 Phase 3 为 deep 工具
+  增加 sport 参数或在文档强约束"篮球场景禁用无 sport 参数的 football 工具"。

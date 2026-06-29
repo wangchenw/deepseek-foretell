@@ -1,0 +1,320 @@
+type_id: B10
+type_name: 淘汰赛排名不适用
+case_id: TC-B10-001
+explored_at: '2026-06-29'
+scenario: B
+entity_entry: match
+priority: P2
+methodology: SQL优先，工具调用降级为对照验证（phase1_v2 Agent 2）
+context: |
+  B10 场景为男子世界杯决赛圈正赛（competition_id=1, season_id=13776, 2026 美加墨世界杯 48 队 12 小组制）。
+  用户列出 8 支国家队（葡萄牙/乌兹别克/英格兰/加纳/巴拿马/克罗地亚/哥伦比亚/刚果金），
+  问「双方打平都能出线吗、两队排名接近吗、核心球员数量差不多吗」——本质是小组赛末轮出线形势分析，
+  依赖：① 各队所在小组积分榜（组内排名/积分/净胜球）② 最佳第三名横向排名榜（第3名队伍排名）
+  ③ 出线/淘汰标记（promotion_id）④ 末轮对阵（match）。
+  原判 ⚠️ implementation_gap 称「get_standings 对淘汰赛不降级，把淘汰赛当联赛排名」——
+  但未做 SQL 基准验证即下结论，违反 Agent 2 方法论。以下严格按
+  information_schema → SQL 基准 → 工具对照 → 判定 重做。
+
+# =========================================================================
+# 全局 schema 基础
+# =========================================================================
+global_schema:
+  schema_query: |
+    SELECT table_name, column_name, column_type, column_comment
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+    AND table_name IN ('football_team','football_competition','football_points_table','football_points_table_team')
+    ORDER BY table_name, ordinal_position
+  schema_result_summary: |
+    football_team: id, name_zh, national(tinyint 1-国家队), gender(1男2女)。
+    football_competition: id, name_zh, type(0/1联赛/2杯赛/3友谊赛), gender, level。世界杯 id=1, type=2(杯赛), gender=1, level=1。
+    football_points_table（积分榜表头）: id, competition_id, season_id, stage_id,
+      group(int, 不为0=分组赛第几组 1-A 2-B…), conference(varchar 分区信息，如「第3名队伍排名」)。
+      ★ 无显式 round/phase 字段；group(1-12) 标识小组赛分组，conference='第3名队伍排名' 标识最佳第三名横向榜。
+    football_points_table_team（积分榜行）: table_id, team_id, points, position(组内/榜内排名),
+      total/won/draw/loss/goals/goals_against/goal_diff, home_*/away_* 主客分段,
+      promotion_id(int, 升降级/出线标记，实测 224=出线、0=淘汰), note。
+      ★ promotion_id 是判定「能否出线」的关键字段，存在于 DB 但工具未暴露。
+
+# =========================================================================
+# 原子查询 1: T1-a1 resolve_entity(match) —— 8 队定位 + 小组赛阶段判定
+# =========================================================================
+atomics:
+- atomic_id: B10-T1-a1
+  category: resolve_entity
+  rounds:
+  - round: 1
+    hypothesis: 先用 information_schema 确认 standings/points 表结构，核对 group/conference/stage 字段语义，
+      不凭表名臆测「淘汰赛排名」。
+    schema_query: |
+      SELECT table_name, column_name, column_type, column_comment
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+      AND table_name IN ('football_points_table','football_points_table_team')
+      ORDER BY table_name, ordinal_position
+    schema_result: |
+      football_points_table: competition_id, season_id, stage_id, group(分组赛第几组), conference(分区/第3名队伍排名)。
+      football_points_table_team: table_id, team_id, points, position, won/draw/loss/goals/goals_against/goal_diff,
+        promotion_id(出线标记 224/0), home_*/away_*。
+      结论：DB 用 group(1-12)+conference 区分小组赛分组与最佳第三名榜；无独立「淘汰赛排名」表
+      （淘汰赛为对阵签表，本就不存在联赛式排名）。
+    decision: continue
+  - round: 2
+    hypothesis: SQL 基准验证 8 队是否均为男子国家队且存在于 football_team（注意用户俗称映射：
+      乌兹别克=乌兹别克斯坦、刚果金=刚果民主共和国）。
+    sql_baseline:
+      query: |
+        SELECT id, name_zh, national, gender FROM football_team
+        WHERE name_zh IN ('葡萄牙','乌兹别克','乌兹别克斯坦','英格兰','加纳','巴拿马',
+                          '克罗地亚','哥伦比亚','刚果金','民主刚果','刚果民主共和国') LIMIT 30
+      result: |
+        8 队全部命中，均为 national=1 AND gender=1 男子国家队：
+        哥伦比亚 10476、乌兹别克斯坦 10582、加纳 11017、英格兰 11079、刚果民主共和国 11142、
+        克罗地亚 11606、巴拿马 12064、葡萄牙 13152。
+    decision: continue
+  - round: 3
+    hypothesis: SQL 基准验证世界杯(competition_id=1)最新赛季 season_id=13776 是否有这 8 队的积分榜，
+      并判定阶段（小组赛可排名 / 淘汰赛不适用）。
+    sql_baseline:
+      query_points_tables: |
+        SELECT id, competition_id, season_id, stage_id, conference, `group`, update_time
+        FROM football_points_table WHERE competition_id=1 AND season_id=13776
+        ORDER BY `group`, id LIMIT 50
+      result_points_tables: |
+        season_id=13776, stage_id=232934 下共 13 张积分榜：
+        group 1~12（12 个小组赛分组榜）+ 1 张 conference='第3名队伍排名' (id=34378, group=0, 最佳第三名横向榜)。
+        ★ 无任何「淘汰赛/16强/8强」积分榜行 —— 淘汰赛阶段在 DB 中本就无联赛式排名数据，
+          与「淘汰赛排名不适用」语义一致；可排名的是小组赛分组榜 + 第3名队伍排名榜。
+      query_team_standings: |
+        SELECT ptt.table_id, pt.`group`, pt.conference, pt.stage_id, ptt.team_id, t.name_zh,
+               ptt.position, ptt.points, ptt.total, ptt.won, ptt.draw, ptt.loss,
+               ptt.goals, ptt.goals_against, ptt.goal_diff, ptt.promotion_id
+        FROM football_points_table_team ptt
+        JOIN football_points_table pt ON pt.id=ptt.table_id
+        JOIN football_team t ON t.id=ptt.team_id
+        WHERE pt.competition_id=1 AND pt.season_id=13776
+        AND ptt.team_id IN (13152,10582,11079,11017,12064,11606,10476,11142)
+        ORDER BY pt.`group`, ptt.position LIMIT 60
+      result_team_standings: |
+        ★ 8 队全部在世界杯 13776 小组赛积分榜中，阶段=小组赛（可排名）：
+        【group 11】哥伦比亚 pos1 7分(w2d1l0 gd+3 promotion_id=224 出线)、
+                  葡萄牙 pos2 5分(w1d2l0 gd+5 promotion_id=224 出线)、
+                  刚果民主共和国 pos3 4分(w1d1l1 gd+1 promotion_id=224 出线)、
+                  乌兹别克斯坦 pos4 0分(w0d0l3 gd-9 promotion_id=0 淘汰)。
+        【group 12】英格兰 pos1 7分(w2d1l0 gd+4 promotion_id=224 出线)、
+                  克罗地亚 pos2 6分(w2d0l1 gd0 promotion_id=224 出线)、
+                  加纳 pos3 4分(w1d1l1 gd0 promotion_id=224 出线)、
+                  巴拿马 pos4 0分(w0d0l3 gd-4 promotion_id=0 淘汰)。
+        【第3名队伍排名榜 id=34378】刚果民主共和国 pos1 4分(promotion_id=224)、加纳 pos3 4分(promotion_id=224)。
+        baseline_conclusion: |
+          SQL 基准证明：DB 完整拥有 8 队的世界杯小组赛积分榜（组内排名/积分/净胜球）、
+          最佳第三名横向榜、以及 promotion_id 出线标记。6 队出线（哥伦比亚/葡萄牙/刚果金/
+          英格兰/克罗地亚/加纳），2 队淘汰（乌兹别克/巴拿马）。阶段为小组赛（可排名），
+          非淘汰赛；用户「打平能否出线/排名是否接近」所需数据 DB 全部具备。
+    decision: continue
+  - round: 4
+    hypothesis: 调 get_standings(league_id=1) 工具对照，看其能否正确呈现 12 小组 + 第3名榜的结构化排名与出线标记。
+    tool_call:
+      name: get_standings
+      params: {league_id: 1}
+      result: |
+        code=OK, dimension=standings, count=30, rows_len=30。
+        返回一张扁平 30 行表，按 position 升序、同 position 按 points 排序：
+        position=1 共 12 行（12 个小组第一：西班牙/德国/哥伦比亚/荷兰/阿根廷/美国/比利时/英格兰/
+          巴西/瑞士/法国/墨西哥 + 刚果(金) pos1 4分 ←此行来自「第3名队伍排名」榜）；
+        position=2 共 12 行（各小组第二：含葡萄牙 pos2 5分、克罗地亚 pos2 6分）；
+        position=3 共 6 行（含刚果(金) pos3 4分 ←来自 group 11、加纳 pos3 4分、塞内加尔/阿尔及利亚等）。
+        ★ 行字段仅 team_id/team_name/position/points/won/draw/loss/goals/goals_against/goal_diff/
+          home/away —— 无 group、无 conference、无 stage、无 promotion_id。
+        ★ 乌兹别克斯坦(group 11 第4)、巴拿马(group 12 第4) 完全不在 30 行内（position=4 被截断）。
+        ★ 刚果(金) 出现两次（pos1=第3名榜、pos3=group 11），两行 points/goal_diff 完全相同，
+          消费者无法判断哪行是组内排名、哪行是最佳第三名榜。
+    comparison: |
+      SQL 基准 vs 工具严重不一致（tool_logic_gap）：
+      1) 【丢失分组语义】SQL 基准清晰区分 group 11 / group 12 / 第3名队伍排名三张榜；
+         工具把 12 张分组榜 + 1 张第3名榜压成一张扁平 30 行表，无 group/conference/stage 标签。
+         → 12 个 position=1 被并列呈现，并不表示「并列第一」，而是 12 个不同组的第一；
+           「两队排名接近吗」无法回答（不同组的 position 不可比，工具未给组归属）。
+      2) 【丢失出线标记】SQL 基准 promotion_id 区分出线(224)/淘汰(0)；工具行无 promotion_id 字段。
+         → 「打平都能出线吗」无法直接判定（需结合组内排名 + 最佳第三名横向榜 + 出线规则）。
+      3) 【重复行+语义混淆】刚果(金) 在工具结果中出现两行（pos1 与 pos3），points/goal_diff 相同，
+         无法区分是 group 11 组内第3 还是第3名榜第1；加纳仅一行（组内与第3名榜值恰好相同被去重），
+         行为不一致。
+      4) 【截断 position=4】乌兹别克斯坦、巴拿马（均小组第4、已淘汰）被工具完全丢弃；
+         SQL 基准证明 DB 有这两队的完整积分榜行（0分/淘汰）。工具「漏报」已淘汰队。
+      根因：get_standings 按单表联赛积分榜模型设计（ORDER BY position, points LIMIT 30），
+      未针对世界杯「12 小组 + 最佳第三名横向榜」的多表杯赛结构做降级/结构化处理：
+      既未保留 group/conference 维度，也未透传 promotion_id，且 LIMIT 30 把 position=4 截断。
+  - round: 5
+    hypothesis: 确认 season 13776 是否存在「淘汰赛阶段积分榜」以验证原判「把淘汰赛当联赛排名」的措辞。
+    sql_baseline:
+      query: |
+        SELECT DISTINCT pt.stage_id, pt.conference, pt.`group`, COUNT(*) AS rows_cnt
+        FROM football_points_table pt
+        JOIN football_points_table_team ptt ON ptt.table_id=pt.id
+        WHERE pt.competition_id=1 AND pt.season_id=13776
+        GROUP BY pt.stage_id, pt.conference, pt.`group` ORDER BY pt.`group` LIMIT 30
+      result: |
+        仅 stage_id=232934 一组：group 1~12（各 4 行）+ conference='第3名队伍排名'(若干行)。
+        ★ 无 16强/8强/4强/决赛等淘汰赛阶段积分榜。淘汰赛在 DB 中本就不存联赛式排名
+          （淘汰赛为对阵签表，排名「不适用」是正确语义）。
+        故原判「get_standings 把淘汰赛当联赛排名」措辞不精确：本赛季根本无淘汰赛积分榜数据可被误读；
+        真实问题是 get_standings 对【小组赛多组 + 最佳第三名横向榜】结构降级失败（见 round 4 对照）。
+    decision: stop
+  final_status: blocked_by_tool
+  gap_type: tool_logic_gap
+  gap_evidence: |
+    【SQL 基准（独立写出并真实执行）】
+      SELECT ptt.table_id, pt.`group`, pt.conference, ptt.team_id, t.name_zh, ptt.position, ptt.points,
+             ptt.won, ptt.draw, ptt.loss, ptt.goals, ptt.goals_against, ptt.goal_diff, ptt.promotion_id
+      FROM football_points_table_team ptt
+      JOIN football_points_table pt ON pt.id=ptt.table_id
+      JOIN football_team t ON t.id=ptt.team_id
+      WHERE pt.competition_id=1 AND pt.season_id=13776
+      AND ptt.team_id IN (13152,10582,11079,11017,12064,11606,10476,11142)
+      ORDER BY pt.`group`, ptt.position LIMIT 60
+    【SQL 真实返回（节选）】
+      group 11: 哥伦比亚 pos1 7分 promotion_id=224 / 葡萄牙 pos2 5分 224 / 刚果民主共和国 pos3 4分 224 / 乌兹别克斯坦 pos4 0分 0
+      group 12: 英格兰 pos1 7分 224 / 克罗地亚 pos2 6分 224 / 加纳 pos3 4分 224 / 巴拿马 pos4 0分 0
+      第3名队伍排名(id=34378): 刚果民主共和国 pos1 4分 224 / 加纳 pos3 4分 224
+    【工具返回（实际调用 get_standings league_id=1）】
+      code=OK, count=30，扁平 30 行，无 group/conference/stage/promotion_id 字段：
+      - 12 个 position=1（含哥伦比亚、英格兰、刚果(金)←来自第3名榜 pos1）
+      - 12 个 position=2（含葡萄牙 pos2、克罗地亚 pos2）
+      - 6 个 position=3（含刚果(金) pos3←来自 group 11、加纳 pos3）
+      - 乌兹别克斯坦、巴拿马（小组第4）被完全截断未返回
+      - 刚果(金) 重复两行（pos1/pos3 同分同净胜球），无法区分组内排名与最佳第三名榜
+    【对照结论】
+      SQL 基准完整拥有 8 队小组赛组内排名、最佳第三名横向榜、promotion_id 出线标记，阶段=小组赛可排名；
+      get_standings 把 12 张分组榜 + 1 张第3名榜压成一张无 group/conference/promotion_id 的扁平 30 行表，
+      12 个 position=1 不可比、丢失出线标记、重复行语义混淆、截断 position=4 已淘汰队。
+      按 Agent 2 规则：SQL 查到数据 → 工具 misrepresented → 判 tool_logic_gap（数据齐备但工具逻辑错误，
+      生产环境照此回答用户会拿到「12 队并列第一、无法判断打平能否出线、漏报已淘汰队」的错误后果）。
+      原判 ⚠️ implementation_gap（「对淘汰赛不降级」）措辞修正为 tool_logic_gap：本赛季无淘汰赛积分榜，
+      真实缺陷是小组赛多组+最佳第三名横向榜的结构化降级失败。等级仍为 ⚠️（数据在、工具逻辑错）。
+  recommended_next_step: |
+    工程团队重做 get_standings 对杯赛多组制的支持：
+    (1) 返回行增加 group/conference/stage_id/promotion_id 字段，保留组归属与出线标记；
+    (2) 对 type=2(杯赛) 赛事按「分组榜列表 + 横向榜(第3名队伍排名)」结构化输出，而非单表扁平；
+    (3) 取消或扩大 LIMIT 30，避免截断 position=4 等已淘汰队（出线分析需完整组内 4 行）；
+    (4) 去重策略修正：同队在不同榜的行应各自保留并标注榜类型，不可按 points 去重。
+    属 Phase 2 工具层重构，本次不修改 foretell/tools/。
+
+# =========================================================================
+# 原子查询 2: T1-a2 synthesize_answer
+# =========================================================================
+- atomic_id: B10-T1-a2
+  category: synthesize_answer
+  depends_on: [B10-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: 合成「打平能否出线/排名接近/核心球员数量」需 T1-a1 的组内排名+第3名榜+出线标记+末轮对阵。
+    sql_baseline: {query: 同 T1-a1 round 3, result: 8 队小组赛积分+第3名榜+promotion_id 齐；6 出线 2 淘汰}
+    tool_call: {name: get_standings, result: 同 T1-a1 round 4，扁平 30 行缺 group/promotion_id，无法支撑出线判定}
+    comparison: |
+      SQL 基准足以合成正确答案（哥伦比亚/葡萄牙/英格兰/克罗地亚已出线，刚果金/加纳凭最佳第三名出线，
+      乌兹别克/巴拿马淘汰）；工具结果因缺 group/conference/promotion_id 且截断 position=4，
+      无法支撑「打平能否出线」「排名接近」判定 → 合成质量受 T1-a1 tool_logic_gap 传导制约。
+  final_status: blocked_by_tool
+  gap_type: tool_logic_gap
+  gap_evidence: 合成所需输入 SQL 基准齐备，但 get_standings 工具输出语义错乱（见 T1-a1），传导性 tool_logic_gap。
+  recommended_next_step: 随 T1-a1 get_standings 结构化改造后自动满足。
+
+# =========================================================================
+# 原子查询 3: T1-b1 delegate_subagent(fundamentals/odds/intel)
+# =========================================================================
+- atomic_id: B10-T1-b1
+  category: delegate_subagent
+  target: {agents: [fundamentals, odds, intel]}
+  depends_on: [B10-T1-a1]
+  rounds:
+  - round: 1
+    hypothesis: 六段深度分析需末轮对阵 match_id（resolve_match）+ fundamentals(fifa_ranking/recent_form/h2h)
+      + odds + intel(lineup/injury)。验证周边数据是否齐全（不依赖 get_standings）。
+    sql_baseline:
+      query_match: |
+        SELECT m.id, c.name_zh, th.name_zh AS home, ta.name_zh AS away,
+               FROM_UNIXTIME(m.match_time) AS t, m.status_id, m.coverage_intelligence, m.coverage_lineup
+        FROM football_match m JOIN football_team th ON th.id=m.home_team_id
+        JOIN football_team ta ON ta.id=m.away_team_id JOIN football_competition c ON c.id=m.competition_id
+        WHERE c.id=1 AND m.season_id=13776
+        AND ((th.id IN (13152,10582,11079,11017,12064,11606,10476,11142)) OR (ta.id IN (13152,10582,11079,11017,12064,11606,10476,11142)))
+        ORDER BY m.match_time DESC LIMIT 20
+      result_match: |
+        命中 8 队在世界杯 13776 的多场赛事（含末轮对阵，带 coverage_intelligence/coverage_lineup 标记），
+        可由 resolve_match 或 SQL 取得末轮 match_id 后串接六段工具。
+    tool_calls_note: |
+      依 B04 同期验证结论，用真实 match_id 串接 get_h2h/get_recent_form/get_odds_snapshot/get_odds_trend/
+      get_match_lineup/get_injury_report/get_match_result/get_fifa_ranking 均 code=OK 真实非 stub
+      （B04 已实测同套工具链）。本 case 不重复调用，重点在 T1-a1 的 standings 缺口。
+    comparison: fundamentals/odds/intel 周边数据路径可行；唯一阻塞在 T1-a1 的 get_standings 结构化缺口。
+  final_status: satisfied_with_sql_match_id
+  gap_type: tool_logic_gap
+  gap_evidence: 周边六段工具用 match_id 串接可行（同 B04 验证）；本原子查询无独立 data_gap，
+    可用性受 T1-a1 standings tool_logic_gap 传导制约。
+  recommended_next_step: 随 T1-a1 修复后，用末轮 match_id 串接六段工具即可满足。
+
+# =========================================================================
+# 原子查询 4: T1-b2 synthesize_answer(six_segment)
+# =========================================================================
+- atomic_id: B10-T1-b2
+  category: synthesize_answer
+  target: {format: six_segment}
+  depends_on: [B10-T1-a1, B10-T1-b1]
+  rounds:
+  - round: 1
+    hypothesis: 六段式（基本面/交锋/近期/赔率/情报/综合）所需数据是否齐全。
+    sql_baseline: {query: 同 T1-a1/T1-b1, result: 组内排名+第3名榜+出线标记+末轮对阵+周边工具路径齐备}
+    tool_call: {name: N/A, result: 六段合成无独立工具}
+    comparison: |
+      六段数据源路径齐备（基本面 recent_form+fifa_ranking、交锋 h2h、赔率 snapshot+trend、
+      情报 lineup+injury、赛果 match_result）；唯一缺口在 get_standings 不能正确呈现小组赛多组结构
+      （T1-a1 tool_logic_gap），导致「出线形势/排名接近」段无法基于工具结果合成，须回退 SQL 基准。
+  final_status: satisfied_with_sql_match_id
+  gap_type: tool_logic_gap
+  gap_evidence: 六段数据齐备（见 T1-b1）；仅 get_standings 结构化缺口传导。
+  recommended_next_step: 随 T1-a1 get_standings 改造后自动满足。
+
+# =========================================================================
+# 汇总
+# =========================================================================
+satisfied: [B10-T1-b1, B10-T1-b2]
+satisfied_note: |
+  B10-T1-b1/T1-b2 在「使用 SQL 基准给出的末轮 match_id」前提下 satisfied（fundamentals/odds/intel 工具链
+  同 B04 已验证 code=OK 真实非 stub）。B10-T1-a1/T1-a2 工具层 blocked：get_standings 对世界杯
+  12 小组 + 最佳第三名横向榜结构降级失败，但 SQL 基准证明数据与路径均存在 → tool_logic_gap
+  （数据齐备但工具逻辑错），非 data_gap、非「无解」。
+blocking_gap:
+  type: tool_logic_gap
+  description: |
+    get_standings 按单表联赛积分榜模型设计，对世界杯 48 队 12 小组 + 最佳第三名横向榜的多表杯赛结构
+    降级失败，具体表现（均有 SQL 基准对照证据）：
+    (1) 把 12 张分组榜 + 1 张「第3名队伍排名」榜压成一张扁平 30 行表，行内无 group/conference/stage_id
+        字段 → 12 个 position=1 并列呈现、不同组 position 不可比，无法回答「两队排名接近吗」；
+    (2) 行内无 promotion_id 出线标记 → 无法直接判定「打平能否出线」；
+    (3) 刚果(金) 重复两行（pos1=第3名榜、pos3=group 11，同分同净胜球）语义混淆，消费者无法区分组内
+        排名与最佳第三名榜；加纳因组内与第3名榜值恰好相同被去重为一行，行为不一致；
+    (4) LIMIT 30 截断 position=4：乌兹别克斯坦(group 11 第4)、巴拿马(group 12 第4) 被完全丢弃，
+        而 SQL 基准证明 DB 有这两队完整积分榜行（0分、promotion_id=0 淘汰）—— 工具漏报已淘汰队。
+    SQL 基准（football_points_table_team JOIN football_points_table，competition_id=1 season_id=13776）
+    完整拥有 8 队组内排名/积分/净胜球、第3名队伍排名、promotion_id 出线标记，6 出线 2 淘汰；
+    阶段为小组赛（可排名），本赛季无淘汰赛积分榜数据（淘汰赛为对阵签表，排名不适用是正确语义）。
+    故原判 ⚠️ implementation_gap「对淘汰赛不降级」措辞修正为 tool_logic_gap：真实缺陷是小组赛多组+
+    最佳第三名横向榜的结构化降级失败，而非淘汰赛误读。等级维持 ⚠️（数据齐备、工具逻辑错、
+    生产环境照此回答用户会拿到「12 队并列第一/无法判断打平出线/漏报已淘汰队」的错误后果）。
+  failed_atomic: B10-T1-a1
+  suggested_fix: |
+    get_standings 对 type=2(杯赛) 赛事结构化改造：返回行增加 group/conference/stage_id/promotion_id；
+    按「分组榜列表 + 横向榜(第3名队伍排名)」结构化输出；取消/扩大 LIMIT 30 不截断 position=4；
+    去重策略改为按「table_id+team_id」保留各榜行并标注榜类型。属 Phase 2 工具层重构，本次不修改 foretell/tools/。
+route_complete: false
+verdict: |
+  ⚠️ partial —— B10 维持 ⚠️，gap_type 由 implementation_gap 修正为 tool_logic_gap（措辞与根因更精确）。
+  SQL 基准独立验证：8 队全部存在于世界杯 13776 小组赛积分榜（group 11: 哥伦比亚/葡萄牙/刚果金/乌兹别克；
+  group 12: 英格兰/克罗地亚/加纳/巴拿马）+ 第3名队伍排名榜（刚果金第1、加纳第3），promotion_id 标记
+  6 出线 2 淘汰。阶段=小组赛可排名；本赛季无淘汰赛积分榜（淘汰赛排名不适用为正确语义）。
+  get_standings 工具实调：把 12 组+第3名榜压成无 group/conference/promotion_id 的扁平 30 行表，
+  12 个 position=1 不可比、丢失出线标记、刚果(金)重复两行语义混淆、乌兹别克/巴拿马(position=4)被截断漏报。
+  SQL 查到数据但工具 misrepresented → tool_logic_gap（非 data_gap、非无解）。建议工程团队对杯赛多组制
+  做结构化降级（透传 group/conference/promotion_id、不截断 position=4）后即可全链路 ✅。

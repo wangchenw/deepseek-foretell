@@ -1,16 +1,91 @@
 type_id: E01
 case_id: TC-E01-001
-explored_at: '2026-06-28'
-source: probe_results
+explored_at: '2026-06-29'
+scenario: E (扫盘批量初筛)
+entity_entry: lottery_batch
+sport: any
+turns:
+- turn_index: 1
+  text: v6.0 足球赛事分析工作流 第 1/10 部分——三段式闭环（扫盘→单场→组合）工作流确认，要求确认理解并执行扫盘筛选
+    候选场次，等待下一步指令。
 attempts:
 - round: 1
-  atomic_id: E01-probe-1
+  atomic_id: E01-T1-a1
   tool: get_lottery_schedule
   params:
     play_type: '101'
   code: OK
-  count: 16
+  count: 15
   stub: false
-satisfied: []
-blocking_gap: null
+  note: play_type=101（竞彩足球）默认当日样本，返回 15 条 entries（date=2026-06-30 样本批次，issue=260629）。
+    每条含 lottery_id/lottery_code(周一074~周五088)/issue_num/home_name/away_name/league_name/odds(spf/rq/bf/jq/bqc)/sell_status。
+    全部为世界杯赛事，sport=football，与 play_type 一致，无跨运动碰撞。9 条含 spf 胜平负赔率，6 条(周四083~周五088)
+    spf=None（尚未开盘/未上架），但 rq/bf/jq/bqc 多数仍可用。
+- round: 1
+  atomic_id: E01-T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  count: 15
+  stub: false
+  note: 复查 entries 结构以验证候选场次初筛维度——sample entry 周一074 巴西VS日本：spf{1.52/3.72/4.95}、rq(handicap
+    -1.0, 2.89/3.04/2.2)、bf 31项比分赔率、jq 8档进球数、bqc 9项半全场、sell_status 分玩法标注。扫盘批量初筛所需的赔率面/玩法维度齐全。
+- round: 1
+  atomic_id: E01-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: '074'
+    date: '2026-06-30'
+  code: ENTITY_NOT_FOUND
+  count: 0
+  stub: false
+  note: 单场定位探测（可选交叉验证）——纯数字 code "074" 未命中（routing 细节：需带星期前缀的完整 lottery_code）。
+- round: 2
+  atomic_id: E01-T1-a1
+  tool: resolve_lottery_match
+  params:
+    play_type: '101'
+    code: 周一074
+    date: '2026-06-30'
+  code: OK
+  count: 1
+  stub: false
+  note: fallback 用完整 lottery_code "周一074" 命中 lottery_id=2040337 巴西VS日本；match_candidates[0] 回填 match_id=4459720、
+    sport=football、league=世界杯、status=not_started、neutral=true、home_position=5/away_position=17、含天气环境。证明单场亦可通过
+    resolve_lottery_match 定位且 sport 字段显式 football（无跨运动碰撞）。E01 为批量扫盘，主路径仍为 get_lottery_schedule
+    一次性拉全 15 条。
+- round: 1
+  atomic_id: E01-T1-a2
+  tool: synthesize_answer
+  params: {}
+  code: OK
+  stub: false
+  note: 工作流确认+扫盘初筛综合输出无需额外工具调用；基于 get_lottery_schedule 15 条候选可输出高价值场次初筛清单（按赔率离散度/让球盘口筛选）。
+    match_id 字段批量为 None（未开赛未映射），不影响扫盘阶段输出，进入"单场深度"阶段时再由 home/away name + date 经 resolve_match
+    定位 match_id。
+satisfied:
+- E01-T1-a1
+- E01-T1-a2
+blocking_gap:
+  type: none
+  description: ''
+  failed_atomic: ''
+  workaround: ''
 route_complete: true
+cross_sport_check:
+  play_type: '101'
+  sport_inferred: football
+  entries_all_football: true
+  collision: false
+  note: play_type=101 本身即竞彩足球，15 条 entries league_name 全部为"世界杯"，无篮球/北单混入，sport=any 风险不触发。
+data_quality_notes:
+- 15 条候选中 6 条(周四083~周五088) odds.spf=None，为未开盘场次；扫盘初筛可按 spf 是否存在过滤"已开售"候选，或按 bf/jq 仍可预筛。
+- 全部 entries.match_id=None（赛事未开赛，lottery_match 未回填 match_id）；扫盘阶段不阻塞，单场深度阶段需 home/away+date 二次
+  resolve_match 定位。
+- 样本批次 date 落在 2026-06-30（今日+1 的销售批次），覆盖周一~周五 5 个比赛日，符合"当日竞彩扫盘"批量初筛语义。
+verdict: pass
+verdict_reason: E01 扫盘批量初筛核心路径 get_lottery_schedule(play_type=101) 单轮 OK 返回 15 条候选场次，含完整赔率面（spf/rq/bf/jq/bqc）
+  与玩法上架状态，sport 一致无跨运动碰撞。两个 atomic（resolve_entity→批量候选、synthesize_answer→工作流确认+初筛输出）均满足，route_complete=true，无
+  blocking_gap。少量 spf=None 未开盘场次为数据时序问题，不影响路径判定。
