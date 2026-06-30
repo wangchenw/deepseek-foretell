@@ -4,120 +4,114 @@ type_name: 盘口解读
 entity_entry: match
 sport: any
 explored_at: '2026-06-29'
-
-# 用户文案要点：今天竞彩5场比赛结果预测，大小球方向+比分大概率，
-# 重点是初盘数据变化水位、大小球盘口数据变化，调用工具核查最新信息。
-# 路径：get_lottery_schedule(101) 拿竞彩足球场次 → resolve_match(home,away,date)
-# 定位 football_match.id → get_odds_snapshot(亚盘水位+欧赔) +
-# get_official_handicap_odds(官方让球盘) + get_over_under_odds(大小球) +
-# get_odds_trend(初盘→即时盘变动)。
-
 attempts:
-  - round: 1
-    atomic_id: T1-a1
-    tool: get_lottery_schedule
-    params: {play_type: '101'}
-    code: OK
-    count: 15
-    stub: false
-    note: 返回 issue=260629 共 15 场竞彩足球，全为 2026 世界杯；entries 含 spf/rq/bf/jq/bqc 结构化赔率；match_id=null 需后续 resolve_match 定位。
-
-  - round: 1
-    atomic_id: T1-a1
-    tool: resolve_match
-    params: {home: 巴西, away: 日本, date: '2026-06-30'}
-    code: OK
-    count: 1
-    stub: false
-    note: 唯一候选 match_id=4459720，league=世界杯，status=not_started，neutral=true。
-
-  - round: 1
-    atomic_id: T1-a2
-    tool: get_odds_snapshot
-    params: {match_id: 4459720}
-    code: OK
-    stub: false
-    note: european 5 家公司 + asian 5 家公司，均含 initial/current/latest；亚盘 handicap=-0.75，home_line/away_line 水位初盘→即时可对比（如明陞 handicap -0.5→-0.75 升盘）。
-
-  - round: 1
-    atomic_id: T1-a2
-    tool: get_official_handicap_odds
-    params: {match_id: 4459720}
-    code: OK
-    count: 1
-    stub: false
-    note: 官方让球盘 handicap=-1.0，initial(win/draw/loss=3.07/3.38/1.97)→latest(2.89/3.04/2.2)，与 lottery rq 一致。
-
-  - round: 1
-    atomic_id: T1-a2
-    tool: get_over_under_odds
-    params: {match_id: 4459720}
-    code: OK
-    stub: false
-    note: 5 家公司 over/total/under 含 initial/current/latest；初盘 total 多为 2.25/2.5，水位由 over 低(0.80)→current(0.93) 变化可见。
-
-  - round: 1
-    atomic_id: T1-a2
-    tool: get_odds_trend
-    params: {match_id: 4459720}
-    code: OK
-    count: 50
-    stub: false
-    note: 欧赔 50 个历史时序点（changed_at 时间戳），可还原初盘→即时盘水位/赔率变动轨迹。
-
-  # 第二场交叉验证（覆盖“5场比赛”稳健性）
-  - round: 2
-    atomic_id: T1-a1
-    tool: resolve_match
-    params: {home: 德国, away: 巴拉圭, date: '2026-06-30'}
-    code: OK
-    count: 1
-    stub: false
-    note: match_id=4459718，世界杯，not_started。
-
-  - round: 2
-    atomic_id: T1-a2
-    tool: get_odds_snapshot
-    params: {match_id: 4459718}
-    code: OK
-    stub: false
-    note: 同样返回 european+asian 快照，模式一致。
-
-  - round: 2
-    atomic_id: T1-a2
-    tool: get_over_under_odds
-    params: {match_id: 4459718}
-    code: OK
-    stub: false
-    note: 大小球赔率 OK。
-
-  - round: 2
-    atomic_id: T1-a2
-    tool: get_official_handicap_odds
-    params: {match_id: 4459718}
-    code: OK
-    count: 1
-    stub: false
-    note: 官方让球盘 OK。
-
+- round: 1
+  atomic_id: T1-a1
+  tool: get_lottery_schedule
+  params:
+    play_type: '101'
+  code: OK
+  count: 15
+  stub: false
+  note: 返回 issue=260629 共 15 场竞彩足球，全为 2026 世界杯；entries 含 spf/rq/bf/jq/bqc 结构化赔率；match_id=null
+    需后续 resolve_match 定位。
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 巴西
+    away: 日本
+    date: '2026-06-30'
+  code: OK
+  count: 1
+  stub: false
+  note: 唯一候选 match_id=4459720，league=世界杯，status=not_started，neutral=true。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  note: european 5 家公司 + asian 5 家公司，均含 initial/current/latest；亚盘 handicap=-0.75，home_line/away_line
+    水位初盘→即时可对比（如明陞 handicap -0.5→-0.75 升盘）。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_official_handicap_odds
+  params:
+    match_id: 4459720
+  code: OK
+  count: 1
+  stub: false
+  note: 官方让球盘 handicap=-1.0，initial(win/draw/loss=3.07/3.38/1.97)→latest(2.89/3.04/2.2)，与
+    lottery rq 一致。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_over_under_odds
+  params:
+    match_id: 4459720
+  code: OK
+  stub: false
+  note: 5 家公司 over/total/under 含 initial/current/latest；初盘 total 多为 2.25/2.5，水位由 over
+    低(0.80)→current(0.93) 变化可见。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params:
+    match_id: 4459720
+  code: OK
+  count: 50
+  stub: false
+  note: 欧赔 50 个历史时序点（changed_at 时间戳），可还原初盘→即时盘水位/赔率变动轨迹。
+- round: 2
+  atomic_id: T1-a1
+  tool: resolve_match
+  params:
+    home: 德国
+    away: 巴拉圭
+    date: '2026-06-30'
+  code: OK
+  count: 1
+  stub: false
+  note: match_id=4459718，世界杯，not_started。
+- round: 2
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params:
+    match_id: 4459718
+  code: OK
+  stub: false
+  note: 同样返回 european+asian 快照，模式一致。
+- round: 2
+  atomic_id: T1-a2
+  tool: get_over_under_odds
+  params:
+    match_id: 4459718
+  code: OK
+  stub: false
+  note: 大小球赔率 OK。
+- round: 2
+  atomic_id: T1-a2
+  tool: get_official_handicap_odds
+  params:
+    match_id: 4459718
+  code: OK
+  count: 1
+  stub: false
+  note: 官方让球盘 OK。
 satisfied:
-  - T1-a1
-  - T1-a2
-
+- T1-a1
+- T1-a2
 blocking_gap:
   type: null
-  description: 无阻塞。竞彩场次批量获取、比赛实体定位、亚盘/官方让球盘/大小球/赔率走势四类盘口工具全部 OK 且数据含 initial/current/latest 三态可解读水位与盘口变化。
+  description: 无阻塞。竞彩场次批量获取、比赛实体定位、亚盘/官方让球盘/大小球/赔率走势四类盘口工具全部 OK 且数据含 initial/current/latest
+    三态可解读水位与盘口变化。
   failed_atomic: null
-
 route_complete: true
-
 verdict: verified
-verdict_reason: >-
-  F06 盘口解读路径完整。get_lottery_schedule(play_type=101) 一次返回 15 场竞彩足球
-  全套 spf/rq/bf/jq/bqc 玩法赔率；resolve_match 按 home/away/date 唯一定位
-  football_match.id；get_odds_snapshot 提供亚盘 handicap+home/away_line 水位与欧赔
-  三态，get_official_handicap_odds 提供官方让球胜平负初盘/收盘，get_over_under_odds
-  提供大小球 over/total/under 三态，get_odds_trend 提供 50 点欧赔时序变动。
-  用户所需的“初盘水位变化、大小球盘口变化、让球盘、比分大概率(bf 玩法)”均有数据支撑，
-  两场交叉验证模式一致。注意点：lottery entries match_id=null 须靠 resolve_match
-  二次定位；本次样本全部为 2026 世界杯足球，无跨运动碰撞。
+verdict_reason: F06 盘口解读路径完整。get_lottery_schedule(play_type=101) 一次返回 15 场竞彩足球 全套
+  spf/rq/bf/jq/bqc 玩法赔率；resolve_match 按 home/away/date 唯一定位 football_match.id；get_odds_snapshot
+  提供亚盘 handicap+home/away_line 水位与欧赔 三态，get_official_handicap_odds 提供官方让球胜平负初盘/收盘，get_over_under_odds
+  提供大小球 over/total/under 三态，get_odds_trend 提供 50 点欧赔时序变动。 用户所需的“初盘水位变化、大小球盘口变化、让球盘、比分大概率(bf
+  玩法)”均有数据支撑， 两场交叉验证模式一致。注意点：lottery entries match_id=null 须靠 resolve_match 二次定位；本次样本全部为
+  2026 世界杯足球，无跨运动碰撞。

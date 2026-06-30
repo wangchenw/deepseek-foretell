@@ -1,0 +1,53 @@
+type_id: G08
+case_id: TC-G08-001
+scenario: G  # 多轮追问（maintain_context + synthesize_answer）
+explored_at: '2026-06-30'
+methodology: P14 补验证—— P5 已修 get_team_season_stats 篮球分支后,补跑探针确认效率维度可达,并修 SQL scope 优先级(原 ORDER BY season_id DESC LIMIT 1 取到 scope=6 季后赛 offensive_rating=NULL 的行)。
+target_match: NBA 总决赛 G4，match_id=3922409（圣安东尼奥马刺 10137 vs 纽约尼克斯 10115，2026-06-14 08:30，season_id=1911，competition_id=1）
+previous_verdict: "⚠️ P5 修复后未补验证效率维度是否真正可达"
+current_verdict: "✅ 工具层可达（P5 + P14 scope 优先级修复）"
+
+# ============================================================
+# P14 补验证证据
+# ============================================================
+p5_fix: "get_team_season_stats(sport='basketball') 路由 basketball_competition_team_stats（表名无 's'），字段映射 offensive_rating/defensive_rating/net_rating/three_points_accuracy 等"
+p14_fix: "SQL 加 scope 优先级排序: CASE scope WHEN 5(常规赛) THEN 0 WHEN 6(季后赛) THEN 1 WHEN 4(季前赛) THEN 2 END + offensive_rating IS NULL 排后。原 ORDER BY season_id DESC LIMIT 1 对同 season 多 scope 行无序,LIMIT 1 取到 scope=6(offensive_rating NULL)而非 scope=5(常规赛有值)"
+
+probe_result:
+  tool: get_team_season_stats(team_id=10127 骑士, sport=basketball)
+  code: OK
+  offensive_rating: 118.0  # scope=5 常规赛 82 场 ✓
+  defensive_rating: 114.0  # ✓
+  three_points_accuracy: "35"  # ✓（字段名 three_points_accuracy,非 three_point_pct）
+  net_rating: mapped
+  pace: null  # DB 球队级无 pace 字段（仅 basketball_competition_players_stats.pace 有值）→ 真实 data_gap
+  league_rank_offense: null  # DB 无此字段,需 LLM 基于 basketball_points_table.position 衍生
+  league_rank_defense: null  # 同上
+
+sql_baseline_cross_check:
+  骑士10127_所有scope: "season_id=1911: scope=4(季前赛4场,off=106), scope=5(常规赛82场,off=118,def=114,3pt=35), scope=6(季后赛18场,off=NULL)。其余历史 season scope=5 的 offensive_rating 均 NULL（仅 1911 赛季回填）"
+  scope_语义: "4=季前赛, 5=常规赛(82场,最有代表性), 6=季后赛"
+
+# ============================================================
+# G08 模板字段覆盖矩阵（P14 补验证后）
+# ============================================================
+coverage_matrix:
+  比赛元数据_对阵: "✅ basketball_match"
+  比赛元数据_时间: "✅ basketball_match.match_time"
+  比赛元数据_场地: "⚠️ basketball_team.venue_id 关联（部分缺口,v2 已记录）"
+  比赛元数据_裁判: "✅ basketball_match_intelligence tag=12"
+  伤病量化: "✅ basketball_match_intelligence tag=6（缺阵影响%需文本解析,v2 已记录）"
+  效率对比_进攻效率: "✅ offensive_rating 可达（P14 scope 修复后,骑士 118.0）"
+  效率对比_防守效率: "✅ defensive_rating 可达（骑士 114.0）"
+  效率对比_Pace: "⚠️ 球队级 DB 无 pace 字段,真实 data_gap（v2 已记录:需 players_stats 聚合或上游补）"
+  效率对比_三分命中率: "✅ three_points_accuracy 可达（骑士 35）"
+  效率对比_联盟排名: "⚠️ DB 无直接字段,需 LLM 基于 basketball_points_table.position 衍生（非工具层 gap）"
+  盘口追踪_大小分: "✅ P10 已修 get_odds_snapshot 篮球 over_under 维度（basketball_odds_over_down）"
+  盘口追踪_让分: "✅ basketball_odds_asian"
+  盘口追踪_欧赔: "✅ basketball_odds_europe + change 分区表"
+  球员场均: "✅ basketball_competition_players_stats"
+
+gap_type: tool_layer_fixed
+gap_resolution: "P5 路由修复 + P14 scope 优先级修复后,工具层效率维度（进攻/防守效率/三分命中率）可达。Pace 球队级 DB 无字段属真实 data_gap,联盟排名需 LLM 衍生属编排层。"
+caveat: "Pace 球队级 DB 无字段（v2 已记录）;篮球临场表 basketball_match_lineup/team_stats 不存在,已短路 DATA_MISSING;联盟排名需 LLM 衍生"
+upgrade_to: "✅"

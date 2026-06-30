@@ -17,6 +17,9 @@ class CrazySportsClient(Protocol):
         away: str,
         date: str | None = None,
         series_game: int | None = None,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+        sport: str = "football",
     ) -> list[dict]:
         """按主客队模糊查询比赛，返回候选列表。"""
 
@@ -28,7 +31,12 @@ class CrazySportsClient(Protocol):
     ) -> dict | None:
         """按玩法与场次编号定位竞彩比赛。"""
 
-    def resolve_team(self, name: str) -> list[dict]:
+    def resolve_team(
+        self,
+        name: str,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+    ) -> list[dict]:
         """按名称模糊查询球队，返回候选列表。"""
 
     def resolve_league(self, name: str) -> list[dict]:
@@ -49,8 +57,9 @@ class CrazySportsClient(Protocol):
         limit: int = 5,
         league_id: int | str | None = None,
         direction: Literal["upcoming", "recent", "all"] = "recent",
+        sport: str = "football",
     ) -> list[dict]:
-        """返回球队近期/未来赛程。"""
+        """返回球队近期/未来赛程（支持 football/basketball 路由）。"""
 
     def get_lottery_schedule(
         self,
@@ -60,10 +69,14 @@ class CrazySportsClient(Protocol):
     ) -> list[dict]:
         """返回彩票可售场次列表。"""
 
-    def get_standings(self, league_id: int | str) -> list[dict]:
-        """返回联赛积分榜。"""
+    def get_standings(
+        self,
+        league_id: int | str,
+        season_id: int | str | None = None,
+    ) -> dict:
+        """返回联赛/杯赛积分榜（含 competition_type + promotion_id + group）。"""
 
-    def get_team_season_stats(self, team_id: int | str) -> dict | None:
+    def get_team_season_stats(self, team_id: int | str, sport: str = "football") -> dict | None:
         """返回球队赛季统计。"""
 
     def get_recent_form(
@@ -71,17 +84,18 @@ class CrazySportsClient(Protocol):
         team_id: int | str,
         venue: str | None = None,
         n: int = 5,
+        sport: str = "football",
     ) -> list[dict]:
         """返回球队近期战绩。"""
 
-    def get_h2h(self, team_a: int | str, team_b: int | str, n: int = 5) -> list[dict]:
+    def get_h2h(self, team_a: int | str, team_b: int | str, n: int = 5, sport: str = "football") -> list[dict]:
         """返回两队历史交锋。"""
 
-    def get_odds_snapshot(self, match_id: int | str) -> dict | None:
-        """返回盘口快照。"""
+    def get_odds_snapshot(self, match_id: int | str, sport: str = "football") -> dict | None:
+        """返回盘口快照(足球:欧赔+亚盘;篮球:胜胜负+让分+大小分)。"""
 
-    def get_odds_trend(self, match_id: int | str) -> list[dict]:
-        """返回赔率走势。"""
+    def get_odds_trend(self, match_id: int | str, sport: str = "football") -> list[dict]:
+        """返回赔率走势（支持 football/basketball 路由）。"""
 
     def get_same_odds_history(self, match_id: int | str) -> list[dict]:
         """返回同赔历史。"""
@@ -92,13 +106,13 @@ class CrazySportsClient(Protocol):
     def get_betfair(self, match_id: int | str) -> dict | None:
         """返回必发成交数据。"""
 
-    def get_match_lineup(self, match_id: int | str) -> dict | None:
+    def get_match_lineup(self, match_id: int | str, sport: str = "football") -> dict | None:
         """返回预计阵容。"""
 
-    def get_injury_report(self, match_id: int | str) -> dict | None:
+    def get_injury_report(self, match_id: int | str, sport: str = "football") -> dict | None:
         """返回伤停报告。"""
 
-    def get_intel_tags(self, match_id: int | str) -> list[dict]:
+    def get_intel_tags(self, match_id: int | str, sport: str = "football") -> list[dict]:
         """返回情报标签。"""
 
     def get_match_by_id(self, match_id: int | str) -> dict | None:
@@ -124,16 +138,16 @@ class CrazySportsClient(Protocol):
     def get_basketball_standings(self, league_id: int | str) -> list[dict]:
         """返回篮球联赛积分榜。"""
 
-    def get_match_tlive(self, match_id: int | str, limit: int = 100) -> list[dict]:
+    def get_match_tlive(self, match_id: int | str, limit: int = 100, sport: str = "football") -> list[dict]:
         """返回比赛实时文字直播事件流。"""
 
-    def get_match_incidents(self, match_id: int | str) -> list[dict]:
+    def get_match_incidents(self, match_id: int | str, sport: str = "football") -> list[dict]:
         """返回比赛关键事件（进球/红黄牌/换人/VAR）。"""
 
-    def get_match_team_stats(self, match_id: int | str) -> list[dict]:
+    def get_match_team_stats(self, match_id: int | str, sport: str = "football") -> list[dict]:
         """返回比赛球队技术统计。"""
 
-    def get_match_player_stats(self, match_id: int | str, limit: int = 30) -> list[dict]:
+    def get_match_player_stats(self, match_id: int | str, limit: int = 30, sport: str = "football") -> list[dict]:
         """返回比赛球员技术统计（含评分）。"""
 
     def resolve_basketball_team(self, name: str) -> list[dict]:
@@ -148,8 +162,8 @@ class CrazySportsClient(Protocol):
     def get_player_profile(self, player_id: int | str, sport: str = "football") -> dict | None:
         """返回球员资料。"""
 
-    def get_player_market_value(self, player_id: int | str) -> list[dict]:
-        """返回球员身价历史。"""
+    def get_player_market_value(self, player_id: int | str, sport: str = "football") -> list[dict]:
+        """返回球员身价历史（篮球暂未采集）。"""
 
     def get_player_transfers(self, player_id: int | str, sport: str = "football") -> list[dict]:
         """返回球员转会历史。"""
@@ -169,10 +183,10 @@ class CrazySportsClient(Protocol):
     def get_venue(self, venue_id: int | str, sport: str = "football") -> dict | None:
         """返回场馆资料。"""
 
-    def get_match_half_stats(self, match_id: int | str, scope: str = "ft") -> dict | None:
+    def get_match_half_stats(self, match_id: int | str, scope: str = "ft", sport: str = "football") -> dict | None:
         """返回半全场统计（scope: ft/p1/p2/o1/o2）。"""
 
-    def get_goals_lost_rate(self, match_id: int | str) -> list[dict]:
+    def get_goals_lost_rate(self, match_id: int | str, sport: str = "football") -> list[dict]:
         """返回进失球概率。"""
 
     def get_over_under_odds(self, match_id: int | str) -> dict | None:

@@ -4,7 +4,7 @@ explored_at: '2026-06-29'
 phase2_regression: true
 source: live_tool_call
 probe_match_id: 4564691
-probe_match_note: 'football_match.status_id=8, match_time=2026-06-28 23:00 (近期完场)'
+probe_match_note: football_match.status_id=8, match_time=2026-06-28 23:00 (近期完场)
 attempts:
 - round: 1
   atomic_id: A06-T1-a1
@@ -14,12 +14,9 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: >-
-    返回 score_breakdown 语义化结构:
-    {full_time:"2-1", half_time:"1-1",
-     red_card:{home:0,away:0}, yellow_card:{home:3,away:1},
-     corner:{home:4,away:8}, overtime:null, penalty:null}。
-    不再裸数组。Phase 2 重构验证通过。
+  note: "返回 score_breakdown 语义化结构: {full_time:\"2-1\", half_time:\"1-1\",\n red_card:{home:0,away:0},\
+    \ yellow_card:{home:3,away:1},\n corner:{home:4,away:8}, overtime:null, penalty:null}。\n\
+    不再裸数组。Phase 2 重构验证通过。"
 - round: 1
   atomic_id: A06-T1-a2
   tool: get_kelly
@@ -28,11 +25,9 @@ attempts:
   code: OK
   count: 4
   stub: false
-  note: >-
-    原 stub 现已实现,由 football_odds_europe 反推凯利指数。
-    返回 4 个博彩公司(company_id=0/20/2/22)的 odds/implied_prob/kelly。
-    例如 company_id=0: odds{home_win:5.61,draw:6.01,away_win:1.32},
-    kelly{home_win:-0.0201,draw:-0.0185,away_win:-0.2898}。
+  note: '原 stub 现已实现,由 football_odds_europe 反推凯利指数。 返回 4 个博彩公司(company_id=0/20/2/22)的
+    odds/implied_prob/kelly。 例如 company_id=0: odds{home_win:5.61,draw:6.01,away_win:1.32},
+    kelly{home_win:-0.0201,draw:-0.0185,away_win:-0.2898}。'
 - round: 1
   atomic_id: A06-T1-a2
   tool: get_betfair
@@ -41,12 +36,9 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: >-
-    4564691 在 football_bf 表无记录 → DATA_MISSING。
-    换有数据比赛 4007952 验证: code=OK,
-    返回完整 9 字段(trade_index/trade_ratio/trade_amount/live_price/
-    profit_index/hot_cold_index/listing_ratio/kelly_variance/avg_european_odds)。
-    原 stub 现已实现,真实查 football_bf 表,非恒空。
+  note: '4564691 在 football_bf 表无记录 → DATA_MISSING。 换有数据比赛 4007952 验证: code=OK, 返回完整
+    9 字段(trade_index/trade_ratio/trade_amount/live_price/ profit_index/hot_cold_index/listing_ratio/kelly_variance/avg_european_odds)。
+    原 stub 现已实现,真实查 football_bf 表,非恒空。'
 - round: 1
   atomic_id: A06-T1-a2
   tool: get_odds_trend
@@ -55,12 +47,9 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: >-
-    4564691 在 football_odds_europe_change 表无记录 → DATA_MISSING。
-    进一步 SQL 验证: SELECT COUNT(*) FROM football_odds_europe_change = 0
-    (整表 0 行)。工具实现正确(查 football_odds_europe_change + LEFT JOIN
-    match_odds_companys),但 DB 无该表数据 → 永远 DATA_MISSING。
-    原 stub 现已实现为真实查询,非恒空返回;但底层数据缺失。
+  note: '4564691 在 football_odds_europe_change 表无记录 → DATA_MISSING。 进一步 SQL 验证: SELECT
+    COUNT(*) FROM football_odds_europe_change = 0 (整表 0 行)。工具实现正确(查 football_odds_europe_change
+    + LEFT JOIN match_odds_companys),但 DB 无该表数据 → 永远 DATA_MISSING。 原 stub 现已实现为真实查询,非恒空返回;但底层数据缺失。'
 - round: 1
   atomic_id: A06-T1-a2-aux
   tool: get_over_under_odds
@@ -69,28 +58,21 @@ attempts:
   code: ERROR
   count: 0
   stub: false
-  note: >-
-    Phase 2 新增工具,调用崩溃:
-    TypeError: make_envelope() got an unexpected keyword argument 'source'
-    (foretell/tools/extra.py:34)。extra.py 所有工具均以 source=_META_SOURCE
-    调用 make_envelope,但 envelope.make_envelope 签名不接受 source 参数。
-    属 implementation_gap,与 A06 主线(完场赛果)无关,但影响大小球辅助维度。
+  note: 'Phase 2 新增工具,调用崩溃: TypeError: make_envelope() got an unexpected keyword argument
+    ''source'' (foretell/tools/extra.py:34)。extra.py 所有工具均以 source=_META_SOURCE 调用
+    make_envelope,但 envelope.make_envelope 签名不接受 source 参数。 属 implementation_gap,与
+    A06 主线(完场赛果)无关,但影响大小球辅助维度。'
 satisfied:
 - A06-T1-a1
 - A06-T1-a2
-satisfied_note: >-
-  A06 核心"完场赛果"atomic 全部 satisfied:
-  T1-a1 (resolve_entity match) — 用 status_id=8 的 football_match.id 满足;
-  T1-a2 (synthesize_answer) — get_match_result 提供语义化 score_breakdown,
-  get_kelly 提供凯利指数(OK),get_betfair 在有数据比赛上 OK。
+satisfied_note: 'A06 核心"完场赛果"atomic 全部 satisfied: T1-a1 (resolve_entity match) — 用
+  status_id=8 的 football_match.id 满足; T1-a2 (synthesize_answer) — get_match_result
+  提供语义化 score_breakdown, get_kelly 提供凯利指数(OK),get_betfair 在有数据比赛上 OK。'
 blocking_gap:
   type: data_gap
-  description: >-
-    football_odds_europe_change 表整表 0 行(DB 无赔率走势历史数据),
-    导致 get_odds_trend 恒返回 DATA_MISSING。工具实现已正确,非 stub,
-    但底层数据缺失,无法验证"盘口走向"维度。
-    另:get_over_under_odds 等 extra.py 工具因 make_envelope(source=) 签名
-    不匹配而崩溃(implementation_gap),不影响 A06 主线但影响大小球辅助维度。
+  description: football_odds_europe_change 表整表 0 行(DB 无赔率走势历史数据), 导致 get_odds_trend
+    恒返回 DATA_MISSING。工具实现已正确,非 stub, 但底层数据缺失,无法验证"盘口走向"维度。 另:get_over_under_odds 等
+    extra.py 工具因 make_envelope(source=) 签名 不匹配而崩溃(implementation_gap),不影响 A06 主线但影响大小球辅助维度。
   failed_atomic: A06-T1-a2
   affected_tools:
   - get_odds_trend
@@ -103,8 +85,7 @@ known_limitations:
 route_complete: true
 regression_summary:
   before: ⚠️ (3 stub 恒空 + get_match_result 返回 raw 比分数组)
-  after: ✅ (get_match_result 返回语义化 score_breakdown;
-    get_kelly/get_betfair 已实现真实查询并验证返回 OK 数据;
-    get_odds_trend 已实现但底层表 0 行=data_gap 非 stub;
-    get_over_under_odds 有 implementation_gap 但与 A06 主线无关)
+  after: ✅ (get_match_result 返回语义化 score_breakdown; get_kelly/get_betfair 已实现真实查询并验证返回
+    OK 数据; get_odds_trend 已实现但底层表 0 行=data_gap 非 stub; get_over_under_odds 有 implementation_gap
+    但与 A06 主线无关)
   upgrade: ⚠️ -> ✅

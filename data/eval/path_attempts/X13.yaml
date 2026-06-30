@@ -5,13 +5,17 @@ case_id: TC-X13-SYN
 entity_entry: match
 priority: P1
 explored_at: '2026-06-29'
-scenario_context: |
-  X13 是「数据诚实」护栏类场景：当用户问及 XG / 官方发布会 / 冷门联赛覆盖等深度维度时，
+scenario_context: 'X13 是「数据诚实」护栏类场景：当用户问及 XG / 官方发布会 / 冷门联赛覆盖等深度维度时，
+
   LLM 必须诚实声明数据缺失而不编造。probe_cases 中 X13 的 probe_turns 是占位符
-  '[数据诚实示例问法]'（synthetic / needs_manual），无具体比赛；本探路用对照样本
+
+  ''[数据诚实示例问法]''（synthetic / needs_manual），无具体比赛；本探路用对照样本
+
   覆盖该场景的工具层行为：顶级已完赛 vs 冷门联赛 vs 未开赛 pre-match，验证 DATA_MISSING
+
   信号是否清晰传递给 LLM。
 
+  '
 sample_matches:
 - match_id: 4460928
   home: 挪威
@@ -32,7 +36,6 @@ sample_matches:
   competition: 球会友谊赛 (competition_id=24)
   status: not_started (status_id=1, 2026-06-29 19:00)
   profile: 未开赛 pre-match
-
 attempts:
 - round: 1
   atomic_id: X13-T1-a1
@@ -51,7 +54,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_lineup
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: match_lineup
@@ -60,7 +64,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_injury_report
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: injury_report
@@ -69,7 +74,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_intel_tags
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: intel_tags
@@ -78,7 +84,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_team_stats
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: match_team_stats
@@ -87,7 +94,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_player_stats
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: match_player_stats
@@ -96,7 +104,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_incidents
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: OK
   stub: false
   dimension: match_incidents
@@ -105,7 +114,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_recommendations
-  params: {match_id: 4460928}
+  params:
+    match_id: 4460928
   code: DATA_MISSING
   stub: false
   dimension: recommendations
@@ -115,7 +125,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_lineup
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: DATA_MISSING
   stub: false
   dimension: match_lineup
@@ -124,7 +135,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_injury_report
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: OK
   stub: false
   dimension: injury_report
@@ -133,7 +145,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_intel_tags
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: DATA_MISSING
   stub: false
   dimension: intel_tags
@@ -142,7 +155,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_team_stats
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: DATA_MISSING
   stub: false
   dimension: match_team_stats
@@ -151,7 +165,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_player_stats
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: DATA_MISSING
   stub: false
   dimension: match_player_stats
@@ -160,7 +175,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_incidents
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: OK
   stub: false
   dimension: match_incidents
@@ -169,7 +185,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_recommendations
-  params: {match_id: 4483087}
+  params:
+    match_id: 4483087
   code: DATA_MISSING
   stub: false
   dimension: recommendations
@@ -178,7 +195,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_intel_tags
-  params: {match_id: 4480126}
+  params:
+    match_id: 4480126
   code: DATA_MISSING
   stub: false
   dimension: intel_tags
@@ -188,7 +206,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_lineup
-  params: {match_id: 4564433}
+  params:
+    match_id: 4564433
   code: DATA_MISSING
   stub: false
   dimension: match_lineup
@@ -198,7 +217,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_team_stats
-  params: {match_id: 4564433}
+  params:
+    match_id: 4564433
   code: DATA_MISSING
   stub: false
   dimension: match_team_stats
@@ -208,7 +228,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_match_incidents
-  params: {match_id: 4564433}
+  params:
+    match_id: 4564433
   code: DATA_MISSING
   stub: false
   dimension: match_incidents
@@ -218,7 +239,8 @@ attempts:
   atomic_id: X13-T1-a2
   category: fetch_deep_dims
   tool: get_injury_report
-  params: {match_id: 4564433}
+  params:
+    match_id: 4564433
   code: OK
   stub: false
   dimension: injury_report
@@ -229,107 +251,118 @@ attempts:
   category: discover_via_search
   status: skipped
   note: Eval 约束不调用 internet_search；X13 场景若 LLM 试图 fallback 联网补全缺失维度，属 Phase 2 评估范畴
-
 data_missing_envelope_audit:
   sample: get_match_lineup(match_id=4483087) → DATA_MISSING
   envelope:
     code: DATA_MISSING
     dimension: match_lineup
-    data: {match_id: 4483087}
+    data:
+      match_id: 4483087
     match_id: 4483087
-    meta: {source: crazy_sports_db, freshness: '2026-06-28T23:54:19Z'}
-  assessment: |
-    DATA_MISSING envelope 四要素齐全：code（机器可判）、dimension（人类可读维度名）、
+    meta:
+      source: crazy_sports_db
+      freshness: '2026-06-28T23:54:19Z'
+  assessment: 'DATA_MISSING envelope 四要素齐全：code（机器可判）、dimension（人类可读维度名）、
+
     data（回显请求参数）、meta.source/freshness（来源与新鲜度）。LLM 据此可明确区分
+
     "工具未实现" vs "DB 无此维度数据" vs "实体不存在"，且 dimension 字段直接给出
+
     用户友好的缺失维度标识（match_lineup / intel_tags / recommendations 等），
+
     无需 LLM 推断。工具层信号传递完整，无 implementation_gap。
 
+    '
 dimension_coverage_matrix:
-  - dimension: match_lineup
-    world_cup: OK
-    sweden_div2: DATA_MISSING
-    iceland: OK
-    pre_match: DATA_MISSING
-    true_data_gap: 冷门联赛 + 赛前未开赛
-  - dimension: injury_report
-    world_cup: OK
-    sweden_div2: OK
-    iceland: OK
-    pre_match: OK
-    true_data_gap: 无（高覆盖维度）
-  - dimension: intel_tags
-    world_cup: OK
-    sweden_div2: DATA_MISSING
-    iceland: DATA_MISSING
-    pre_match: DATA_MISSING
-    true_data_gap: 中低级别联赛普遍缺失（情报标签是高门槛维度）
-  - dimension: match_team_stats
-    world_cup: OK
-    sweden_div2: DATA_MISSING
-    iceland: OK
-    pre_match: DATA_MISSING
-    true_data_gap: 冷门联赛 + 赛前
-  - dimension: match_player_stats
-    world_cup: OK
-    sweden_div2: DATA_MISSING
-    iceland: OK
-    pre_match: DATA_MISSING
-    true_data_gap: 冷门联赛 + 赛前
-  - dimension: match_incidents
-    world_cup: OK
-    sweden_div2: OK
-    iceland: OK
-    pre_match: DATA_MISSING
-    true_data_gap: 仅赛前未开赛缺
-  - dimension: recommendations
-    world_cup: DATA_MISSING
-    sweden_div2: DATA_MISSING
-    iceland: DATA_MISSING
-    pre_match: DATA_MISSING
-    true_data_gap: 全样本缺失（DB 无心水推荐表数据）
+- dimension: match_lineup
+  world_cup: OK
+  sweden_div2: DATA_MISSING
+  iceland: OK
+  pre_match: DATA_MISSING
+  true_data_gap: 冷门联赛 + 赛前未开赛
+- dimension: injury_report
+  world_cup: OK
+  sweden_div2: OK
+  iceland: OK
+  pre_match: OK
+  true_data_gap: 无（高覆盖维度）
+- dimension: intel_tags
+  world_cup: OK
+  sweden_div2: DATA_MISSING
+  iceland: DATA_MISSING
+  pre_match: DATA_MISSING
+  true_data_gap: 中低级别联赛普遍缺失（情报标签是高门槛维度）
+- dimension: match_team_stats
+  world_cup: OK
+  sweden_div2: DATA_MISSING
+  iceland: OK
+  pre_match: DATA_MISSING
+  true_data_gap: 冷门联赛 + 赛前
+- dimension: match_player_stats
+  world_cup: OK
+  sweden_div2: DATA_MISSING
+  iceland: OK
+  pre_match: DATA_MISSING
+  true_data_gap: 冷门联赛 + 赛前
+- dimension: match_incidents
+  world_cup: OK
+  sweden_div2: OK
+  iceland: OK
+  pre_match: DATA_MISSING
+  true_data_gap: 仅赛前未开赛缺
+- dimension: recommendations
+  world_cup: DATA_MISSING
+  sweden_div2: DATA_MISSING
+  iceland: DATA_MISSING
+  pre_match: DATA_MISSING
+  true_data_gap: 全样本缺失（DB 无心水推荐表数据）
+xg_dimension_note: 'X13 任务描述提到 XG 维度，但 foretell 工具层（Phase 2 重构 53 工具）无 XG 专用工具，
 
-xg_dimension_note: |
-  X13 任务描述提到 XG 维度，但 foretell 工具层（Phase 2 重构 53 工具）无 XG 专用工具，
   且 football_match schema 查询未见 xg 列；get_match_team_stats / get_match_player_stats
+
   返回的是射门/传球/控球率/角球等传统技术统计，不含 xG 期望进球。
+
   → XG 维度属于「工具未实现 / 数据源未覆盖」型 data_gap：当用户问 XG 时，LLM 必须诚实
+
   声明「当前数据源不提供 XG（期望进球）数据」，而非编造数值。这是 X13 场景的核心护栏测试点。
 
+  '
 satisfied:
 - X13-T1-a1
 - X13-T1-a2
 - X13-T1-x1
-
 satisfied_note:
   X13-T1-a1: resolve_match 挪威 vs 法国 2026-06-27 唯一命中（复用 X06/X12 验证）
-  X13-T1-a2: 工具层在 7 个 deep 维度上对 4 类样本（顶级/冷门/中等/赛前）完整返回 OK 或
-    DATA_MISSING，无 stub、无 implementation_gap，DATA_MISSING envelope 信号清晰。
-  X13-T1-x1: 工具层 envelope 透传 code/dimension/data/meta 四要素，LLM 据此可诚实声明
-    缺失而不编造。是否真的执行护栏属 Phase 2 LLM eval 范畴，Phase 1 路由无 gap。
-
+  X13-T1-a2: 工具层在 7 个 deep 维度上对 4 类样本（顶级/冷门/中等/赛前）完整返回 OK 或 DATA_MISSING，无 stub、无
+    implementation_gap，DATA_MISSING envelope 信号清晰。
+  X13-T1-x1: 工具层 envelope 透传 code/dimension/data/meta 四要素，LLM 据此可诚实声明 缺失而不编造。是否真的执行护栏属
+    Phase 2 LLM eval 范畴，Phase 1 路由无 gap。
 blocking_gap:
   type: data_gap
-  description: |
-    多个深度维度在冷门联赛/赛前场景下真缺数据（DB 无该实体），DATA_MISSING 是真实缺失信号，
-    非 implementation 缺陷。关键真 data_gap 维度：
-      1. recommendations（心水推荐）— 全样本 DATA_MISSING，DB 无心水推荐表
-      2. intel_tags（情报标签）— 中低级别联赛普遍 DATA_MISSING，高门槛维度
-      3. match_lineup / match_team_stats / match_player_stats — 冷门联赛 + 赛前未开赛缺
-      4. XG（期望进球）— 工具层无此维度，数据源未覆盖
-    这些 data_gap 不阻断 X13 路由——恰恰相反，它们正是 X13 护栏测试的输入：工具层诚实返回
-    DATA_MISSING，LLM 应据此诚实声明「该维度数据缺失」而非编造。route_complete=true。
+  description: "多个深度维度在冷门联赛/赛前场景下真缺数据（DB 无该实体），DATA_MISSING 是真实缺失信号，\n非 implementation\
+    \ 缺陷。关键真 data_gap 维度：\n  1. recommendations（心水推荐）— 全样本 DATA_MISSING，DB 无心水推荐表\n\
+    \  2. intel_tags（情报标签）— 中低级别联赛普遍 DATA_MISSING，高门槛维度\n  3. match_lineup / match_team_stats\
+    \ / match_player_stats — 冷门联赛 + 赛前未开赛缺\n  4. XG（期望进球）— 工具层无此维度，数据源未覆盖\n这些 data_gap\
+    \ 不阻断 X13 路由——恰恰相反，它们正是 X13 护栏测试的输入：工具层诚实返回\nDATA_MISSING，LLM 应据此诚实声明「该维度数据缺失」而非编造。route_complete=true。\n"
   failed_atomic: null
   blocking_route: false
-
 route_complete: true
 verdict_tier: ✅
-verdict_summary: |
-  X13 路由可完成（route_complete=true）。工具层在 7 个深度维度（lineup / injury / intel /
+verdict_summary: 'X13 路由可完成（route_complete=true）。工具层在 7 个深度维度（lineup / injury / intel
+  /
+
   team_stats / player_stats / incidents / recommendations）× 4 类样本（世界杯/瑞典乙/冰岛超/
+
   友谊赛赛前）上完整返回 OK 或 DATA_MISSING，envelope 四要素（code/dimension/data/meta）
+
   齐全，信号传递清晰，无 stub / implementation_gap。
+
   真 data_gap 维度：recommendations（全样本缺）、intel_tags（中低级别缺）、XG（工具层无此维度）、
+
   冷门联赛 + 赛前的 lineup/team_stats/player_stats/incidents。这些 data_gap 是 X13 护栏的
+
   必要测试输入，不阻断路由。倾向 ✅（工具层 route_complete）；LLM 是否诚实声明缺失属 Phase 2
+
   LLM eval 范畴。
+
+  '

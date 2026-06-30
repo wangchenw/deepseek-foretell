@@ -1,0 +1,38 @@
+type_id: E07
+case_id: TC-E07-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ tool_logic_gap(JSON 解析损坏 + match_id=null 阻断 lottery→football_match 链路)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: "_parse_beidan_play 新增 301/404 JSON 分支,bf 字段返回结构化 25 项列表 [{label,odds}](含 sXY 比分 + sl/sp/sw);spf 键映射修正为 win=sf3/draw=sf1/loss=sf0/handicap=goal(原 v2 误为 win=sf1/draw=sf2/loss=sf3);match_id JOIN lottery_match 回填真实 football_match.id(4459720)。"
+attempts:
+  - round: 1
+    atomic_id: E07-T1-a1
+    tool: get_lottery_schedule
+    params: {play_type: "301", date: "2026-06-30"}
+    code: OK
+    count: 5
+    key_fields:
+      sample_巴西vs日本: {lottery_official_id: 26069064, football_match_id: 4459720, match_id: 4459720, sell_status_bf: on_sale_or_suspended}
+      bf_items: 25
+      bf_sample: [{label: "3:1", odds: 9.85}, {label: "3:0", odds: 24.65}, {label: "2:0", odds: 10.21}, {label: "sl", odds: 194.14}, {label: "0:4", odds: 743.95}]
+      spf: {handicap: -1.0, win: 2.72, draw: 3.66, loss: 2.77}
+      jq_keys: [j0,j1,j2,j3,j4,j5,j6,j7]
+      bqc_keys: [l30,l10,l31,l01,l33,l11,l00,l03,l13]
+      sxp_keys: [sx01,sx10,sx11,sx00]
+    stub: false
+    note: "bf 25 项完整闭合,无 v2 的截断碎片;spf 结构化 {handicap,win,draw,loss}。"
+  - round: 1
+    atomic_id: E07-T1-a2
+    tool: sql
+    params: {query: "SELECT id,home,away,spf,bf FROM lottery_bd_odds WHERE issue=26069 AND issue_num=64"}
+    code: OK
+    key_fields:
+      spf_raw: '{"sf3":"2.72","goal":"-1","sf0":"2.77","sf1":"3.66"}'
+      bf_raw_s31: 9.85
+      bf_raw_s20: 10.21
+      bf_raw_sl: 194.14
+    note: "DB 原始 spf/bf JSON 完好;对照工具返回 — win=sf3=2.72 ✅, draw=sf1=3.66 ✅, loss=sf0=2.77 ✅, handicap=goal=-1 ✅;bf label '3:1'↔DB s31=9.85 ✅, '2:0'↔s20=10.21 ✅, 'sl'↔sl=194.14 ✅,25 项全对齐。键映射修正确认。"
+satisfied: [E07-T1-a1, E07-T1-a2]
+blocking_gap: null
+route_complete: true

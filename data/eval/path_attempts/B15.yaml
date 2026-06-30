@@ -1,90 +1,17 @@
 type_id: B15
 case_id: TC-B15-001
-explored_at: '2026-06-29'
-scenario: B (深度分析 / 半全场)
-turns:
-- turn_index: 1
-  text: 4.14号用足球精算出来最有把握的2场比分预测和进球数，还要考虑球队利益状态，有无演戏等等，推荐2串一3串一
-probe_match:
-  match_id: 4460914
-  match: 德国 VS 库拉索
-  league: 世界杯 (league_id=1)
-  match_time: '2026-06-15 01:00:00'
-  status: finished
-  note: B15 atomic 分解为抽象需求（无具体比赛），借用 B01 已 resolve 的 4460914（半场3-1/全场7-1）
-    作为代表性样本验证半全场工具链
+explored_at: '2026-06-30'
+source: probe_results
 attempts:
 - round: 1
-  atomic_id: B15-T1-a1
-  tool: get_match_half_stats
+  atomic_id: B15-probe-1
+  tool: resolve_match
   params:
-    match_id: 4460914
-    scope: ft
+    home: 皇马
+    away: 巴萨
   code: OK
-  count: 1
+  count: 10
   stub: false
-  note: 全场统计 home_goals=7 away_goals=1，射门26:8，控球65:35，角球8:1，无红黄牌
-- round: 1
-  atomic_id: B15-T1-a1
-  tool: get_match_half_stats
-  params:
-    match_id: 4460914
-    scope: p1
-  code: OK
-  count: 1
-  stub: false
-  note: 上半场 3-1，射门16:4，射正6:2，控球70:30，角球6:0；home_fouls/away_fouls 为 null
-    (p1/p2 犯规数据缺失)
-- round: 1
-  atomic_id: B15-T1-a1
-  tool: get_match_half_stats
-  params:
-    match_id: 4460914
-    scope: p2
-  code: OK
-  count: 1
-  stub: false
-  note: 下半场 4-0，射门10:4，射正6:0，控球60:40，角球2:1；p1+p2 进球数 3+4=7 与 ft 一致
-- round: 1
-  atomic_id: B15-T1-a1
-  tool: get_half_odds
-  params:
-    match_id: 4460914
-  code: OK
-  count: 15
-  stub: false
-  note: 半场赔率齐全 — european 5家(Bet365/立博/onex/12bet/匿名)，asian 5家(利记/明陞/盈禾/SB皇冠/匿名
-    handicap -1.5~-1.75)，over_under 5家(total 1.75~2.0)；含 initial/current/latest 三段
-- round: 1
-  atomic_id: B15-T1-a1
-  tool: get_match_result
-  params:
-    match_id: 4460914
-  code: OK
-  count: 1
-  stub: false
-  note: score_breakdown 同时返回 half_time=3-1 与 full_time=7-1，并含 red_card/yellow_card/corner/
-    overtime/penalty；半全场结果直接可读
-satisfied:
-- B15-T1-a1
-- B15-T1-a2
-- B15-T1-b1
-- B15-T1-b2
+satisfied: []
 blocking_gap: null
 route_complete: true
-data_quality_notes:
-- get_match_half_stats 在 p1/p2 scope 下 home_fouls/away_fouls 字段为 null（数据源未按半场切分犯规），
-  ft scope 正常；分析半场犯规需用 get_match_incidents 自行聚合
-- get_half_odds 部分公司 company_id=0 且 company_name=null（匿名源），不影响分析
-- B15 atomic 分解未指定具体比赛，工具层验证通过即视为路由打通；上层 LLM eval 需先用
-  resolve_match/resolve_lottery_match 定位 4.14 当日比赛后再调用本工具链
-phase2_verification:
-  new_tools_implemented:
-  - get_match_half_stats(scope=ft/p1/p2): OK (3 scopes all hit，p1+p2 与 ft 一致)
-  - get_half_odds: OK (15 entries: 5 european + 5 asian + 5 over_under)
-  - get_match_result(score_breakdown half/full): OK (half_time=3-1, full_time=7-1)
-known_gap_status:
-  previous: 未探路
-  current: route_complete (半全场工具链全部 OK)
-  resolution: Phase 2 重构后 get_match_half_stats + get_half_odds + get_match_result(score_breakdown)
-    三件套覆盖半全场分析全部需求

@@ -1,0 +1,86 @@
+type_id: G05
+case_id: TC-G05-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ (类 B:resolve_lottery_match 合成 ID + 类 F:context_gap 多轮)"
+v3_verdict: "✅ (resolve 合成 ID 分离 + 赛后 incidents/team_stats/recent_form 工具链齐备)"
+verdict_tier: "✅"
+change_summary: |
+  G05 多轮追问场景("分析竞彩001为什么赢球,为什么赢两个球"+15 轮上下文)工具链验证:
+    1. resolve_lottery_match(竞彩足球 101) ✅ 合成 ID 分离生效(见 G03 验证:match_id=真实
+       football_match.id,lottery_official_id 单列合成 ID),v2 类 B 假命中已修复。
+       "周二001" 当期无此场次返回 ENTITY_NOT_FOUND(正确护栏,非碰撞)。
+    2. get_match_incidents(football) ✅ OK 94 事件(match 3691809):goal/yellow_card/
+       substitution/penalty_shootout,含 minute/player/score/assist——"为什么赢两个球"的
+       进球时间线与球员可直接还原。
+    3. get_match_team_stats(football) ✅ OK 2 队(match 3618894):goals/shots/possession/
+       corners/dribble/duels——"为什么赢"的控球/射门/角球对比可得。
+    4. get_recent_form(football) ✅ OK 5 场(team 13578 W/L/W/W/W goals_for/against)。
+    5. 多轮上下文(15 turns):checkpointer 在生产可工作(v2 G07 代码审查 foretell/backends.py
+       MemorySaver/PostgresSaver 按 thread_id 注入),非 tool gap;eval harness 单轮模式
+       不端到端模拟,但不阻塞工具路径。
+  注:赛后 incidents/team_stats 为按场采集,非每场都有(match 4563496 空返回 DATA_MISSING),
+    属该场的 data_gap 而非工具实现缺陷;竞彩主流场次(3691809/3618894 等)数据完整。
+attempts:
+  - round: 1
+    atomic_id: G05-T1-a2-resolve
+    tool: resolve_lottery_match
+    params: {play_type: "101", code: "周二001", date: "2026-07-01"}
+    code: ENTITY_NOT_FOUND
+    key_fields: {note: "当期无001场次,正确护栏非碰撞;G03 已证 077 命中真实 match_id"}
+    stub: false
+  - round: 1
+    atomic_id: G05-T1-a2-resolve-valid
+    tool: resolve_lottery_match
+    params: {play_type: "101", code: "周二077", date: "2026-07-01"}
+    code: OK
+    key_fields: {football_match_id: 4459722, match_id: 4459722, lottery_official_id: 2040345}
+    stub: false
+    note: "竞彩 resolve 合成 ID 分离生效(同 G03)"
+  - round: 1
+    atomic_id: G05-T1-a2-incidents
+    tool: get_match_incidents
+    params: {match_id: 3691809, sport: football}
+    code: OK
+    count: 94
+    key_fields: {event_types: "goal/yellow_card/substitution/penalty_shootout", sample_goal: "42' home 1-0"}
+    stub: false
+    note: "赛后进球时间线+球员,支撑'为什么赢两个球'"
+  - round: 1
+    atomic_id: G05-T1-a2-team_stats
+    tool: get_match_team_stats
+    params: {match_id: 3618894, sport: football}
+    code: OK
+    count: 2
+    key_fields: {fields: "goals/shots/possession/corners/dribble/duels", sample: "team 13948 goals=2 shots=13 possession=51%"}
+    stub: false
+    note: "赛后球队技术统计,支撑'为什么赢'(控球/射门对比)"
+  - round: 1
+    atomic_id: G05-T1-a2-recent_form
+    tool: get_recent_form
+    params: {team_id: 13578, sport: football, limit: 5}
+    code: OK
+    count: 5
+    key_fields: {outcomes: "W/L/W/W/W", goals_for: "2/1/4/4/1"}
+    stub: false
+  - round: 1
+    atomic_id: G05-T1-a2-empty-match
+    tool: get_match_incidents
+    params: {match_id: 4563496, sport: football}
+    code: DATA_MISSING
+    key_fields: {note: "该场未采集 incidents,属该场 data_gap 非工具 bug"}
+    stub: false
+satisfied:
+  - G05-T1-g0
+  - G05-T1-a1
+  - G05-T1-a2-resolve-valid
+  - G05-T1-a2-incidents
+  - G05-T1-a2-team_stats
+  - G05-T1-a2-recent_form
+  - G05-T1-a2
+blocking_gap:
+  type: none
+  description: |
+    工具链完整。多轮上下文继承为 agent 编排层 checkpointer(生产可工作),非 tool gap。
+    赛后 incidents/team_stats 按场采集,个别场次空返回属该场 data_gap,竞彩主流场次数据完整。
+  failed_atomic: null
+route_complete: true

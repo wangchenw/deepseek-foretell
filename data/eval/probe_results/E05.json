@@ -1,6 +1,8 @@
 {
   "type_id": "E05",
   "case_id": "TC-E05-REG-007",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "get_lottery_schedule",
@@ -11,5 +13,6 @@
       "count": 14,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

@@ -1,0 +1,27 @@
+type_id: B09
+case_id: TC-B09-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ data_gap NOT_APPLICABLE(series_game=7 NBA 季后赛 G7)"
+v3_verdict: "⚠️"
+verdict_tier: "⚠️"
+change_summary: |
+  get_series_matchup(sport="basketball", limit=5) 返 OK count=5,说明篮球系列赛对阵数据
+  可达(basketball_bracket_match_up 表存在,字段与足球完全一致)。
+  v2 的 data_gap NOT_APPLICABLE 部分证伪:series 数据存在。
+  但本次未深查具体 G7(马刺vs雷霆)是否命中——v2 SQL 基准为 2024 季后赛,
+  DB 状态漂移至 2026,G7 候选可能已变。判 ⚠️:series 工具链通(升档方向),
+  具体 G7 场次命中需场景级深查。
+attempts:
+  - round: 1
+    atomic_id: B09-T0-a1
+    tool: get_series_matchup
+    params: {sport: basketball, limit: 5}
+    code: OK
+    key_fields: {count: 5}
+    stub: false
+satisfied: [B09-T0-a1]
+blocking_gap:
+  type: context_gap
+  description: "series 工具返数据但未细查马刺vs雷霆 G7 具体命中;DB 状态漂移 2024→2026"
+  failed_atomic: B09-T0-a2
+route_complete: false

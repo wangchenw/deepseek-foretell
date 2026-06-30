@@ -75,14 +75,16 @@ def get_team_schedule(
     limit: int = 5,
     league_id: int | str | None = None,
     direction: Literal["upcoming", "recent", "all"] = "recent",
+    sport: str = "football",
 ) -> str:
     """查询球队近期或未来赛程。
 
     Args:
-        team_id: MySQL football_team.id，须先通过 resolve_team 获取。
+        team_id: MySQL football_team.id 或 basketball_team.id。
         limit: 返回场次数量上限，默认 5。
-        league_id: MySQL football_competition.id（可选）。
+        league_id: MySQL football_competition.id 或 basketball_competition.id（可选）。
         direction: upcoming=下一场/未来，recent=最近已结束，all=全部按时间倒序。
+        sport: "football"(默认)或 "basketball"。篮球走 basketball_match 表(完场 status_id=10)。
     """
     client = get_crazy_sports_client()
     results = client.get_team_schedule(
@@ -90,6 +92,7 @@ def get_team_schedule(
         limit=limit,
         league_id=league_id,
         direction=direction,
+        sport=sport,
     )
 
     if not results:
@@ -100,6 +103,7 @@ def get_team_schedule(
                 "team_id": team_id,
                 "league_id": league_id,
                 "direction": direction,
+                "sport": sport,
                 "matches": [],
             },
             meta=_default_meta(client),
@@ -112,6 +116,7 @@ def get_team_schedule(
             "team_id": team_id,
             "league_id": league_id,
             "direction": direction,
+            "sport": sport,
             "matches": results,
             "count": len(results),
         },
@@ -121,14 +126,16 @@ def get_team_schedule(
 
 @tool
 def get_lottery_schedule(
-    play_type: Literal["101", "201", "301", "401", "402", "403", "404"],
+    play_type: Literal["101", "201", "301", "401", "402", "403", "404", "405"],
     date: str | None = None,
     period: str | None = None,
 ) -> str:
     """查询彩票可售场次列表。
 
     Args:
-        play_type: 玩法编码，101=竞彩足球、201=竞彩篮球等。
+        play_type: 玩法编码，101=竞彩足球、201=竞彩篮球、301=北单胜负、
+            401=十四场胜负彩(sfc)、405=任选九场(rj,与 sfc 同期共享 14 场)、
+            402=半全场、403=进球彩、404=北单让球胜平负。
         date: 销售日期 YYYY-MM-DD（可选，默认当日样本数据）。
         period: 彩票期号（可选，十四场/任九等使用）。
     """

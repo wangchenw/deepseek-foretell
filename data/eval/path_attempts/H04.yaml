@@ -6,21 +6,15 @@ entity_entry: league
 sport: any
 explored_at: '2026-06-29'
 source: path_explorer_live
-user_utterance: >-
-  [合成示例] 本赛季西甲冠军是不是已经没悬念了？榜首领先多少分、还剩几轮，能锁定了吗？
-methodology: >-
-  H04 为合成语义：冠军是否已锁定 = (榜首分差 > 剩余轮次 × 单场最高得分)。
-  足球单场最高 3 分，故判定式 lead > remaining_rounds × 3。路径需要
-  resolve_league → get_standings(榜首分差 lead + 已赛轮次 played) → 推算
-  remaining = total_rounds − played → 合成判定。赛季已结束场景下
-  remaining=0、lead>0，公式平凡成立；中段锁定则需 remaining>0 仍满足不等式。
-sample_pick: >-
-  6 月底欧洲五大联赛多数已收官但部分库内 MAX(season_id) 已切到下赛季初始空榜
-  (英超 82、意甲 108 get_standings 返回 points=0/played=0，不可用)。西甲 120
-  仍保留 2025-26 完赛积分榜，且 SQL 确认 competition_id=120 无任何未来赛事
-  (future_cnt=0)，是干净的“赛季已结束、冠军已锁定”样本。另探得澳超 590
-  (纽卡 48 分 / 阿德莱德 43 分，played 26，剩余约 1 轮，lead 5 > 3) 作为
-  非平凡中段锁定的交叉佐证。
+user_utterance: '[合成示例] 本赛季西甲冠军是不是已经没悬念了？榜首领先多少分、还剩几轮，能锁定了吗？'
+methodology: H04 为合成语义：冠军是否已锁定 = (榜首分差 > 剩余轮次 × 单场最高得分)。 足球单场最高 3 分，故判定式 lead > remaining_rounds
+  × 3。路径需要 resolve_league → get_standings(榜首分差 lead + 已赛轮次 played) → 推算 remaining
+  = total_rounds − played → 合成判定。赛季已结束场景下 remaining=0、lead>0，公式平凡成立；中段锁定则需 remaining>0
+  仍满足不等式。
+sample_pick: 6 月底欧洲五大联赛多数已收官但部分库内 MAX(season_id) 已切到下赛季初始空榜 (英超 82、意甲 108 get_standings
+  返回 points=0/played=0，不可用)。西甲 120 仍保留 2025-26 完赛积分榜，且 SQL 确认 competition_id=120 无任何未来赛事
+  (future_cnt=0)，是干净的“赛季已结束、冠军已锁定”样本。另探得澳超 590 (纽卡 48 分 / 阿德莱德 43 分，played 26，剩余约
+  1 轮，lead 5 > 3) 作为 非平凡中段锁定的交叉佐证。
 attempts:
 - round: 1
   turn: 1
@@ -32,10 +26,8 @@ attempts:
   code: OK
   count: 7
   stub: false
-  note: >-
-    league_id=120 西甲(Spanish La Liga, football)为首选命中；候选含 435 巴西甲、
-    466 墨西甲、606 澳西甲前、1777 西甲U18、1869 澳西甲、7178 西甲希望杯，
-    均为不同赛事的别名/同名异实体，非真正歧义，LLM 取 120 即可。entity_entry=league
+  note: league_id=120 西甲(Spanish La Liga, football)为首选命中；候选含 435 巴西甲、 466 墨西甲、606
+    澳西甲前、1777 西甲U18、1869 澳西甲、7178 西甲希望杯， 均为不同赛事的别名/同名异实体，非真正歧义，LLM 取 120 即可。entity_entry=league
     的解析步骤完成。
 - round: 1
   turn: 1
@@ -47,28 +39,23 @@ attempts:
   code: OK
   count: 20
   stub: false
-  note: >-
-    西甲 20 队积分榜全部返回，含 position/points/played/won/draw/loss/goals/
-    goals_against/goal_diff + 主客分列。榜首 巴塞罗那 team_id=10015 94 分
-    (31W1D6L, played 38)，次席 皇家马德里 10217 86 分 (27W5D6L, played 38)，
-    第三 比利亚雷亚尔 10493 72 分。lead = 94 − 86 = 8；20 队双循环 total_rounds=38，
-    played=38 → remaining_rounds=0；8 > 0×3=0 → 冠军已锁定 = 巴萨。
+  note: 西甲 20 队积分榜全部返回，含 position/points/played/won/draw/loss/goals/ goals_against/goal_diff
+    + 主客分列。榜首 巴塞罗那 team_id=10015 94 分 (31W1D6L, played 38)，次席 皇家马德里 10217 86 分 (27W5D6L,
+    played 38)， 第三 比利亚雷亚尔 10493 72 分。lead = 94 − 86 = 8；20 队双循环 total_rounds=38， played=38
+    → remaining_rounds=0；8 > 0×3=0 → 冠军已锁定 = 巴萨。
 - round: 1
   turn: 1
   atomic_id: H04-T1-a2
   category: cross_validation
   tool: sql
   params:
-    query: >-
-      SELECT COUNT(*) AS future_cnt, MIN(match_time_str) AS next_match
-      FROM football_match WHERE competition_id=120 AND status_id IN (1,9)
-      AND match_time >= UNIX_TIMESTAMP()
+    query: SELECT COUNT(*) AS future_cnt, MIN(match_time_str) AS next_match FROM football_match
+      WHERE competition_id=120 AND status_id IN (1,9) AND match_time >= UNIX_TIMESTAMP()
   code: OK
   count: 1
   stub: false
-  note: >-
-    直查 football_match 确认西甲未来赛事 future_cnt=0、next_match=null，
-    赛季已彻底结束，remaining_rounds=0 的推算被独立证实，不依赖积分榜 played 字段。
+  note: 直查 football_match 确认西甲未来赛事 future_cnt=0、next_match=null， 赛季已彻底结束，remaining_rounds=0
+    的推算被独立证实，不依赖积分榜 played 字段。
 - round: 1
   turn: 1
   atomic_id: H04-T1-a2
@@ -82,48 +69,39 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: >-
-    巴萨 upcoming 赛程返回 DATA_MISSING (matches=[])，与 SQL future_cnt=0 一致，
-    再次确认无剩余比赛。注意 get_team_schedule direction=upcoming 存在已知语义
-    反转问题，但此处返回空且与 SQL 互证，结论可信；route_matrix 预期的
-    get_team_schedule 在本场景的作用正是“确认无剩余轮次”，已满足。
+  note: 巴萨 upcoming 赛程返回 DATA_MISSING (matches=[])，与 SQL future_cnt=0 一致， 再次确认无剩余比赛。注意
+    get_team_schedule direction=upcoming 存在已知语义 反转问题，但此处返回空且与 SQL 互证，结论可信；route_matrix
+    预期的 get_team_schedule 在本场景的作用正是“确认无剩余轮次”，已满足。
 - round: 1
   turn: 1
   atomic_id: H04-T1-a2
   category: cross_validation
   tool: sql
   params:
-    query: >-
-      SELECT pt.position, pt.team_id, t.name_zh, pt.points, pt.won, pt.draw,
-      pt.loss, pt.total AS played FROM football_points_table p
-      JOIN football_points_table_team pt ON pt.table_id=p.id
-      JOIN football_team t ON t.id=pt.team_id WHERE p.competition_id=120
-      AND p.season_id=(SELECT MAX(season_id) FROM football_points_table
-      WHERE competition_id=120) ORDER BY pt.position LIMIT 3
+    query: SELECT pt.position, pt.team_id, t.name_zh, pt.points, pt.won, pt.draw,
+      pt.loss, pt.total AS played FROM football_points_table p JOIN football_points_table_team
+      pt ON pt.table_id=p.id JOIN football_team t ON t.id=pt.team_id WHERE p.competition_id=120
+      AND p.season_id=(SELECT MAX(season_id) FROM football_points_table WHERE competition_id=120)
+      ORDER BY pt.position LIMIT 3
   code: OK
   count: 3
   stub: false
-  note: >-
-    SQL 直查 football_points_table_team (played 列名为 total) 复核榜首 team_id
-    与分差：巴萨 10015=94、皇马 10217=86、比利亚雷亚尔 10493=72，与 get_standings
-    工具完全一致。注意子表无 played 列、用 total；get_standings 工具已做该映射。
+  note: SQL 直查 football_points_table_team (played 列名为 total) 复核榜首 team_id 与分差：巴萨 10015=94、皇马
+    10217=86、比利亚雷亚尔 10493=72，与 get_standings 工具完全一致。注意子表无 played 列、用 total；get_standings
+    工具已做该映射。
 secondary_sample:
   league_id: 590
   league_name: 澳超
-  note: >-
-    非平凡中段锁定佐证：纽卡斯尔喷气机 48 分 (played 26) vs 阿德莱德联 43 分，
-    lead=5；澳超常规赛约 27 轮 → remaining≈1；5 > 1×3=3 → 冠军已锁定
-    (纽卡斯尔喷气机)。total_rounds 建议经 football_season 复核后再下最终结论，
-    但公式路径与西甲一致，证明 H04 判定式在 remaining>0 场景同样可走通。
+  note: 非平凡中段锁定佐证：纽卡斯尔喷气机 48 分 (played 26) vs 阿德莱德联 43 分， lead=5；澳超常规赛约 27 轮 → remaining≈1；5
+    > 1×3=3 → 冠军已锁定 (纽卡斯尔喷气机)。total_rounds 建议经 football_season 复核后再下最终结论， 但公式路径与西甲一致，证明
+    H04 判定式在 remaining>0 场景同样可走通。
 cross_sport_check:
   sport: any
   collision: false
-  note: >-
-    西甲 competition_id=120 为 football_competition；巴萨 10015 / 皇马 10217
-    均为 football_team.id。basketball_team 虽与 football_team 共享 id 整数空间，
-    但本路径全程使用足球工具 (resolve_league/get_standings) 与 football_* 表 SQL，
-    未触及篮球工具或 basketball_* 表，不触发跨运动数据碰撞。sport=any 的“any”
-    语义由 LLM 据问法收敛到具体运动 (此处足球)，无需多运动并行。
+  note: 西甲 competition_id=120 为 football_competition；巴萨 10015 / 皇马 10217 均为 football_team.id。basketball_team
+    虽与 football_team 共享 id 整数空间， 但本路径全程使用足球工具 (resolve_league/get_standings) 与 football_*
+    表 SQL， 未触及篮球工具或 basketball_* 表，不触发跨运动数据碰撞。sport=any 的“any” 语义由 LLM 据问法收敛到具体运动
+    (此处足球)，无需多运动并行。
 satisfied:
 - H04-T1-a1
 - H04-T1-a2
@@ -133,34 +111,22 @@ blocking_gap:
   failed_atomic: null
 route_complete: true
 verdict: verified
-verdict_reason: >-
-  H04“冠军已锁定”合成语义路径完整。resolve_league(西甲)→league_id=120 唯一首选
-  命中，满足 T1-a1 resolve_entity。get_standings(120) 返回完整 20 队积分榜，
-  巴萨 94 分 / 皇马 86 分 / played 38，lead=8、remaining=0，8>0×3 公式成立；
-  SQL future_cnt=0 与 get_team_schedule(upcoming)=DATA_MISSING 双重互证赛季已
-  收官、无剩余轮次；SQL 直查 points_table 复核 team_id 与分差一致。T1-a2
-  synthesize_answer 所需“榜首分差 + 剩余轮次 + 锁定判定”三要素全部由实数据支撑，
-  冠军=巴塞罗那已锁定。澳超 590 作为 remaining>0 的非平凡锁定佐证，公式同样成立。
-  无 blocking_gap，route_complete=true，verdict=verified。
+verdict_reason: H04“冠军已锁定”合成语义路径完整。resolve_league(西甲)→league_id=120 唯一首选 命中，满足 T1-a1
+  resolve_entity。get_standings(120) 返回完整 20 队积分榜， 巴萨 94 分 / 皇马 86 分 / played 38，lead=8、remaining=0，8>0×3
+  公式成立； SQL future_cnt=0 与 get_team_schedule(upcoming)=DATA_MISSING 双重互证赛季已 收官、无剩余轮次；SQL
+  直查 points_table 复核 team_id 与分差一致。T1-a2 synthesize_answer 所需“榜首分差 + 剩余轮次 + 锁定判定”三要素全部由实数据支撑，
+  冠军=巴塞罗那已锁定。澳超 590 作为 remaining>0 的非平凡锁定佐证，公式同样成立。 无 blocking_gap，route_complete=true，verdict=verified。
 key_findings:
-- >-
-  6 月底探 H04 须避开 MAX(season_id) 已切下赛季空榜的联赛：英超 82、意甲 108
-  get_standings 返回 points=0/played=0 不可用；西甲 120 仍保留完赛榜且 SQL
-  确认无未来赛事，是“赛季结束型锁定”的干净样本。
-- >-
-  “冠军已锁定”无原生工具，须由 get_standings(lead + played) + 总轮次推算
-  remaining，再用合成式 lead > remaining×3 判定；remaining=0 的已结束场景公式
-  平凡成立，真正考验公式的 remaining>0 场景可用澳超 590 等中段联赛验证。
-- >-
-  get_team_schedule direction=upcoming 已知存在语义反转问题，本场景因返回空且
-  与 SQL future_cnt=0 互证而可信；若需可靠“剩余轮次”应优先 SQL
-  (football_match WHERE competition_id=? AND status_id IN(1,9) AND
-  match_time>=NOW()) 或 football_season 总轮次字段兜底。
+- 6 月底探 H04 须避开 MAX(season_id) 已切下赛季空榜的联赛：英超 82、意甲 108 get_standings 返回 points=0/played=0
+  不可用；西甲 120 仍保留完赛榜且 SQL 确认无未来赛事，是“赛季结束型锁定”的干净样本。
+- “冠军已锁定”无原生工具，须由 get_standings(lead + played) + 总轮次推算 remaining，再用合成式 lead > remaining×3
+  判定；remaining=0 的已结束场景公式 平凡成立，真正考验公式的 remaining>0 场景可用澳超 590 等中段联赛验证。
+- get_team_schedule direction=upcoming 已知存在语义反转问题，本场景因返回空且 与 SQL future_cnt=0 互证而可信；若需可靠“剩余轮次”应优先
+  SQL (football_match WHERE competition_id=? AND status_id IN(1,9) AND match_time>=NOW())
+  或 football_season 总轮次字段兜底。
 notes:
-- atomic 文件 user 文案为占位符 [冠军已锁定示例问法]，本次按 type_name 与
-  route_matrix expected_route(resolve_league + get_standings + get_team_schedule)
-  自主构造“西甲冠军是否已锁定”合成问法探路，建议后续 regenerate atomic 时
-  填入具体联赛文案。
-- atomic T1-a1 target.entity 标为 match，与 entity_entry=league / route_matrix
-  预期 (resolve_league) 不符，疑似模板生成时 entity 误填；本次按 league 语义
-  探路，建议修正 atomic 分解的 target.entity 为 league。
+- atomic 文件 user 文案为占位符 [冠军已锁定示例问法]，本次按 type_name 与 route_matrix expected_route(resolve_league
+  + get_standings + get_team_schedule) 自主构造“西甲冠军是否已锁定”合成问法探路，建议后续 regenerate atomic
+  时 填入具体联赛文案。
+- atomic T1-a1 target.entity 标为 match，与 entity_entry=league / route_matrix 预期 (resolve_league)
+  不符，疑似模板生成时 entity 误填；本次按 league 语义 探路，建议修正 atomic 分解的 target.entity 为 league。

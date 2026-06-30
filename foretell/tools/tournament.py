@@ -17,6 +17,17 @@ def _default_meta(client) -> dict:
     return {"source": _META_SOURCE, "freshness": client.freshness}
 
 
+def _basketball_unavailable(client, dimension: str, match_id, table_name: str) -> str:
+    """篮球该维度暂未采集时返回明确的 DATA_MISSING(非含糊空结果)。"""
+    return make_envelope(
+        StatusCode.DATA_MISSING,
+        dimension,
+        {"match_id": match_id, "sport": "basketball",
+         "reason": f"该维度篮球暂未采集({table_name} 表不存在)"},
+        match_id=match_id, meta=_default_meta(client),
+    )
+
+
 @tool
 def resolve_basketball_league(name: str) -> str:
     """模糊解析篮球赛事名称，返回候选 league_id 列表。
@@ -125,16 +136,20 @@ def get_venue(venue_id: int | str, sport: Literal["football", "basketball"] = "f
 def get_match_half_stats(
     match_id: int | str,
     scope: Literal["ft", "p1", "p2", "o1", "o2"] = "ft",
+    sport: str = "football",
 ) -> str:
     """查询比赛半全场统计（按 scope 区分全场/上下半场/加时）。
 
     scope 含义：ft=全场、p1=上半场、p2=下半场、o1=加时上半场、o2=加时下半场。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
         scope: 统计范围，默认 ft（全场）。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_half_stats", match_id, "basketball_match_half_team_stats")
     result = client.get_match_half_stats(match_id, scope)
     if result is None:
         return make_envelope(
@@ -149,13 +164,16 @@ def get_match_half_stats(
 
 
 @tool
-def get_goals_lost_rate(match_id: int | str) -> str:
+def get_goals_lost_rate(match_id: int | str, sport: str = "football") -> str:
     """查询比赛进失球概率（主队/客队进失球分布）。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "goals_lost_rate", match_id, "basketball_match_goals_lost_rate")
     result = client.get_goals_lost_rate(match_id)
     if not result:
         return make_envelope(

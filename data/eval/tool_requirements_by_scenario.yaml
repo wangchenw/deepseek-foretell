@@ -1,0 +1,383 @@
+# Foretell 工具需求清单(从 120 场景探路路径反推)
+#
+# 用途:作为阶段 2 设计新工具粒度的输入。每类场景含:
+#   data_dimensions: 该类场景需要的数据维度
+#   current_toolchain: 当前调用链路(调了哪些工具、顺序)
+#   aggregation_points: 哪些数据常被一起取(适合合成一个粗粒度工具)
+#   pain_points: 当前工具痛点(对应 eval ⚠️/❌)
+#   required_capabilities: 重写后该类场景需要工具提供的能力
+#
+# 来源:data/eval/batch_*_summary.md(7 份)+ path_attempts_v2/(39 份详细版)
+# 生成时间:2026-06-30
+
+scenarios:
+
+  # ============================================================
+  # A 轻查询(18 场景,9✅/9⚠️/0❌)
+  # ============================================================
+  A:
+    name: 轻查询
+    type_count: 18
+    type_ids: [A01-A18]
+    data_dimensions:
+      - 按日期赛程(今日/某日/时间窗)
+      - 按球队赛程(未来/近期/全部)
+      - 按彩票赛程(竞彩足球/篮球/北单/十四场)
+      - 积分榜(联赛/赛季)
+      - 射手榜
+      - 球队赛季统计
+      - 比赛阵容/首发
+      - 历史交锋
+      - 实时比分/在玩列表
+      - 实体消歧(球队/联赛/比赛)
+    current_toolchain:
+      - resolve_team / resolve_league / resolve_match
+      - get_schedule_by_date / get_team_schedule / get_lottery_schedule
+      - get_standings
+      - get_match_lineup
+      - get_h2h
+    aggregation_points:
+      - 赛程 + 赔率 snapshot(常一起取用于"今天有什么比赛+盘口")
+      - 积分榜 + 剩余轮次 + 资格规则(常一起算用于排名锁定)
+      - 球队实体 + 近期战绩(常一起取用于球队近况)
+    pain_points:
+      - get_standings 缺 season_id 智能选择(休赛期取到空榜,A10/A18/H01/H04/H06)
+      - get_recent_form 无 before_date(赛前误用赛后数据,A03/A04)
+      - resolve_team/resolve_match 别名不全(A02/A13)
+      - 跨运动 ID 碰撞(A16)
+      - 无在玩列表/实时比分专用工具(A09)
+      - get_team_schedule direction=upcoming 语义需强制(已修但有运算符优先级 bug,X05 修复)
+    required_capabilities:
+      - 按日期/球队/彩票三轴查赛程,sport 参数贯穿
+      - 积分榜按 competition.type 分支 + season_id 智能选择
+      - 实体消歧支持 national/gender/age 过滤 + 别名库
+      - 在玩列表(status_id IN 进行中)独立工具或 schedule 加 status_in 参数
+      - 近期战绩支持 before_date 参数
+
+  # ============================================================
+  # B 深度分析(16 场景,10✅/6⚠️/0❌)
+  # ============================================================
+  B:
+    name: 深度分析
+    type_count: 16
+    type_ids: [B01-B16]
+    data_dimensions:
+      - 16 维深度:阵容/伤停/情报/球队统计/球员统计/赔率走势/凯利/必发/近况/交锋/半全场/进球数/角球/FIFA排名/教练/赛季统计
+      - 系列赛 G7(NBA 季后赛)
+      - 篮球深度(效率/Pace/三分%)
+    current_toolchain:
+      - resolve_match / resolve_team
+      - get_match_lineup / get_injury_report / get_intel_tags
+      - get_match_team_stats / get_match_player_stats / get_match_half_stats
+      - get_match_tlive / get_match_incidents
+      - get_odds_snapshot / get_odds_trend / get_kelly / get_betfair
+      - get_recent_form / get_h2h
+      - get_over_under_odds / get_half_odds
+      - get_goals_lost_rate
+      - get_series_matchup
+    aggregation_points:
+      - 深度模板 7 段式 12 类工具常一起取(B01/B05/B07/B11-B16)
+      - 赛前分析=基本面(近况+交锋+伤停+阵容)+ 盘口(snapshot+trend+kelly)+ 统计(半全场+进球数)
+      - 系列赛=对阵+赛制+当前场次
+    pain_points:
+      - 跨运动 ID 碰撞:篮球 team_id 传足球 deep 工具静默返回足球数据(B08/C07/G08/D07 P0)
+      - 篮球 deep 工具完全缺失(无效率/Pace/三分%/盘口/injury,B08/G08)
+      - get_series_matchup match_ids 字符串切片错误漏 G1/G7(B09)
+      - get_standings 对淘汰赛不降级 / 杯赛多组压平(B10)
+      - resolve_match 无 date 时 LIMIT 10 被女足/青年占满(B04)
+    required_capabilities:
+      - 所有 deep/stats 工具加 sport 参数,fail-closed 杜绝跨运动碰撞
+      - 篮球 deep 工具平行集(效率/ Pace/三分%/盘口/injury)
+      - get_series_matchup 完整解析 match_ids 列表
+      - get_standings 按 competition.type 分支(联赛单表 vs 杯赛多组)
+      - resolve_match 无 date 时优先国家队成年组 + 扩大 LIMIT
+
+  # ============================================================
+  # C 赛后复盘(8 场景,6✅/2⚠️/0❌)
+  # ============================================================
+  C:
+    name: 赛后复盘
+    type_count: 8
+    type_ids: [C01-C08]
+    data_dimensions:
+      - 比赛结果(全场/半场比分)
+      - 比赛事件(进球/红黄牌/换人/角球)
+      - 球队/球员技术统计
+      - 文字直播
+      - 赔率回顾(初盘/即时/收盘)
+      - 竞彩编号复盘
+    current_toolchain:
+      - resolve_match / resolve_lottery_match
+      - get_match_result
+      - get_match_team_stats / get_match_player_stats
+      - get_match_incidents / get_match_tlive
+      - get_odds_snapshot / get_odds_trend
+    aggregation_points:
+      - 赛果 + 事件 + 统计常一起取(复盘六链)
+      - 赛果 + 赔率回顾(开盘到收盘)
+    pain_points:
+      - 跨运动碰撞(C07 篮球 team_id 传足球工具)
+      - atomic 文案与 type_name 错配(C01/C05/C08)
+    required_capabilities:
+      - get_match_result 支持 sport 参数
+      - 复盘聚合工具(一场比赛=赛果+事件+统计+赔率回顾一站式)
+
+  # ============================================================
+  # D 购彩推荐(10 场景,5✅/5⚠️/0❌)
+  # ============================================================
+  D:
+    name: 购彩推荐
+    type_count: 10
+    type_ids: [D01-D10]
+    data_dimensions:
+      - 彩票赛程(竞彩足球/篮球/北单/十四场)
+      - 各玩法赔率(spf/rq/bf/jq/bqc/sf/rf/dxf/sfc)
+      - 让球/大小球/比分/半全场推荐
+      - 凯利/必发/情报
+      - 心水推荐(data_macao_recommend)
+      - 风险提示(disclaimer)
+    current_toolchain:
+      - get_lottery_schedule
+      - resolve_lottery_match
+      - get_odds_snapshot / get_over_under_odds / get_half_odds
+      - get_kelly / get_betfair
+      - get_intel_tags / get_injury_report
+      - get_recommendations
+    aggregation_points:
+      - 彩票赛程 + 各玩法赔率常一起取(单场方案=赔率+情报+交锋)
+      - 稳胆推荐 = 近况 + 赔率 + 凯利
+    pain_points:
+      - 北单 bf/spf JSON 解析损坏(D05/D08,按 CSV 切 JSON)
+      - resolve_lottery_match 编码路由(裸 code 失败,须带星期前缀+date)
+      - 心水推荐 DATA_MISSING(D04/D06/D09/E12)
+      - disclaimer 由 skill 层强制(D10,prompt_layer_covered)
+      - 用户前提与 DB 不符(D01/D10,明日仅 3 场非 4 场)
+    required_capabilities:
+      - lottery 赔率解析按彩种分支(101 CSV / 301 JSON)
+      - resolve_lottery_match 编码路由修复(支持星期前缀+date)
+      - get_recommendations 时序覆盖(或诚实说明 DATA_MISSING)
+      - disclaimer 保持 skill 层
+
+  # ============================================================
+  # E 批量串关(14 场景,11✅/3⚠️/0❌)
+  # ============================================================
+  E:
+    name: 批量串关
+    type_count: 14
+    type_ids: [E01-E14]
+    data_dimensions:
+      - 批次列表(竞彩/北单/十四场/任九)
+      - 批量赔率(全玩法)
+      - 批量深度(每场基本面)
+      - 十四场/任九完整 14 场
+      - 世界杯批量
+    current_toolchain:
+      - get_lottery_schedule(play_type=401/301/101/201)
+      - resolve_lottery_match / resolve_match
+      - 批量 get_odds_snapshot + 深度工具
+    aggregation_points:
+      - 14 场批量 = 赛程 + 赔率 + 基本面全维度(E05/E06/E11)
+      - 批量世界杯 = get_schedule_by_date(tier=top) + 批量深度
+    pain_points:
+      - 合成 ID 假命中(E05,lottery_zc_match.match_id 碰撞历史 football_match.id)
+      - 任九无专属 PlayType(E06,401 sfc 与 rj 共享)
+      - 北单 JSON 解析(E07)
+      - 跨运动碰撞(D07)
+      - resolve_team 国家队 vs 青训碰撞(E10)
+    required_capabilities:
+      - get_lottery_schedule 返回真实 football_match_id(JOIN lottery_match)
+      - 新增 PlayType.RJ(E06)
+      - 北单 JSON 解析分支(E07)
+      - 批量深度工具(14 场并行,非逐场 137 次调用)
+
+  # ============================================================
+  # F 赔率查询(10 场景,9✅/1⚠️/0❌)
+  # ============================================================
+  F:
+    name: 赔率查询
+    type_count: 10
+    type_ids: [F01-F10]
+    data_dimensions:
+      - 欧赔(初盘/即时/最新)
+      - 亚盘(让球数/主队线/客队线)
+      - 大小球
+      - 半场赔率(欧/亚/大小)
+      - 角球赔率
+      - 百欧
+      - 官方让球胜平负
+      - 凯利指数
+      - 必发指数
+      - 同赔历史
+      - 赔率走势时序(50 点)
+    current_toolchain:
+      - get_odds_snapshot / get_odds_trend
+      - get_over_under_odds / get_half_odds / get_corner_odds
+      - get_hundred_europe_odds / get_official_handicap_odds
+      - get_kelly / get_betfair
+      - get_same_odds_history
+    aggregation_points:
+      - 盘口快照(欧赔+亚盘+大小球)常一起取(F01/F06/F10)
+      - 走势时序(F02/F05/F09)
+      - 凯利+必发(F04)
+    pain_points:
+      - get_odds_trend 硬编码 football 表,篮球 DATA_MISSING(F03)
+      - get_odds_trend 只覆盖欧赔时序,缺亚盘 handicap 时序(F09/G16)
+      - get_odds_snapshot LIMIT 5 截断(F01,DB 实有 19 欧/17 亚)
+      - get_standings group 过滤失效(F07)
+    required_capabilities:
+      - get_odds_trend 支持 sport 参数(篮球路由 basketball_odds_europe_change_*)
+      - get_odds_trend 增加亚盘 handicap 时序维度
+      - get_odds_snapshot 支持全量返回或加大 LIMIT
+      - 盘口快照聚合工具(欧赔+亚盘+大小球+半场一站式)
+
+  # ============================================================
+  # G 多轮追问(20 场景,16✅/4⚠️/0❌)
+  # ============================================================
+  G:
+    name: 多轮追问
+    type_count: 20
+    type_ids: [G01-G20]
+    data_dimensions:
+      - 继承前轮上下文(比分预测/率先进球/比分概率/上半场进球/换场/球员情况)
+      - 增量数据(各比分概率/进球数/半全场/盘口变化)
+      - 跨窗口 context(checkpointer)
+    current_toolchain:
+      - turn0 全链(resolve + deep + odds)
+      - turn1 maintain_context + delegate_subagent + 增量工具
+    aggregation_points:
+      - 多轮上下文 + 增量数据(G 类核心是编排层,工具层复用 A-F 能力)
+    pain_points:
+      - resolve_lottery_match 编码路由(G01/G09/G14,跨批次最高频)
+      - resolve_team 国家队消歧(G04/G09/G18,首候选常为 U 系列)
+      - 北单 JSON(G07)
+      - 跨窗口 context_gap(G07,需 checkpointer 跨 session)
+      - 篮球深度(G08,同 B08)
+    required_capabilities:
+      - 工具层复用 A-F 能力,无新增工具需求
+      - checkpointer 跨 session 共享(G07 context_gap,属编排层非工具层)
+      - resolve_lottery_match 编码路由修复(影响 G01/G09/G14)
+
+  # ============================================================
+  # H 语义精度(8 场景,7✅/1⚠️/0❌)
+  # ============================================================
+  H:
+    name: 语义精度
+    type_count: 8
+    type_ids: [H01-H08]
+    data_dimensions:
+      - 争冠悬念(积分榜+剩余轮次+理论最大分)
+      - 降级确定(积分榜+安全线)
+      - 季后赛锁定(篮球积分榜+scope 过滤)
+      - 冠军已锁定(积分榜+剩余轮次+领先优势)
+      - 保级形势(积分榜+赛程难度)
+      - 欧战席位(积分榜+promotion_id+football_promotions)
+      - 世界杯进程(football_stage + match 按 stage 分组)
+      - 数学出线(小组积分+剩余场次+出线条件)
+    current_toolchain:
+      - resolve_league / get_seasons
+      - get_standings / get_basketball_standings
+      - get_schedule_by_date(tier=top)
+    aggregation_points:
+      - 积分榜 + 赛程剩余 + 资格规则常一起算(H01/H04/H06 争冠/欧战/锁定)
+      - 世界杯阶段 = football_stage + match 按 stage×status 分组(H07)
+    pain_points:
+      - get_standings season_id 休赛期陷阱(H01/H04/H06)
+      - 欧战资格规则已编码在 promotion_id 但工具未暴露(H06)
+      - get_basketball_standings 缺 scope 过滤(H03)
+      - 无篮球赛程工具(get_team_schedule 硬编码足球,H03)
+      - football_stage 无"当前轮"标识(H07)
+      - atomic 文案与 type_name 错配(H02/H04/H05/H06/H07)
+    required_capabilities:
+      - get_standings 暴露 promotion_id + JOIN football_promotions 输出赛区名
+      - get_standings 智能选 season_id(有数据的最大 season,非 MAX(season_id))
+      - get_basketball_standings 加 scope 过滤(常规赛=5)
+      - 新增篮球赛程工具或 get_team_schedule 支持 sport=basketball
+      - 新增"赛事阶段"工具(football_stage + match 按 stage 聚合)
+
+  # ============================================================
+  # X 边界护栏(16 场景,12✅/4⚠️/0❌,返工后 X07 升 ✅)
+  # ============================================================
+  X:
+    name: 边界护栏
+    type_count: 16
+    type_ids: [X01-X16]
+    data_dimensions:
+      - 拒答(非体育/赌博诈骗/辱骂/盈利承诺)
+      - 假阴性防护(交叉验证)
+      - 定位失败(DB-grounded 可证拒答)
+      - 数据诚实(DATA_MISSING 信号)
+      - 网络兜底(internet_search)
+      - 内部 ID 脱敏
+    current_toolchain:
+      - resolve_* 验证实体可用
+      - get_schedule_by_date / get_lottery_schedule 交叉验证
+      - internet_search 兜底
+    aggregation_points:
+      - 实体可用证明 + 护栏驱动(X 类核心是 prompt 层,工具层只验证数据可得性)
+    pain_points:
+      - output-discipline skill 未显式禁数值 ID(X07 已返工 ✅,属 prompt 层)
+      - 跨语言别名消歧(X10,塞罗竞技→塞路)
+      - 年份误锚 + 主客颠倒复合(X11,依赖 X12 swap)
+    required_capabilities:
+      - 工具层无新增需求,X 类核心是 prompt/skill 层
+      - resolve_team 别名库扩充含跨语言映射(X10)
+      - 维持 internet_search 兜底机制(X16)
+
+# ============================================================
+# 跨场景共性问题(影响多类,重写时必须统一解决)
+# ============================================================
+
+cross_scenario_issues:
+  - issue: 跨运动 ID 碰撞
+    affected_scenarios: [A16, B02, B08, B09, C07, D07, F03, G08]
+    priority: P0
+    root_cause: football_team.id 与 basketball_team.id 共享整数空间,deep 工具无 sport 参数
+    rewrite_requirement: 所有 deep/stats/odds 工具加 sport 参数,fail-closed 返回 DATA_MISSING
+
+  - issue: 合成 ID 假命中
+    affected_scenarios: [B01, C04, E05, E06, G01, G09, G14]
+    priority: P1
+    root_cause: lottery_zc_match.match_id 是合成 ID,工具透传当作 football_match.id
+    rewrite_requirement: get_lottery_schedule JOIN lottery_match 取真实 match_id,显式区分 football_match_id / lottery_official_id
+
+  - issue: 北单 JSON 解析损坏
+    affected_scenarios: [D05, D08, E06, E07, G07]
+    priority: P1
+    root_cause: _parse_lottery_play 对北单 JSON 按 CSV 切
+    rewrite_requirement: 解析器按彩种分支,301/404 走 json.loads,101/201 走 CSV split
+
+  - issue: get_standings 赛制/赛季感知缺失
+    affected_scenarios: [A10, A18, B10, F07, H01, H04, H06]
+    priority: P1
+    root_cause: 不区分联赛/杯赛,不智能选 season_id,不暴露 promotion_id
+    rewrite_requirement: 按 competition.type 分支输出 + season_id 智能选择 + 暴露 promotion_id
+
+  - issue: resolve_lottery_match 编码路由
+    affected_scenarios: [G01, G09, G14, E05, E06]
+    priority: P1
+    root_cause: 裸 code ENTITY_NOT_FOUND,须带星期前缀+date
+    rewrite_requirement: 支持口语化 code(001) + 自动补星期前缀 + date 锁定
+
+  - issue: resolve_team 国家队/别名消歧
+    affected_scenarios: [A02, A13, B04, E10, G04, G09, G18, X10]
+    priority: P1
+    root_cause: 首候选常为 U 系列/女足/特选队,别名库不全
+    rewrite_requirement: 支持 national/gender/age 过滤 + 扩充别名库含跨语言
+
+  - issue: 篮球深度工具完全缺失
+    affected_scenarios: [B08, B09, G08, H03]
+    priority: P2
+    root_cause: 仅 3-4 个篮球工具,无效率/Pace/三分%/盘口/injury
+    rewrite_requirement: 篮球 deep 工具平行集(与足球对称)
+
+  - issue: get_odds_trend 维度不足
+    affected_scenarios: [F03, F09, G16]
+    priority: P2
+    root_cause: 硬编码足球表,只覆盖欧赔时序,缺亚盘 handicap 时序
+    rewrite_requirement: 支持 sport=basketball + 增加亚盘时序维度
+
+  - issue: 任九无专属 PlayType
+    affected_scenarios: [E06]
+    priority: P2
+    root_cause: 401 硬编码 sfc,与 rj 共享 14 场
+    rewrite_requirement: 新增 PlayType.RJ 映射 lottery_zc_match.type='rj'

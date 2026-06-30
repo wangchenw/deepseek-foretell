@@ -7,8 +7,8 @@ sport: any
 turns:
 - turn_index: 0
   text: 我给你发一个我的6.0系统模板  你帮我看看优化可以更好预测胜平负 进球数 比分等
-  note: 文案为方法论咨询型，未点名具体比赛/球队/赛事；与 atomic 标注的 resolve_entity/match
-    存在错位。稳胆推荐本质需"候选比赛 + 胜平负/进球数/比分预测数据"。
+  note: 文案为方法论咨询型，未点名具体比赛/球队/赛事；与 atomic 标注的 resolve_entity/match 存在错位。稳胆推荐本质需"候选比赛
+    + 胜平负/进球数/比分预测数据"。
 attempts:
 - round: 1
   atomic_id: D09-T1-a1
@@ -20,9 +20,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: 今日(2026-06-29)顶级足球赛仅 1 场——南非(10310) vs 加拿大(11138)，世界杯
-    league_id=1，match_id=4459717，status=finished，03:00 北京时间；meta.total_count=230
-    为全量足球赛，tier=top 占位 1 场。用作稳胆候选代表比赛。
+  note: 今日(2026-06-29)顶级足球赛仅 1 场——南非(10310) vs 加拿大(11138)，世界杯 league_id=1，match_id=4459717，status=finished，03:00
+    北京时间；meta.total_count=230 为全量足球赛，tier=top 占位 1 场。用作稳胆候选代表比赛。
 - round: 1
   atomic_id: D09-T1-a1
   tool: get_lottery_schedule
@@ -32,9 +31,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: 竞彩足球周日073(南非 vs 加拿大)，lottery_id=2040327，match_id=null；含完整 odds
-    spf(5.8/3.45/1.5)+rq(让1)+bf(31比分项)+jq(0~7+)+bqc(9半全场)；sell_status 全 suspended
-    (已完赛停售)。稳胆预测的胜平负/进球数/比分赔率齐备。
+  note: 竞彩足球周日073(南非 vs 加拿大)，lottery_id=2040327，match_id=null；含完整 odds spf(5.8/3.45/1.5)+rq(让1)+bf(31比分项)+jq(0~7+)+bqc(9半全场)；sell_status
+    全 suspended (已完赛停售)。稳胆预测的胜平负/进球数/比分赔率齐备。
 - round: 1
   atomic_id: D09-T1-a1
   tool: resolve_match
@@ -45,7 +43,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: 世界杯 match_id=4459717，neutral/round_group=null，与 schedule 一致；实体消歧成功。双方均为足球国家队 ID，无跨运动碰撞。
+  note: 世界杯 match_id=4459717，neutral/round_group=null，与 schedule 一致；实体消歧成功。双方均为足球国家队
+    ID，无跨运动碰撞。
 - round: 1
   atomic_id: D09-T1-a2
   tool: get_odds_snapshot
@@ -54,9 +53,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 5 家欧赔(韦德/立博/18Bet/威廉希尔/+匿名)+5 家亚盘(皇冠/Interwetten/利记等)；含
-    initial/current/latest 三档，in_play=true(已完赛走地)。欧赔客胜 latest 1.02~2.28
-    反映加拿大被看好。
+  note: 5 家欧赔(韦德/立博/18Bet/威廉希尔/+匿名)+5 家亚盘(皇冠/Interwetten/利记等)；含 initial/current/latest
+    三档，in_play=true(已完赛走地)。欧赔客胜 latest 1.02~2.28 反映加拿大被看好。
 - round: 1
   atomic_id: D09-T1-a2
   tool: get_intel_tags
@@ -94,8 +92,8 @@ attempts:
   code: OK
   count: 30
   stub: false
-  note: 世界杯积分榜 30 行；南非 position=2 points=4 (1W1D1L gf2 ga3)，加拿大 position=2
-    points=4 (1W1D1L gf8 ga3)。主客分列字段为 0(世界杯中立场地无主客拆分)。
+  note: 世界杯积分榜 30 行；南非 position=2 points=4 (1W1D1L gf2 ga3)，加拿大 position=2 points=4
+    (1W1D1L gf8 ga3)。主客分列字段为 0(世界杯中立场地无主客拆分)。
 - round: 1
   atomic_id: D09-T1-a2
   tool: get_goals_lost_rate
@@ -113,8 +111,9 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: 心水推荐(最贴合"稳胆")对本场无数据；表 data_macao_recommend 共 8583 行，工具非
-    stub。抽样 match_id=5073890 返回 OK(信心指数"和局★★★ 4胜3和3负"+推荐语)，证明工具在有数据时正常工作。本场属 data_gap，非阻断——可用 odds+intel+form 自行推导稳胆。
+  note: 心水推荐(最贴合"稳胆")对本场无数据；表 data_macao_recommend 共 8583 行，工具非 stub。抽样 match_id=5073890
+    返回 OK(信心指数"和局★★★ 4胜3和3负"+推荐语)，证明工具在有数据时正常工作。本场属 data_gap，非阻断——可用 odds+intel+form
+    自行推导稳胆。
 - round: 2
   atomic_id: D09-T1-a2
   tool: get_recommendations
@@ -129,25 +128,25 @@ satisfied:
 - D09-T1-a2
 blocking_gap:
   type: context_gap
-  description: user 文案为方法论咨询("优化6.0系统模板预测胜平负/进球数/比分")，未点名任何具体比赛/球队/赛事，导致
-    atomic 标注的 T1-a1(resolve_entity/match)无实体输入可消歧。这是 scenario_compliance
-    层面的文案-分解错位，而非工具链能力缺失。底层"稳胆推荐"数据路径经代表比赛(南非vs加拿大)验证完整可用。次级
-    gap：get_recommendations(心水推荐)对当前比赛返回 DATA_MISSING(data_gap)，但工具非
-    stub 且不阻断——LLM 可基于 odds_snapshot+intel_tags+recent_form+goals_lost_rate 自行合成稳胆结论。
+  description: user 文案为方法论咨询("优化6.0系统模板预测胜平负/进球数/比分")，未点名任何具体比赛/球队/赛事，导致 atomic 标注的
+    T1-a1(resolve_entity/match)无实体输入可消歧。这是 scenario_compliance 层面的文案-分解错位，而非工具链能力缺失。底层"稳胆推荐"数据路径经代表比赛(南非vs加拿大)验证完整可用。次级
+    gap：get_recommendations(心水推荐)对当前比赛返回 DATA_MISSING(data_gap)，但工具非 stub 且不阻断——LLM
+    可基于 odds_snapshot+intel_tags+recent_form+goals_lost_rate 自行合成稳胆结论。
   failed_atomic: D09-T1-a1
-  workaround: LLM playbook 需增加澄清分支——引导用户提供具体比赛(或日期+球队)后再走
-    resolve_match/get_schedule_by_date → odds+intel+form 路径；若无心水推荐数据则由模型基于赔率与情报推导。
+  workaround: LLM playbook 需增加澄清分支——引导用户提供具体比赛(或日期+球队)后再走 resolve_match/get_schedule_by_date
+    → odds+intel+form 路径；若无心水推荐数据则由模型基于赔率与情报推导。
 route_complete: true
 data_quality_notes:
-- 今日顶级足球赛仅 1 场且已完赛(status=finished)，竞彩赔率全 suspended；真实稳胆场景应取未开赛(status_id=1)比赛，路径同上仅 date 选择不同。
+- 今日顶级足球赛仅 1 场且已完赛(status=finished)，竞彩赔率全 suspended；真实稳胆场景应取未开赛(status_id=1)比赛，路径同上仅
+  date 选择不同。
 - get_standings 世界杯主客分列字段全 0(世界杯中立场地无主客拆分)，非数据缺失。
 - get_recommendations 覆盖范围有限(8583 行集中在部分赛事)，世界杯淘汰赛无心水数据，需模型自推导。
 cross_sport_check:
   sport: any
   collision: false
-  note: 今日 tier=top 仅返回足球赛；南非(10310)/加拿大(11138)均为 football_team 国家队
-    ID，与 football 工具链一致。未触发 cross_sport_data_collision。若候选含篮球需改用
-    resolve_basketball_team + basketball 工具，避免 ID 碰撞。
+  note: 今日 tier=top 仅返回足球赛；南非(10310)/加拿大(11138)均为 football_team 国家队 ID，与 football
+    工具链一致。未触发 cross_sport_data_collision。若候选含篮球需改用 resolve_basketball_team + basketball
+    工具，避免 ID 碰撞。
 verdict_lean: conditional_pass
 phase2_verification:
   tools_verified:

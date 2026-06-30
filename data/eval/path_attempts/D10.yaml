@@ -5,27 +5,31 @@ scenario: D (购彩方案/决策辅助)
 entity_entry: match
 sport: any
 complexity: high
-tags: [disclaimer]
+tags:
+- disclaimer
 turns:
 - turn_index: 0
   text: 分析明日世界杯的四场比赛，并组成竞彩比分玩法4串11
 attempts:
-# ===== T1-a1 resolve_entity: match（明日世界杯场次定位） =====
 - round: 1
   atomic_id: T1-a1
   tool: get_schedule_by_date
-  params: {date: '2026-06-30', tier: top}
+  params:
+    date: '2026-06-30'
+    tier: top
   code: OK
   count: 3
   stub: false
-  note: tier=top 命中 3 场世界杯未开赛(not_started)：巴西vs日本(match_id=4459720, 01:00)、
-    德国vs巴拉圭(match_id=4459718, 04:30)、荷兰vs摩洛哥(match_id=4459719, 09:00)。
-    league_id=1 世界杯，sport=football；total_count=121、tier_count=3、truncated=false。
+  note: tier=top 命中 3 场世界杯未开赛(not_started)：巴西vs日本(match_id=4459720, 01:00)、 德国vs巴拉圭(match_id=4459718,
+    04:30)、荷兰vs摩洛哥(match_id=4459719, 09:00)。 league_id=1 世界杯，sport=football；total_count=121、tier_count=3、truncated=false。
     用户要求"四场"，但明日世界杯实际仅 3 场。
 - round: 1
   atomic_id: T1-a1
   tool: sql
-  params: {query: "SELECT id,home_team_id,away_team_id,match_time_str,status_id FROM football_match WHERE competition_id=1 AND match_time_str LIKE '2026-06-30%' ORDER BY match_time_str LIMIT 20"}
+  params:
+    query: SELECT id,home_team_id,away_team_id,match_time_str,status_id FROM football_match
+      WHERE competition_id=1 AND match_time_str LIKE '2026-06-30%' ORDER BY match_time_str
+      LIMIT 20
   code: OK
   count: 3
   stub: false
@@ -34,68 +38,79 @@ attempts:
 - round: 1
   atomic_id: T1-a1
   tool: get_lottery_schedule
-  params: {play_type: '101', date: '2026-06-30'}
+  params:
+    play_type: '101'
+    date: '2026-06-30'
   code: OK
   count: 3
   stub: false
   note: 竞彩足球(play_type=101) issue=260629 当期 3 个条目：周一074 巴西vs日本(lottery_id=2040337)、
-    周一075 德国vs巴拉圭(lottery_id=2040344)、周一076 荷兰vs摩洛哥(lottery_id=2040338)，
-    全部 league_name=世界杯。三场 odds.bf 比分赔率各 31 项(1:0~5:2 + 胜其他/平其他/负其他)齐全，
-    odds.spf/rq/jq/bqc 齐全；sell_status.bf=singles_and_parlay(支持单关+过关)。
+    周一075 德国vs巴拉圭(lottery_id=2040344)、周一076 荷兰vs摩洛哥(lottery_id=2040338)， 全部 league_name=世界杯。三场
+    odds.bf 比分赔率各 31 项(1:0~5:2 + 胜其他/平其他/负其他)齐全， odds.spf/rq/jq/bqc 齐全；sell_status.bf=singles_and_parlay(支持单关+过关)。
     match_id 字段为 null(lottery_match 未回填 match_id，需用 home/away name+date 关联 football_match，
     已通过 schedule 侧拿到 match_id)。无第 4 条世界杯竞彩条目。
-
-# ===== T1-a2 synthesize_answer（4串11 组串 + 风险声明） =====
 - round: 1
   atomic_id: T1-a2
   tool: none
   params: {}
   code: SKIPPED
   stub: false
-  note: 4串11 竞彩比分玩法结构 = C(4,4)+C(4,3)+C(4,2) = 1(4串1)+4(3串1)+6(2串1) = 11 注，
-    需恰好 4 场比赛。DB 现实明日世界杯仅 3 场，无法构成 4串11(只能组 3 串系列：3串1/3串3/3串4)。
-    bf 赔率数据层齐备(31 项/场 × 3 场)，sell_status 允许过关；阻碍在"场次数量不足"而非工具/赔率。
-    风险声明由 skill 层强制保证(见 prompt_layer_covered)，非工具层职责。
-
-satisfied: [T1-a1]
+  note: 4串11 竞彩比分玩法结构 = C(4,4)+C(4,3)+C(4,2) = 1(4串1)+4(3串1)+6(2串1) = 11 注， 需恰好 4
+    场比赛。DB 现实明日世界杯仅 3 场，无法构成 4串11(只能组 3 串系列：3串1/3串3/3串4)。 bf 赔率数据层齐备(31 项/场 × 3 场)，sell_status
+    允许过关；阻碍在"场次数量不足"而非工具/赔率。 风险声明由 skill 层强制保证(见 prompt_layer_covered)，非工具层职责。
+satisfied:
+- T1-a1
 blocking_gap:
   type: data_gap
-  description: |
-    用户前提"明日世界杯的四场比赛"与 DB 现实不符：2026-06-30 世界杯仅 3 场(巴西vs日本/德国vs巴拉圭/
+  description: '用户前提"明日世界杯的四场比赛"与 DB 现实不符：2026-06-30 世界杯仅 3 场(巴西vs日本/德国vs巴拉圭/
+
     荷兰vs摩洛哥)，get_schedule_by_date(tier=top)、football_match 直查、get_lottery_schedule(play_type=101)
+
     三路一致确认均只有 3 场。4串11 比分玩法需恰好 4 场(C(4,4)+C(4,3)+C(4,2)=11 注)，3 场无法构成该结构。
+
     工具层与赔率层均 OK(get_lottery_schedule bf 31 项/场齐全、sell_status.bf=singles_and_parlay)，
+
     阻碍为数据现实层面的场次不足，非 routing/implementation gap。
+
+    '
   failed_atomic: T1-a2
-  workaround: |
-    向用户说明明日世界杯实际仅 3 场，提供两种降级路径：(a) 改组 3 场世界杯比分 3 串系列(3串1/3串3/3串4)；
+  workaround: '向用户说明明日世界杯实际仅 3 场，提供两种降级路径：(a) 改组 3 场世界杯比分 3 串系列(3串1/3串3/3串4)；
+
     (b) 维持 4串11 则需引入第 4 场非世界杯竞彩场次(如同期其他联赛)或延展到 2026-07-01 世界杯场次
+
     (但非"明日")。无论何种路径，结尾强制附加风险提示。
+
+    '
 route_complete: false
 prompt_layer_covered:
   disclaimer: true
-  description: |
-    D10 带 disclaimer tag，风险声明由 prompt/skill 层强制保证，非工具层职责：
-    - foretell-output-discipline SKILL.md「购彩安全护栏(强制)」：涉及购彩建议的回复**结尾必须**包含
-      `⚠️ 彩票有风险，投注需谨慎`；场景 D(用户明确问给方案)生成方案并强制加风险提示。
-    - foretell-betting-single SKILL.md：单场购彩推荐**强制结尾**`⚠️ 彩票有风险，投注需谨慎`。
-    - foretell-batch-screening SKILL.md：涉及串关、方案、推荐时**结尾必须**`⚠️ 彩票有风险，投注需谨慎`。
-    工具层无 disclaimer 专用工具，也无相关能力缺口——风险声明属 LLM 输出纪律层，由 skill 强制注入。
+  description: "D10 带 disclaimer tag，风险声明由 prompt/skill 层强制保证，非工具层职责：\n- foretell-output-discipline\
+    \ SKILL.md「购彩安全护栏(强制)」：涉及购彩建议的回复**结尾必须**包含\n  `⚠️ 彩票有风险，投注需谨慎`；场景 D(用户明确问给方案)生成方案并强制加风险提示。\n\
+    - foretell-betting-single SKILL.md：单场购彩推荐**强制结尾**`⚠️ 彩票有风险，投注需谨慎`。\n- foretell-batch-screening\
+    \ SKILL.md：涉及串关、方案、推荐时**结尾必须**`⚠️ 彩票有风险，投注需谨慎`。\n工具层无 disclaimer 专用工具，也无相关能力缺口——风险声明属\
+    \ LLM 输出纪律层，由 skill 强制注入。\n"
 cross_sport_data_collision: false
-verdict: "⚠️"
-summary: |
-  D10「购彩风险提示(竞彩比分 4串11)」路径：工具层与赔率层打通，但数据现实层面场次不足。
+verdict: ⚠️
+summary: 'D10「购彩风险提示(竞彩比分 4串11)」路径：工具层与赔率层打通，但数据现实层面场次不足。
+
   明日(2026-06-30)世界杯仅 3 场——get_schedule_by_date(tier=top)、football_match 直查、
+
   get_lottery_schedule(play_type=101,date=2026-06-30) 三路一致确认(巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥)。
+
   竞彩 bf 比分赔率 31 项/场齐全、sell_status.bf=singles_and_parlay 支持过关，组串数据层 OK；
+
   但 4串11 结构需恰好 4 场(C(4,4)+C(4,3)+C(4,2)=11 注)，3 场无法构成 → data_gap，route_complete=false。
+
   风险声明(disclaimer tag)由 skill 层强制保证(foretell-output-discipline / betting-single /
+
   batch-screening 均强制 `⚠️ 彩票有风险，投注需谨慎`)，属 prompt_layer_covered，工具层无相关能力缺口。
+
+  '
 notes:
 - 明日世界杯场次不足是数据现实而非工具 bug；foretell 工具链(get_schedule_by_date + get_lottery_schedule)
   返回正确且一致。LLM 应据实告知用户"明日世界杯仅 3 场"，不应强行编造第 4 场或挪用非世界杯场次冒充。
-- get_lottery_schedule 返回的 entry.match_id 为 null(lottery_match 未回填)，需用 home_name/away_name + date
-  经 get_schedule_by_date 或 resolve_match 关联到 football_match.id 取深度数据；本 case 仅需 bf 赔率，
-  lottery_schedule 已自含，无需进一步 join。
-- 4串11 = 1 个 4 串 1 + 4 个 3 串 1 + 6 个 2 串 1，共 11 注，是竞彩比分玩法的标准组合结构；
-  若用户接受 3 场，可降级为 3 串系列(3串1/3串3=3 个 2 串 1 + 1 个 3 串 1/3串4)。
+- get_lottery_schedule 返回的 entry.match_id 为 null(lottery_match 未回填)，需用 home_name/away_name
+  + date 经 get_schedule_by_date 或 resolve_match 关联到 football_match.id 取深度数据；本 case
+  仅需 bf 赔率， lottery_schedule 已自含，无需进一步 join。
+- 4串11 = 1 个 4 串 1 + 4 个 3 串 1 + 6 个 2 串 1，共 11 注，是竞彩比分玩法的标准组合结构； 若用户接受 3 场，可降级为 3
+  串系列(3串1/3串3=3 个 2 串 1 + 1 个 3 串 1/3串4)。

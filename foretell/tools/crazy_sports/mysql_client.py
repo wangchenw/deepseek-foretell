@@ -14,9 +14,20 @@ from foretell.tools.lottery_code import (
 )
 from foretell.tools.status_codes import PlayType
 
+# football_competition.type 列枚举(纳米字段语义,nami_field_map_full.yaml 权威)
+# 1联赛(单表积分榜)/2杯赛(多组+淘汰赛)/3友谊赛
+_COMPETITION_TYPE_MAP: dict[int, str] = {
+    1: "league",
+    2: "cup",
+    3: "friendly",
+}
+
 # 仅 status_id=8(完场)才算真正踢完、有赛果可统计；
 # 9推迟/10中断/11腰斩/12取消 属异常，不应进入战绩/赛果统计。
 _FINISHED_STATUS_IDS = {8}
+
+# 篮球完场 status_id=10(与足球不同,足球完场=8)。依据 nami_field_map_full.yaml。
+_BASKETBALL_FINISHED_STATUS_IDS = {10}
 
 # status_id → 语义化状态字符串（来源：football_match.status_id 列注释）
 # 0异常/1未开赛/2上半场/3中场/4下半场/5加时/6弃用/7点球决战/
@@ -214,9 +225,29 @@ _LOTTERY_PLAY_TABLES = {
     PlayType.JINGCAI_BASKETBALL: ("lottery_jclq_odds", None),
     PlayType.BEIDAN_WIN_LOSS: ("lottery_bd_odds", None),
     PlayType.FOURTEEN_MATCHES: ("lottery_zc_match", "sfc"),
+    PlayType.RENJI: ("lottery_zc_match", "rj"),
     PlayType.HALF_FULL: ("lottery_zc_match", "bqc"),
     PlayType.GOAL_LOTTERY: ("lottery_zc_match", "jqc"),
     PlayType.BEIDAN_HANDICAP: ("lottery_bdsf_odds", None),
+}
+
+# zc PlayType → lottery_match.lottery_type 映射,用于 JOIN 取真实 football_match.id
+# 修复 E05 合成 ID 假命中:lottery_zc_match.match_id 是合成 ID,
+# 真实 football_match.id 在 lottery_match.match_id。
+_ZC_PLAY_TYPE_TO_LOTTERY_TYPE = {
+    PlayType.FOURTEEN_MATCHES: "401",
+    PlayType.RENJI: "401",  # P12: 任九与十四场共享 lottery_type=401(rj/sfc 同期同 14 场)
+    PlayType.HALF_FULL: "402",
+    PlayType.GOAL_LOTTERY: "403",
+}
+
+# 竞彩/北单 PlayType → lottery_match.lottery_type 映射,用于 JOIN 回填 football_match_id
+# 修复 E07/B02:resolve_lottery_match/get_lottery_schedule 返回 match_id=null。
+_LOTTERY_TYPE_MAP = {
+    PlayType.JINGCAI_FOOTBALL: "101",
+    PlayType.JINGCAI_BASKETBALL: "201",
+    PlayType.BEIDAN_WIN_LOSS: "301",
+    PlayType.BEIDAN_HANDICAP: "404",
 }
 _LOTTERY_ODDS_COLUMNS = {
     PlayType.JINGCAI_FOOTBALL: ("spf", "rq", "bf", "jq", "bqc"),
@@ -399,9 +430,14 @@ def _format_zc_code(row: dict) -> str:
 def _row_lottery_entry(row: dict, play_type: PlayType) -> dict:
     if play_type in {
         PlayType.FOURTEEN_MATCHES,
+        PlayType.RENJI,  # P12: 任九走 zc 分支(lottery_zc_match.type='rj',同 sfc 结构)
         PlayType.HALF_FULL,
         PlayType.GOAL_LOTTERY,
     }:
+        # zc 类:lottery_zc_match.match_id 是合成彩票官方 ID(issue*10+match_no),
+        # 真实 football_match.id 来自 JOIN lottery_match.match_id。
+        # 依据 nami_field_map_full.yaml: lottery_zc_match.match_id collision_warning。
+        # 修复 E05 合成 ID 假命中:下游应使用 football_match_id,非 lottery_official_id。
         entry = {
             "lottery_id": row["id"],
             "play_type": play_type.value,
@@ -412,8 +448,12 @@ def _row_lottery_entry(row: dict, play_type: PlayType) -> dict:
             "away_name": row.get("away") or "",
             "league_name": row.get("comp") or "",
             "date": str(row["match_time_str"])[:10] if row.get("match_time_str") else "",
-            "match_id": row.get("match_id"),
+            "lottery_official_id": row.get("match_id"),
+            "football_match_id": row.get("real_match_id"),
         }
+        # 向后兼容:保留 match_id 字段但指向真实 ID(非合成 ID),
+        # 避免下游误用合成 ID 撞历史比赛。
+        entry["match_id"] = row.get("real_match_id")
         if row.get("result") not in (None, ""):
             entry["result"] = row.get("result")
         return entry
@@ -430,13 +470,17 @@ def _row_lottery_entry(row: dict, play_type: PlayType) -> dict:
         "away_name": row.get("short_away") or row.get("away") or "",
         "league_name": row.get("short_comp") or row.get("comp") or "",
         "date": str(row["match_time_str"])[:10] if row.get("match_time_str") else "",
-        "match_id": None,
+        # 竞彩/北单:JOIN lottery_match 回填真实 football_match_id,
+        # 修复 E07/B02 resolve_lottery_match 返回 match_id=null。
+        "football_match_id": row.get("real_match_id"),
+        "lottery_official_id": row.get("lottery_match_id"),
+        "match_id": row.get("real_match_id"),
     }
     odds: dict[str, Any] = {}
     for key in ("spf", "rq", "bf", "jq", "bqc", "sf", "rf", "dxf", "sfc", "sxp"):
         value = row.get(key)
         if value not in (None, ""):
-            odds[key] = _parse_lottery_play(key, value)
+            odds[key] = _parse_lottery_play(key, value, play_type)
     if odds:
         entry["odds"] = odds
     sell_raw = row.get("sell_status")
@@ -456,16 +500,45 @@ class MySQLCrazySportsClient:
     def freshness(self) -> str:
         return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    def resolve_team(self, name: str) -> list[dict]:
-        sql = """
+    def resolve_team(
+        self,
+        name: str,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+    ) -> list[dict]:
+        """按名称模糊查询球队候选。
+
+        Args:
+            name: 球队名称或简称。
+            national: True 只查国家队(national=1),False 只查俱乐部,None 不限。
+            exclude_youth: True 时排除 U17/U20/U23/青年/女足候选(解决 B04/E10/G04:
+                "葡萄牙"查询被 U 系列占满 LIMIT 10)。
+        """
+        # 排除青年/女足/特选队的名字模式(依据 eval B04/E10/G04/G09/G18 撞墙 + v3 验证 P3)
+        youth_patterns = (
+            "%U15%", "%U16%", "%U17%", "%U18%", "%U19%", "%U20%", "%U21%", "%U22%", "%U23%", "%U24%",
+            "%青年%", "%女足%", "%women%", "%Women%", "%少年%", "%梯队%", "%预备队%",
+            "%沙滩%", "%室内%", "%futsal%", "%Futsal%", "%beach%", "%Beach%",
+        )
+        where = "WHERE (name_zh LIKE %s OR short_name_zh LIKE %s OR name_en LIKE %s)"
+        params: list[Any] = [_like_pattern(name)] * 3
+        if national is True:
+            where += " AND national = 1"
+        elif national is False:
+            where += " AND national = 0"
+        if exclude_youth:
+            for pat in youth_patterns:
+                where += " AND name_zh NOT LIKE %s AND short_name_zh NOT LIKE %s AND name_en NOT LIKE %s"
+                params.extend([pat] * 3)
+        sql = f"""
             SELECT id, name_zh, name_en, short_name_zh, national
             FROM football_team
-            WHERE name_zh LIKE %s OR short_name_zh LIKE %s OR name_en LIKE %s
+            {where}
+            ORDER BY national DESC, id ASC
             LIMIT 10
         """
-        pattern = _like_pattern(name)
         with mysql_connection() as cur:
-            cur.execute(sql, (pattern, pattern, pattern))
+            cur.execute(sql, params)
             rows = cur.fetchall()
         return [_row_team(row) for row in rows]
 
@@ -488,7 +561,20 @@ class MySQLCrazySportsClient:
         away: str,
         date: str | None = None,
         series_game: int | None = None,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+        sport: str = "football",
     ) -> list[dict]:
+        # P11: 篮球 + series_game 分支——JOIN bracket_match_up 取 match_ids,
+        # 按系列赛场次索引定位具体 G{N},再查 basketball_match 详情。
+        if sport == "basketball" and series_game is not None:
+            return self._resolve_basketball_series_match(
+                home, away, series_game, national=national, exclude_youth=exclude_youth
+            )
+        if sport == "basketball":
+            return self._resolve_basketball_match(
+                home, away, date=date, national=national, exclude_youth=exclude_youth
+            )
         sql = """
             SELECT m.id, m.home_team_id, m.away_team_id, m.competition_id,
                    m.match_time, m.match_time_str, m.status_id,
@@ -511,6 +597,22 @@ class MySQLCrazySportsClient:
             _like_pattern(away),
             _like_pattern(away),
         ]
+        # 国家队过滤(解决 B04/E10:无 date 时 LIMIT 10 被女足/青年占满)
+        if national is True:
+            sql += " AND ht.national = 1 AND at.national = 1"
+        elif national is False:
+            sql += " AND ht.national = 0 AND at.national = 0"
+        # 排除青年/女足/预备队比赛(默认开启,避免 U 系列占满候选)
+        if exclude_youth:
+            youth_patterns = (
+                "%U15%", "%U16%", "%U17%", "%U18%", "%U19%", "%U20%", "%U21%", "%U22%", "%U23%", "%U24%",
+                "%青年%", "%女足%", "%women%", "%Women%", "%少年%", "%梯队%", "%预备队%",
+                "%沙滩%", "%室内%", "%futsal%", "%Futsal%", "%beach%", "%Beach%",
+            )
+            for pat in youth_patterns:
+                sql += " AND ht.name_zh NOT LIKE %s AND ht.short_name_zh NOT LIKE %s"
+                sql += " AND at.name_zh NOT LIKE %s AND at.short_name_zh NOT LIKE %s"
+                params.extend([pat] * 4)
         if date:
             sql += f" AND {_sql_match_on_date('m.match_time')}"
             params.extend([date, date])
@@ -520,6 +622,108 @@ class MySQLCrazySportsClient:
             cur.execute(sql, params)
             rows = cur.fetchall()
         return [_row_match(row) for row in rows]
+
+    def _resolve_basketball_match(
+        self,
+        home: str,
+        away: str,
+        date: str | None = None,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+    ) -> list[dict]:
+        """P11: 篮球比赛实体定位(查 basketball_match + basketball_team)。"""
+        sql = """
+            SELECT m.id, m.home_team_id, m.away_team_id, m.competition_id,
+                   m.match_time, m.match_time_str, m.status_id, m.kind,
+                   m.home_position, m.away_position,
+                   ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
+                   c.short_name_zh AS league_name
+            FROM basketball_match m
+            JOIN basketball_team ht ON m.home_team_id = ht.id
+            JOIN basketball_team at ON m.away_team_id = at.id
+            LEFT JOIN basketball_competition c ON m.competition_id = c.id
+            WHERE (ht.name_zh LIKE %s OR ht.short_name_zh LIKE %s)
+              AND (at.name_zh LIKE %s OR at.short_name_zh LIKE %s)
+        """
+        params: list[Any] = [
+            _like_pattern(home), _like_pattern(home),
+            _like_pattern(away), _like_pattern(away),
+        ]
+        if date:
+            sql += f" AND {_sql_match_on_date('m.match_time')}"
+            params.extend([date, date])
+        sql += " ORDER BY m.match_time DESC LIMIT 10"
+        with mysql_connection() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+        return [_row_basketball_match(row) for row in rows]
+
+    def _resolve_basketball_series_match(
+        self,
+        home: str,
+        away: str,
+        series_game: int,
+        national: bool | None = None,
+        exclude_youth: bool = True,
+    ) -> list[dict]:
+        """P11: 篮球系列赛第 N 场定位。
+
+        JOIN basketball_bracket_match_up 取 match_ids(JSON 数组),
+        按 series_game 索引(1-based)取第 N 个 match_id,再查 basketball_match 详情。
+        修复 B09:原 resolve_match 对篮球 series_game 返 NOT_APPLICABLE(false negative)。
+        """
+        sql = """
+            SELECT bu.id, bu.match_ids, bu.home_team_id, bu.away_team_id,
+                   ht.short_name_zh AS home_name, at.short_name_zh AS away_name
+            FROM basketball_bracket_match_up bu
+            JOIN basketball_team ht ON bu.home_team_id = ht.id
+            JOIN basketball_team at ON bu.away_team_id = at.id
+            WHERE (ht.name_zh LIKE %s OR ht.short_name_zh LIKE %s)
+              AND (at.name_zh LIKE %s OR at.short_name_zh LIKE %s)
+        """
+        params: list[Any] = [
+            _like_pattern(home), _like_pattern(home),
+            _like_pattern(away), _like_pattern(away),
+        ]
+        with mysql_connection() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+            if not rows:
+                return []
+            # P11: 遍历所有匹配 matchup,找第一个 match_ids 非空且 series_game 索引有效的
+            # (同队可能有多个系列赛,取含目标场次的那一个)
+            target_id: int | None = None
+            chosen_matchup: dict | None = None
+            for row in rows:
+                match_ids = _parse_match_ids(row.get("match_ids"))
+                if match_ids and 1 <= series_game <= len(match_ids):
+                    target_id = match_ids[series_game - 1]
+                    chosen_matchup = row
+                    break
+            if target_id is None:
+                return []
+            cur.execute(
+                """
+                SELECT m.id, m.home_team_id, m.away_team_id, m.competition_id,
+                       m.match_time, m.match_time_str, m.status_id, m.kind,
+                       m.home_position, m.away_position,
+                       ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
+                       c.short_name_zh AS league_name
+                FROM basketball_match m
+                JOIN basketball_team ht ON m.home_team_id = ht.id
+                JOIN basketball_team at ON m.away_team_id = at.id
+                LEFT JOIN basketball_competition c ON m.competition_id = c.id
+                WHERE m.id = %s
+                """,
+                (target_id,),
+            )
+            match_row = cur.fetchone()
+        if not match_row:
+            return []
+        result = _row_basketball_match(match_row)
+        result["series_game"] = series_game
+        result["series_matchup_id"] = chosen_matchup.get("id")
+        return [result]
 
     def resolve_lottery_match(
         self,
@@ -532,21 +736,28 @@ class MySQLCrazySportsClient:
             entry_num = parse_lottery_entry_num(code)
             if entry_num is None:
                 return None
+            # JOIN lottery_match 取真实 football_match.id,修复 E05 合成 ID 假命中。
+            lottery_type = _ZC_PLAY_TYPE_TO_LOTTERY_TYPE[play_type]
             sql = """
-                SELECT id, issue, match_id, comp, home, away,
-                       match_time, match_time_str, result
-                FROM lottery_zc_match
-                WHERE type = %s
+                SELECT zc.id, zc.issue, zc.match_id, zc.comp, zc.home, zc.away,
+                       zc.match_time, zc.match_time_str, zc.result,
+                       lm.match_id AS real_match_id
+                FROM lottery_zc_match zc
+                LEFT JOIN lottery_match lm
+                  ON lm.lottery_type = %s
+                  AND lm.issue = zc.issue
+                  AND lm.lottery_match_id = zc.match_id
+                WHERE zc.type = %s
             """
-            params: list[Any] = [zc_type]
+            params: list[Any] = [lottery_type, zc_type]
             if date:
-                sql += f" AND {_sql_match_on_date('match_time')}"
+                sql += f" AND {_sql_match_on_date('zc.match_time')}"
                 params.extend([date, date])
-            sql += " HAVING issue_num = %s ORDER BY issue DESC LIMIT 10"
+            sql += " HAVING issue_num = %s ORDER BY zc.issue DESC LIMIT 10"
             sql = sql.replace(
-                "SELECT id, issue, match_id",
-                "SELECT id, issue, match_id, "
-                "CAST(SUBSTRING(CAST(match_id AS CHAR), CHAR_LENGTH(CAST(issue AS CHAR)) + 1) AS UNSIGNED) AS issue_num",
+                "SELECT zc.id, zc.issue, zc.match_id",
+                "SELECT zc.id, zc.issue, zc.match_id, "
+                "CAST(SUBSTRING(CAST(zc.match_id AS CHAR), CHAR_LENGTH(CAST(zc.issue AS CHAR)) + 1) AS UNSIGNED) AS issue_num",
             )
             params.append(entry_num)
             with mysql_connection() as cur:
@@ -568,23 +779,45 @@ class MySQLCrazySportsClient:
         if issue_num is None:
             return None
 
+        # P13: 修复 G01/G09 裸 code 路由。竞彩 issue_num 格式为 {weekday}{sequence}
+        # (如 2004=周二004),裸 code="004" parse 为 4(无星期位),无 date 时
+        # HAVING issue_num=4 会跨期命中其他期次"第4场"→ 静默错场。
+        # 无 date 且 code 为裸数字(< 1000,缺星期前缀)时返 AMBIGUOUS,要求带星期前缀 + date。
+        is_jingcai = play_type in {PlayType.JINGCAI_FOOTBALL, PlayType.JINGCAI_BASKETBALL}
+        bare_numeric_code = code.strip().isdigit() and len(code.strip()) < 4
+        if is_jingcai and bare_numeric_code and not date:
+            return {
+                "ambiguous": True,
+                "play_type": play_type.value,
+                "code": code,
+                "reason": "竞彩编号缺星期前缀(如「周二004」)且未提供 date,无法唯一定位场次",
+                "hint": "请提供完整竞彩编号(周X+序号)或同时传 date",
+            }
+
         if play_type in {PlayType.BEIDAN_WIN_LOSS, PlayType.BEIDAN_HANDICAP}:
             select_names = "comp, home, away"
         else:
             select_names = "short_home, short_away, short_comp, home, away, comp"
         odds_columns = _LOTTERY_ODDS_COLUMNS[play_type]
         odds_select = ", ".join(odds_columns)
+        # JOIN lottery_match 回填真实 football_match_id,修复 E07/B02 match_id=null。
+        lottery_type = _LOTTERY_TYPE_MAP[play_type]
         sql = f"""
-            SELECT id, issue, issue_num, {select_names},
-                   match_time, match_time_str, sell_status, {odds_select}
-            FROM {table}
-            WHERE issue_num = %s
+            SELECT t.id, t.issue, t.issue_num, {select_names},
+                   t.match_time, t.match_time_str, t.sell_status, {odds_select},
+                   lm.match_id AS real_match_id, lm.lottery_match_id
+            FROM {table} t
+            LEFT JOIN lottery_match lm
+              ON lm.lottery_type = %s
+              AND lm.issue = t.issue
+              AND lm.issue_num = t.issue_num
+            WHERE t.issue_num = %s
         """
-        params = [issue_num]
+        params = [lottery_type, issue_num]
         if date:
-            sql += f" AND {_sql_match_on_date('match_time')}"
+            sql += f" AND {_sql_match_on_date('t.match_time')}"
             params.extend([date, date])
-        sql += " ORDER BY match_time DESC LIMIT 1"
+        sql += " ORDER BY t.match_time DESC LIMIT 1"
 
         with mysql_connection() as cur:
             cur.execute(sql, params)
@@ -767,19 +1000,25 @@ class MySQLCrazySportsClient:
         limit: int = 5,
         league_id: int | str | None = None,
         direction: str = "recent",
+        sport: str = "football",
     ) -> list[dict]:
         raw_id = _parse_int_id(team_id)
         if raw_id is None:
             return []
-        sql = """
+        is_basketball = sport == "basketball"
+        match_table = "basketball_match" if is_basketball else "football_match"
+        team_table = "basketball_team" if is_basketball else "football_team"
+        comp_table = "basketball_competition" if is_basketball else "football_competition"
+        finished_ids = _BASKETBALL_FINISHED_STATUS_IDS if is_basketball else _FINISHED_STATUS_IDS
+        sql = f"""
             SELECT m.id, m.home_team_id, m.away_team_id, m.competition_id,
                    m.match_time, m.match_time_str, m.status_id,
                    ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
                    c.short_name_zh AS league_name
-            FROM football_match m
-            JOIN football_team ht ON m.home_team_id = ht.id
-            JOIN football_team at ON m.away_team_id = at.id
-            LEFT JOIN football_competition c ON m.competition_id = c.id
+            FROM {match_table} m
+            JOIN {team_table} ht ON m.home_team_id = ht.id
+            JOIN {team_table} at ON m.away_team_id = at.id
+            LEFT JOIN {comp_table} c ON m.competition_id = c.id
             WHERE (m.home_team_id = %s OR m.away_team_id = %s)
         """
         params: list[Any] = [raw_id, raw_id]
@@ -793,11 +1032,11 @@ class MySQLCrazySportsClient:
         if direction == "upcoming":
             sql += f" AND {_sql_match_upcoming('m.match_time')}"
             sql += " AND m.status_id NOT IN %s"
-            params.append(tuple(_FINISHED_STATUS_IDS))
+            params.append(tuple(finished_ids))
             sql += " ORDER BY m.match_time ASC"
         elif direction == "recent":
             sql += " AND m.status_id IN %s"
-            params.append(tuple(_FINISHED_STATUS_IDS))
+            params.append(tuple(finished_ids))
             sql += " ORDER BY m.match_time DESC"
         else:
             sql += " ORDER BY m.match_time DESC"
@@ -808,7 +1047,10 @@ class MySQLCrazySportsClient:
         with mysql_connection() as cur:
             cur.execute(sql, params)
             rows = cur.fetchall()
-        return [_row_match(r) for r in rows]
+        # P7: 篮球用 _row_basketball_match(sport=basketball + 篮球 status 映射 + _decode_basketball_scores),
+        # 避免误用 _row_match 导致 sport=football + status 映射失真。
+        row_fn = _row_basketball_match if is_basketball else _row_match
+        return [row_fn(r) for r in rows]
 
     def get_lottery_schedule(
         self,
@@ -818,23 +1060,32 @@ class MySQLCrazySportsClient:
     ) -> list[dict]:
         table, zc_type = _LOTTERY_PLAY_TABLES[play_type]
         if zc_type is not None:
+            # JOIN lottery_match 取真实 football_match.id,修复 E05 合成 ID 假命中。
+            # lottery_zc_match.match_id 是合成 ID(issue*10+match_no),
+            # lottery_match.match_id 才是真实 football_match.id。
+            lottery_type = _ZC_PLAY_TYPE_TO_LOTTERY_TYPE[play_type]
             sql = """
-                SELECT id, issue, match_id, comp, home, away,
-                       match_time, match_time_str, result
-                FROM lottery_zc_match
-                WHERE type = %s
+                SELECT zc.id, zc.issue, zc.match_id, zc.comp, zc.home, zc.away,
+                       zc.match_time, zc.match_time_str, zc.result,
+                       lm.match_id AS real_match_id
+                FROM lottery_zc_match zc
+                LEFT JOIN lottery_match lm
+                  ON lm.lottery_type = %s
+                  AND lm.issue = zc.issue
+                  AND lm.lottery_match_id = zc.match_id
+                WHERE zc.type = %s
             """
-            params: list[Any] = [zc_type]
+            params: list[Any] = [lottery_type, zc_type]
             if period:
-                sql += " AND issue = %s"
+                sql += " AND zc.issue = %s"
                 params.append(period)
             elif date:
-                sql += f" AND {_sql_match_on_date('match_time')}"
+                sql += f" AND {_sql_match_on_date('zc.match_time')}"
                 params.extend([date, date])
             else:
-                sql += " AND issue = (SELECT MAX(issue) FROM lottery_zc_match WHERE type = %s)"
+                sql += " AND zc.issue = (SELECT MAX(issue) FROM lottery_zc_match WHERE type = %s)"
                 params.append(zc_type)
-            sql += " ORDER BY match_id ASC LIMIT %s"
+            sql += " ORDER BY zc.match_id ASC LIMIT %s"
             params.append(_LOTTERY_SCHEDULE_LIMIT)
             with mysql_connection() as cur:
                 cur.execute(sql, params)
@@ -847,22 +1098,29 @@ class MySQLCrazySportsClient:
             select_names = "short_home, short_away, short_comp, home, away, comp"
         odds_columns = _LOTTERY_ODDS_COLUMNS[play_type]
         odds_select = ", ".join(odds_columns)
+        # JOIN lottery_match 回填真实 football_match_id,修复 E07/B02 match_id=null。
+        lottery_type = _LOTTERY_TYPE_MAP[play_type]
         sql = f"""
-            SELECT id, issue, issue_num, {select_names},
-                   match_time, match_time_str, sell_status, {odds_select}
-            FROM {table}
+            SELECT t.id, t.issue, t.issue_num, {select_names},
+                   t.match_time, t.match_time_str, t.sell_status, {odds_select},
+                   lm.match_id AS real_match_id, lm.lottery_match_id
+            FROM {table} t
+            LEFT JOIN lottery_match lm
+              ON lm.lottery_type = %s
+              AND lm.issue = t.issue
+              AND lm.issue_num = t.issue_num
             WHERE 1=1
         """
-        params: list[Any] = []
+        params: list[Any] = [lottery_type]
         if period:
-            sql += " AND issue = %s"
+            sql += " AND t.issue = %s"
             params.append(period)
         elif date:
-            sql += f" AND {_sql_match_on_date('match_time')}"
+            sql += f" AND {_sql_match_on_date('t.match_time')}"
             params.extend([date, date])
         else:
-            sql += f" AND {_sql_match_upcoming('match_time')}"
-        sql += " ORDER BY issue_num ASC LIMIT %s"
+            sql += f" AND {_sql_match_upcoming('t.match_time')}"
+        sql += " ORDER BY t.issue_num ASC LIMIT %s"
         params.append(_LOTTERY_SCHEDULE_LIMIT)
 
         with mysql_connection() as cur:
@@ -871,38 +1129,103 @@ class MySQLCrazySportsClient:
 
         return [_row_lottery_entry(r, play_type) for r in rows]
 
-    def get_standings(self, league_id: int | str) -> list[dict]:
+    def get_standings(
+        self,
+        league_id: int | str,
+        season_id: int | str | None = None,
+    ) -> dict:
+        """积分榜(赛制感知 + season 智能选择 + promotion_id 暴露)。
+
+        修复 A10/A18/H01/H04/H06:
+        - season_id 取"有 team 数据的最大 season_id",非 MAX(season_id)(休赛期不取空榜)
+        - 暴露 promotion_id + JOIN football_promotions 输出赛区名(欧战/升降级资格)
+        - 返回 competition.type(1联赛/2杯赛/3友谊赛),供 LLM 赛制感知
+        """
         comp_id = _parse_int_id(league_id)
         if comp_id is None:
-            return []
-        sql = """
+            return {"competition_type": None, "rows": []}
+        # season_id:用户指定优先,否则取有 team 数据的最大 season_id(修复休赛期空榜)
+        if season_id is not None:
+            season_cond = "p.season_id = %s"
+            season_params: list[Any] = [_parse_int_id(season_id) or 0]
+        else:
+            season_cond = (
+                "p.season_id = ("
+                " SELECT MAX(p2.season_id) FROM football_points_table p2"
+                " JOIN football_points_table_team pt2 ON pt2.table_id = p2.id"
+                " WHERE p2.competition_id = %s AND pt2.total > 0)"
+            )
+            season_params = [comp_id]
+        sql = f"""
             SELECT pt.team_id, t.short_name_zh AS team_name,
                    pt.position, pt.points, pt.deduct_points, pt.total,
                    pt.won, pt.draw, pt.loss, pt.goals, pt.goals_against, pt.goal_diff,
                    pt.home_points, pt.home_total, pt.home_won, pt.home_draw, pt.home_loss,
                    pt.home_goals, pt.home_goals_against, pt.home_goal_diff,
                    pt.away_points, pt.away_total, pt.away_won, pt.away_draw, pt.away_loss,
-                   pt.away_goals, pt.away_goals_against, pt.away_goal_diff
+                   pt.away_goals, pt.away_goals_against, pt.away_goal_diff,
+                   pt.promotion_id,
+                   prom.name_zh AS promotion_name,
+                   c.type AS competition_type
             FROM football_points_table p
             JOIN football_points_table_team pt ON pt.table_id = p.id
             JOIN football_team t ON pt.team_id = t.id
+            LEFT JOIN football_competition c ON p.competition_id = c.id
+            LEFT JOIN football_promotions prom ON pt.promotion_id = prom.id
             WHERE p.competition_id = %s
-              AND p.season_id = (
-                  SELECT MAX(season_id) FROM football_points_table
-                  WHERE competition_id = %s
-              )
+              AND {season_cond}
             ORDER BY pt.position ASC
             LIMIT 30
         """
         with mysql_connection() as cur:
-            cur.execute(sql, (comp_id, comp_id))
+            cur.execute(sql, [comp_id, *season_params])
             rows = cur.fetchall()
-        return [_format_standings_row(r) for r in rows]
+        if not rows:
+            return {"competition_type": None, "rows": []}
+        comp_type = rows[0].get("competition_type")
+        return {
+            "competition_type": comp_type,
+            "competition_type_name": _COMPETITION_TYPE_MAP.get(comp_type, "unknown"),
+            "rows": [_format_standings_row(r) for r in rows],
+        }
 
-    def get_team_season_stats(self, team_id: int | str) -> dict | None:
+    def get_team_season_stats(self, team_id: int | str, sport: str = "football") -> dict | None:
         raw_id = _parse_int_id(team_id)
         if raw_id is None:
             return None
+        if sport == "basketball":
+            # P5/P14: 篮球走 basketball_competition_team_stats(表名无 's',含效率/篮板/三分等)
+            # P14 修:加 scope 优先级排序(5=常规赛 82 场最有代表性 > 6 季后赛 > 4 季前赛),
+            # offensive_rating 非空优先,避免取到季前赛/未回填效率的行(G08 效率维度可达)。
+            sql = """
+                SELECT s.season_id, s.team_id, s.scope, s.matches, s.points, s.points_against,
+                       s.free_throws_scored, s.free_throws_total, s.free_throws_accuracy,
+                       s.two_points_scored, s.two_points_total, s.two_points_accuracy,
+                       s.three_points_scored, s.three_points_total, s.three_points_accuracy,
+                       s.field_goals_scored, s.field_goals_total, s.field_goals_accuracy,
+                       s.total_fouls, s.rebounds, s.defensive_rebounds, s.offensive_rebounds,
+                       s.assists, s.turnovers, s.steals, s.blocks,
+                       s.offensive_rating, s.defensive_rating, s.net_rating,
+                       s.fast_break_points, s.points_in_the_paint,
+                       s.points_off_turnovers, s.second_chance_points,
+                       t.short_name_zh AS team_name,
+                       se.competition_id, c.short_name_zh AS competition_name
+                FROM basketball_competition_team_stats s
+                LEFT JOIN basketball_team t ON s.team_id = t.id
+                LEFT JOIN basketball_season se ON s.season_id = se.id
+                LEFT JOIN basketball_competition c ON se.competition_id = c.id
+                WHERE s.team_id = %s
+                ORDER BY s.season_id DESC,
+                         CASE s.scope WHEN 5 THEN 0 WHEN 6 THEN 1 WHEN 4 THEN 2 ELSE 3 END,
+                         (s.offensive_rating IS NULL), s.scope
+                LIMIT 1
+            """
+            with mysql_connection() as cur:
+                cur.execute(sql, (raw_id,))
+                row = cur.fetchone()
+            if not row:
+                return None
+            return _format_basketball_team_season_stats(row)
         sql = """
             SELECT s.season_id, s.team_id, s.matches, s.goals, s.penalty, s.assists,
                    s.red_cards, s.yellow_cards, s.shots, s.shots_on_target,
@@ -936,18 +1259,22 @@ class MySQLCrazySportsClient:
         team_id: int | str,
         venue: str | None = None,
         n: int = 5,
+        sport: str = "football",
     ) -> list[dict]:
         raw_id = _parse_int_id(team_id)
         if raw_id is None:
             return []
-        sql = """
+        is_basketball = sport == "basketball"
+        match_table = "basketball_match" if is_basketball else "football_match"
+        finished_ids = _BASKETBALL_FINISHED_STATUS_IDS if is_basketball else _FINISHED_STATUS_IDS
+        sql = f"""
             SELECT m.id, m.home_team_id, m.away_team_id, m.home_scores, m.away_scores,
                    m.match_time_str, m.status_id
-            FROM football_match m
+            FROM {match_table} m
             WHERE (m.home_team_id = %s OR m.away_team_id = %s)
               AND m.status_id IN %s
         """
-        params: list[Any] = [raw_id, raw_id, tuple(_FINISHED_STATUS_IDS)]
+        params: list[Any] = [raw_id, raw_id, tuple(finished_ids)]
         if venue == "home":
             sql += " AND m.home_team_id = %s"
             params.append(raw_id)
@@ -987,15 +1314,18 @@ class MySQLCrazySportsClient:
             )
         return results
 
-    def get_h2h(self, team_a: int | str, team_b: int | str, n: int = 5) -> list[dict]:
+    def get_h2h(self, team_a: int | str, team_b: int | str, n: int = 5, sport: str = "football") -> list[dict]:
         id_a = _parse_int_id(team_a)
         id_b = _parse_int_id(team_b)
         if id_a is None or id_b is None:
             return []
-        sql = """
+        is_basketball = sport == "basketball"
+        match_table = "basketball_match" if is_basketball else "football_match"
+        finished_ids = _BASKETBALL_FINISHED_STATUS_IDS if is_basketball else _FINISHED_STATUS_IDS
+        sql = f"""
             SELECT m.id, m.home_team_id, m.away_team_id, m.home_scores, m.away_scores,
                    m.match_time_str
-            FROM football_match m
+            FROM {match_table} m
             WHERE ((m.home_team_id = %s AND m.away_team_id = %s)
                 OR (m.home_team_id = %s AND m.away_team_id = %s))
               AND m.status_id IN %s
@@ -1005,10 +1335,13 @@ class MySQLCrazySportsClient:
         with mysql_connection() as cur:
             cur.execute(
                 sql,
-                (id_a, id_b, id_b, id_a, tuple(_FINISHED_STATUS_IDS), n),
+                (id_a, id_b, id_b, id_a, tuple(finished_ids), n),
             )
             rows = cur.fetchall()
         results = []
+        # P6: 篮球用 _decode_basketball_scores(q1-q4+overtime+full_time),
+        # 避免误用 _decode_scores 把篮球各节得分映射成足球 full_time/half_time/red_card/yellow_card。
+        score_fn = _decode_basketball_scores if is_basketball else _decode_scores
         for r in rows:
             home_scores = _parse_scores(r.get("home_scores"))
             away_scores = _parse_scores(r.get("away_scores"))
@@ -1017,11 +1350,11 @@ class MySQLCrazySportsClient:
                 "date": str(r.get("match_time_str", ""))[:10],
                 "home_team_id": r["home_team_id"],
                 "away_team_id": r["away_team_id"],
-                "score_breakdown": _decode_scores(home_scores, away_scores),
+                "score_breakdown": score_fn(home_scores, away_scores),
             })
         return results
 
-    def get_odds_snapshot(self, match_id: int | str) -> dict | None:
+    def get_odds_snapshot(self, match_id: int | str, sport: str = "football") -> dict | None:
         raw_id = _parse_int_id(match_id)
         if raw_id is None:
             return None
@@ -1033,59 +1366,118 @@ class MySQLCrazySportsClient:
             "{alias}.is_zoudi, {alias}.is_entertained, "
             "{alias}.company_id, c.company_name"
         )
+        is_basketball = sport == "basketball"
+        # P10: 篮球 odds 表名前缀 + match_odds_companys.match_type=2(篮球)
+        if is_basketball:
+            europe_table = "basketball_odds_europe"
+            asian_table = "basketball_odds_asian"
+            over_under_table = "basketball_odds_over_down"
+            company_match_type = 2
+        else:
+            europe_table = "football_odds_europe"
+            asian_table = "football_odds_asian"
+            over_under_table = None  # 足球大小球暂不在此暴露(足球用 corner 角球盘,另有工具)
+            company_match_type = 1
+
         with mysql_connection() as cur:
             cur.execute(
                 f"""
                 SELECT {odds_cols.format(alias="e")}
-                FROM football_odds_europe e
+                FROM {europe_table} e
                 LEFT JOIN match_odds_companys c
-                  ON e.company_id = c.company_id AND c.match_type = 1
+                  ON e.company_id = c.company_id AND c.match_type = %s
                 WHERE e.match_id = %s AND e.odd1 IS NOT NULL
                 ORDER BY e.updated_at DESC
                 LIMIT 5
                 """,
-                (raw_id,),
+                (company_match_type, raw_id),
             )
             europe = cur.fetchall()
             cur.execute(
                 f"""
                 SELECT {odds_cols.format(alias="a")}
-                FROM football_odds_asian a
+                FROM {asian_table} a
                 LEFT JOIN match_odds_companys c
-                  ON a.company_id = c.company_id AND c.match_type = 1
+                  ON a.company_id = c.company_id AND c.match_type = %s
                 WHERE a.match_id = %s AND a.odd1 IS NOT NULL
                 ORDER BY a.updated_at DESC
                 LIMIT 5
                 """,
-                (raw_id,),
+                (company_match_type, raw_id),
             )
             asian = cur.fetchall()
+            # P10: 篮球大小分(over/under)维度,查 basketball_odds_over_down
+            over_under: list[dict] = []
+            if over_under_table:
+                cur.execute(
+                    f"""
+                    SELECT {odds_cols.format(alias="o")}
+                    FROM {over_under_table} o
+                    LEFT JOIN match_odds_companys c
+                      ON o.company_id = c.company_id AND c.match_type = %s
+                    WHERE o.match_id = %s AND o.odd1 IS NOT NULL
+                    ORDER BY o.updated_at DESC
+                    LIMIT 5
+                    """,
+                    (company_match_type, raw_id),
+                )
+                over_under = cur.fetchall()
 
-        if not europe and not asian:
+        if not europe and not asian and not over_under:
             return None
 
-        return {
+        result: dict[str, Any] = {
             "match_id": raw_id,
-            "european": [_format_european_odds(r) for r in europe],
-            "asian": [_format_asian_odds(r) for r in asian],
+            "sport": sport,
         }
+        if europe:
+            result["european"] = [_format_european_odds(r) for r in europe]
+        if asian:
+            result["asian"] = [_format_asian_odds(r) for r in asian]
+        if over_under:
+            # P10: 大小分用 over/total/under 语义(odd1=大球赔率, odd2=盘口值, odd3=小球赔率)
+            result["over_under"] = [_format_generic_odds(r, _OVER_UNDER_LABELS) for r in over_under]
+        return result
 
-    def get_odds_trend(self, match_id: int | str) -> list[dict]:
+    def get_odds_trend(self, match_id: int | str, sport: str = "football") -> list[dict]:
+        """赔率走势时序(支持 sport 路由,修复 F03 篮球分支硬编码足球表)。
+
+        Args:
+            match_id: 比赛 ID。
+            sport: "football"(默认)或 "basketball"。
+                football 路由 football_match + football_odds_europe_change_YYYYMM(隔月分区)。
+                basketball 路由 basketball_match + basketball_odds_europe_change_YYYY(年分区)。
+        """
         raw_id = _parse_int_id(match_id)
         if raw_id is None:
             return []
-        select_cols = (
-            "e.company_id, c.company_name, e.odd1, e.odd2, e.odd3, "
-            "e.is_zoudi, e.is_entertained, e.updated_at"
-        )
-        join_clause = (
-            "LEFT JOIN match_odds_companys c "
-            "ON e.company_id = c.company_id AND c.match_type = 1"
-        )
-        # 先取比赛 match_time，路由到月分区表 football_odds_europe_change_YYYYMM
+        is_basketball = sport == "basketball"
+        match_table = "basketball_match" if is_basketball else "football_match"
+        # 篮球赔率变动基表 + 分区表(年分区 YYYY,依据 F03 撞墙证据)
+        if is_basketball:
+            base_table = "basketball_odds_europe_change"
+            select_cols = (
+                "e.company_id, c.company_name, e.odd1, e.odd2, e.odd3, "
+                "e.is_zoudi, e.is_entertained, e.updated_at"
+            )
+            join_clause = (
+                "LEFT JOIN match_odds_companys c "
+                "ON e.company_id = c.company_id AND c.match_type = 2"
+            )
+        else:
+            base_table = "football_odds_europe_change"
+            select_cols = (
+                "e.company_id, c.company_name, e.odd1, e.odd2, e.odd3, "
+                "e.is_zoudi, e.is_entertained, e.updated_at"
+            )
+            join_clause = (
+                "LEFT JOIN match_odds_companys c "
+                "ON e.company_id = c.company_id AND c.match_type = 1"
+            )
+        # 先取比赛 match_time,路由到分区表
         with mysql_connection() as cur:
             cur.execute(
-                "SELECT match_time FROM football_match WHERE id = %s LIMIT 1",
+                f"SELECT match_time FROM {match_table} WHERE id = %s LIMIT 1",
                 (raw_id,),
             )
             match_row = cur.fetchone()
@@ -1095,10 +1487,14 @@ class MySQLCrazySportsClient:
                 try:
                     ts = int(match_row["match_time"])
                     dt = _dt.fromtimestamp(ts)
-                    # 分区表隔月建（奇数月：01/03/05/07/09/11），每个覆盖2个月
-                    odd_month = (dt.month - 1) // 2 * 2 + 1
-                    ym = f"{dt.year}{odd_month:02d}"
-                    partition_table = f"football_odds_europe_change_{ym}"
+                    if is_basketball:
+                        # 篮球年分区:basketball_odds_europe_change_YYYY
+                        partition_table = f"basketball_odds_europe_change_{dt.year}"
+                    else:
+                        # 足球隔月分区(奇数月 01/03/05/07/09/11,每个覆盖2个月)
+                        odd_month = (dt.month - 1) // 2 * 2 + 1
+                        ym = f"{dt.year}{odd_month:02d}"
+                        partition_table = f"football_odds_europe_change_{ym}"
                     cur.execute(
                         f"SELECT {select_cols} FROM {partition_table} e {join_clause} "
                         f"WHERE e.match_id = %s ORDER BY e.updated_at ASC LIMIT 50",
@@ -1107,10 +1503,10 @@ class MySQLCrazySportsClient:
                     rows = list(cur.fetchall())
                 except Exception:
                     rows = []  # 分区表不存在则 fallback 基表
-            # fallback：基表
+            # fallback:基表
             if not rows:
                 cur.execute(
-                    f"SELECT {select_cols} FROM football_odds_europe_change e {join_clause} "
+                    f"SELECT {select_cols} FROM {base_table} e {join_clause} "
                     f"WHERE e.match_id = %s ORDER BY e.updated_at ASC LIMIT 50",
                     (raw_id,),
                 )
@@ -1238,13 +1634,17 @@ class MySQLCrazySportsClient:
             players = cur.fetchall()
         return _format_lineup(lineup, players)
 
-    def get_injury_report(self, match_id: int | str) -> dict | None:
+    def get_injury_report(self, match_id: int | str, sport: str = "football") -> dict | None:
         raw_id = _parse_int_id(match_id)
         if raw_id is None:
             return None
+        is_basketball = sport == "basketball"
+        match_table = "basketball_match" if is_basketball else "football_match"
+        injury_table = "basketball_team_injury" if is_basketball else "football_team_injury"
+        player_table = "basketball_player" if is_basketball else "football_player"
         with mysql_connection() as cur:
             cur.execute(
-                "SELECT home_team_id, away_team_id FROM football_match WHERE id = %s",
+                f"SELECT home_team_id, away_team_id FROM {match_table} WHERE id = %s",
                 (raw_id,),
             )
             match = cur.fetchone()
@@ -1252,11 +1652,11 @@ class MySQLCrazySportsClient:
                 return None
             home_id, away_id = match["home_team_id"], match["away_team_id"]
             cur.execute(
-                """
+                f"""
                 SELECT i.team_id, i.player_id, i.type, i.reason, i.missed_matches,
                        p.short_name_zh AS player_name, p.name_zh AS player_full_name
-                FROM football_team_injury i
-                LEFT JOIN football_player p ON i.player_id = p.id
+                FROM {injury_table} i
+                LEFT JOIN {player_table} p ON i.player_id = p.id
                 WHERE i.team_id IN (%s, %s) AND i.del_flag = 1
                 LIMIT 30
                 """,
@@ -1265,18 +1665,32 @@ class MySQLCrazySportsClient:
             rows = cur.fetchall()
         home = [_format_injury_row(r) for r in rows if r["team_id"] == home_id]
         away = [_format_injury_row(r) for r in rows if r["team_id"] == away_id]
-        return {"match_id": raw_id, "home": home, "away": away}
+        return {"match_id": raw_id, "sport": sport, "home": home, "away": away}
 
-    def get_intel_tags(self, match_id: int | str) -> list[dict]:
+    def get_intel_tags(self, match_id: int | str, sport: str = "football") -> list[dict]:
         raw_id = _parse_int_id(match_id)
         if raw_id is None:
             return []
-        sql = """
-            SELECT good_home, good_away, bad_home, bad_away, neutral
-            FROM football_intelligence
-            WHERE id = %s
-            LIMIT 1
-        """
+        is_basketball = sport == "basketball"
+        # 篮球 intelligence 字段名加 intel_content_ 前缀(探针确认)
+        if is_basketball:
+            sql = """
+                SELECT intel_content_good_home AS good_home,
+                       intel_content_good_away AS good_away,
+                       intel_content_bad_home AS bad_home,
+                       intel_content_bad_away AS bad_away,
+                       intel_content_neutral AS neutral
+                FROM basketball_intelligence
+                WHERE id = %s
+                LIMIT 1
+            """
+        else:
+            sql = """
+                SELECT good_home, good_away, bad_home, bad_away, neutral
+                FROM football_intelligence
+                WHERE id = %s
+                LIMIT 1
+            """
         with mysql_connection() as cur:
             cur.execute(sql, (raw_id,))
             row = cur.fetchone()
@@ -1439,11 +1853,37 @@ class MySQLCrazySportsClient:
                   SELECT MAX(season_id) FROM basketball_points_table
                   WHERE competition_id = %s
               )
+              AND p.stage_id = (
+                  /* P8: 同 season 取最小 stage_id(常规赛),避免季后赛 stage 导致同队重复行 */
+                  SELECT MIN(stage_id) FROM basketball_points_table
+                  WHERE competition_id = %s
+                    AND season_id = (
+                        SELECT MAX(season_id) FROM basketball_points_table
+                        WHERE competition_id = %s
+                    )
+              )
+              AND p.scope = (
+                  /* P8: 同 season+stage 取最小 scope(单一统计口径),避免同队出现在多个 scope 表导致重复 */
+                  SELECT MIN(scope) FROM basketball_points_table
+                  WHERE competition_id = %s
+                    AND season_id = (
+                        SELECT MAX(season_id) FROM basketball_points_table
+                        WHERE competition_id = %s
+                    )
+                    AND stage_id = (
+                        SELECT MIN(stage_id) FROM basketball_points_table
+                        WHERE competition_id = %s
+                        AND season_id = (
+                            SELECT MAX(season_id) FROM basketball_points_table
+                            WHERE competition_id = %s
+                        )
+                    )
+              )
             ORDER BY pt.position ASC
             LIMIT 30
         """
         with mysql_connection() as cur:
-            cur.execute(sql, (comp_id, comp_id))
+            cur.execute(sql, (comp_id, comp_id, comp_id, comp_id, comp_id, comp_id, comp_id, comp_id))
             rows = cur.fetchall()
         return [_format_basketball_standings_row(r) for r in rows]
 
@@ -2175,6 +2615,9 @@ def _format_standings_row(row: dict) -> dict:
         "goal_diff": row.get("goal_diff"),
         "home": _venue("home"),
         "away": _venue("away"),
+        # 暴露 promotion_id + 赛区名(欧战/升降级资格,修复 H06)
+        "promotion_id": row.get("promotion_id"),
+        "promotion_name": row.get("promotion_name"),
     }
 
 
@@ -2214,8 +2657,70 @@ def _split_csv_values(raw: str) -> list[Any]:
     return result
 
 
-def _parse_lottery_play(play_key: str, raw: str) -> dict | list | str:
-    """把竞彩玩法赔率串解析成结构化对象；未知玩法保留原值。"""
+_BEIDAN_PLAY_TYPES = {PlayType.BEIDAN_WIN_LOSS, PlayType.BEIDAN_HANDICAP}
+
+
+def _beidan_bf_key_to_label(key: str) -> str:
+    """北单 bf JSON 键 s{home}{away} → 可读标签 '{home}:{away}'。
+
+    键形如 s20(2:0)/s11(1:1)/s0_0(0:0)。下划线分隔避免 00 歧义。
+    """
+    s = key.lstrip("s").replace("_", "")
+    if len(s) >= 2:
+        return f"{s[0]}:{s[1]}"
+    return key
+
+
+def _parse_beidan_play(play_key: str, raw: str) -> dict | list:
+    """北单赔率 JSON 解析（lottery_bd_odds 的 bf/spf 字段是 JSON 非 CSV）。
+
+    依据 data/eval/nami_field_map_full.yaml: lottery_bd_odds.bf 格式=json。
+    修复 D05/E07/G07 撞墙:原统一按 CSV 切导致 JSON 被切碎。
+    """
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        # JSON 解析失败时降级为空,不按 CSV 切(避免产出错位碎片)
+        return [] if play_key in ("bf",) else {}
+
+    if play_key == "bf":
+        items = []
+        for key, odds in data.items():
+            if key.startswith("s") and odds:
+                items.append({"label": _beidan_bf_key_to_label(key), "odds": _safe_float(odds)})
+        return items
+    if play_key == "spf":
+        # 北单 spf JSON 键映射(依据 v3 验证实跑 DB JSON {"sf3":"4.02","sf0":"2.16","sf1":"3.44"} + v2 E07 证据):
+        # sf3=主胜(win) / sf1=平(draw) / sf0=客负(loss) / goal=让球数
+        # 修复 P1:原映射 win=sf1/draw=sf2/loss=sf3 错位,导致胜负互换。
+        return {
+            "handicap": _safe_float(data.get("goal")),
+            "win": _safe_float(data.get("sf3")),
+            "draw": _safe_float(data.get("sf1")),
+            "loss": _safe_float(data.get("sf0")),
+        }
+    return data
+
+
+def _safe_float(v: Any) -> float | None:
+    if v is None or v == "":
+        return None
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_lottery_play(play_key: str, raw: str, play_type: PlayType | None = None) -> dict | list | str:
+    """把竞彩玩法赔率串解析成结构化对象；未知玩法保留原值。
+
+    按彩种分支解析（对照 nami_field_map_full.yaml）:
+    - 竞彩足球 101 / 竞彩篮球 201: CSV 格式,逗号分隔按固定标签顺序
+    - 北单 301/404: JSON 格式,键值对（s{home}{away} / sf1/sf2/sf3）
+    """
+    if play_type in _BEIDAN_PLAY_TYPES:
+        return _parse_beidan_play(play_key, raw)
+
     vals = _split_csv_values(raw)
     if play_key == "spf":
         return {"win": vals[0] if vals else None, "draw": vals[1] if len(vals) > 1 else None,
@@ -2301,11 +2806,25 @@ def _format_squad_row(row: dict) -> dict:
     }
 
 
+def _parse_match_ids(raw: Any) -> list[int]:
+    """P11: 解析 bracket_match_up.match_ids(JSON 数组字符串 '[id1,...,idN]')。
+
+    修复 B09:原 split(",") 后首元素含 '[' 尾元素含 ']' 过不了 isdigit() → 漏 G1/G7。
+    """
+    if not raw:
+        return []
+    raw_str = str(raw).strip()
+    if raw_str.startswith("["):
+        import json as _json
+        try:
+            return [int(x) for x in _json.loads(raw_str)]
+        except (ValueError, TypeError):
+            return [int(x) for x in raw_str.strip("[]").split(",") if x.strip().isdigit()]
+    return [int(x) for x in raw_str.split(",") if x.strip().isdigit()]
+
+
 def _format_series_matchup_row(row: dict) -> dict:
-    match_ids_raw = row.get("match_ids")
-    match_ids = []
-    if match_ids_raw:
-        match_ids = [int(x) for x in str(match_ids_raw).split(",") if x.strip().isdigit()]
+    match_ids = _parse_match_ids(row.get("match_ids"))
     return {
         "matchup_id": row.get("id"),
         "series_type": _series_type_from_id(row.get("type_id")),
@@ -2481,6 +3000,60 @@ def _format_team_season_stats(row: dict) -> dict:
         "freekicks": row.get("freekicks"),
         "freekick_goals": row.get("freekick_goals"),
         "hit_woodwork": row.get("hit_woodwork"),
+    }
+
+
+def _format_basketball_team_season_stats(row: dict) -> dict:
+    """P5: 篮球球队赛季统计字段映射(basketball_competition_team_stats)。
+
+    按核心四象限组织:得分/投篮准度、篮板、助攻抢断盖帽、效率与快攻内线。
+    """
+    return {
+        "sport": "basketball",
+        "team_id": row.get("team_id"),
+        "team_name": row.get("team_name"),
+        "season_id": row.get("season_id"),
+        "competition_id": row.get("competition_id"),
+        "competition_name": row.get("competition_name"),
+        "matches": row.get("matches"),
+        # 得分/失分
+        "points": row.get("points"),
+        "points_against": row.get("points_against"),
+        # 罚球
+        "free_throws_scored": row.get("free_throws_scored"),
+        "free_throws_total": row.get("free_throws_total"),
+        "free_throws_accuracy": row.get("free_throws_accuracy"),
+        # 两分
+        "two_points_scored": row.get("two_points_scored"),
+        "two_points_total": row.get("two_points_total"),
+        "two_points_accuracy": row.get("two_points_accuracy"),
+        # 三分
+        "three_points_scored": row.get("three_points_scored"),
+        "three_points_total": row.get("three_points_total"),
+        "three_points_accuracy": row.get("three_points_accuracy"),
+        # 投篮(全部出手)
+        "field_goals_scored": row.get("field_goals_scored"),
+        "field_goals_total": row.get("field_goals_total"),
+        "field_goals_accuracy": row.get("field_goals_accuracy"),
+        # 篮板
+        "rebounds": row.get("rebounds"),
+        "defensive_rebounds": row.get("defensive_rebounds"),
+        "offensive_rebounds": row.get("offensive_rebounds"),
+        # 组织/防守
+        "assists": row.get("assists"),
+        "turnovers": row.get("turnovers"),
+        "steals": row.get("steals"),
+        "blocks": row.get("blocks"),
+        "total_fouls": row.get("total_fouls"),
+        # 效率
+        "offensive_rating": row.get("offensive_rating"),
+        "defensive_rating": row.get("defensive_rating"),
+        "net_rating": row.get("net_rating"),
+        # 补充分项
+        "fast_break_points": row.get("fast_break_points"),
+        "points_in_the_paint": row.get("points_in_the_paint"),
+        "points_off_turnovers": row.get("points_off_turnovers"),
+        "second_chance_points": row.get("second_chance_points"),
     }
 
 

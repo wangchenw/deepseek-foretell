@@ -3,27 +3,37 @@ case_id: TC-C07-001
 explored_at: '2026-06-29'
 scenario: C
 entity_entry: team
-probe_summary: |
-  C07 近期战绩复盘，场景“勇士vs太阳”（NBA 篮球）。验证 resolve_team / resolve_basketball_team
+probe_summary: 'C07 近期战绩复盘，场景“勇士vs太阳”（NBA 篮球）。验证 resolve_team / resolve_basketball_team
+
   → get_recent_form / get_team_schedule / get_team_season_stats 工具链能否复盘篮球球队近期表现。
+
   发现 cross-sport data collision：篮球 team_id 喂给足球专用工具时不报 DATA_MISSING，
+
   而是静默返回 football_team 表中同 id 的足球队数据，会误导 LLM 产出 false positive 答案。
+
+  '
 attempts:
 - round: 1
   atomic_id: C07-T1-a1
   tool: resolve_team
-  params: {name: 勇士}
+  params:
+    name: 勇士
   code: OK
   count: 10
   stub: false
-  note: |
-    命中 10 个足球“勇士”候选（奥林比亚勇士 14556、波多利斯克勇士 14759、新加坡勇士 20362 等），
-    全部 sport=football，无 NBA Golden State Warriors。证明 resolve_team 仅查 football_team 表，
+  note: '命中 10 个足球“勇士”候选（奥林比亚勇士 14556、波多利斯克勇士 14759、新加坡勇士 20362 等），
+
+    全部 sport=football，无 NBA Golden State Warriors。证明 resolve_team 仅查 football_team
+    表，
+
     不适用于篮球场景。
+
+    '
 - round: 1
   atomic_id: C07-T1-a1
   tool: resolve_basketball_team
-  params: {name: 勇士}
+  params:
+    name: 勇士
   code: OK
   count: 10
   stub: false
@@ -31,7 +41,8 @@ attempts:
 - round: 1
   atomic_id: C07-T1-a1
   tool: resolve_basketball_team
-  params: {name: 太阳}
+  params:
+    name: 太阳
   code: OK
   count: 10
   stub: false
@@ -39,75 +50,93 @@ attempts:
 - round: 1
   atomic_id: C07-T1-a2
   tool: get_recent_form
-  params: {team_id: 10155, n: 5}
+  params:
+    team_id: 10155
+    n: 5
   code: OK
   count: 5
   stub: false
-  note: |
-    严重 data_correctness_gap：传入篮球 team_id=10155 (Golden State Warriors)，
+  note: '严重 data_correctness_gap：传入篮球 team_id=10155 (Golden State Warriors)，
+
     工具未报 DATA_MISSING，而是返回 football_team 表中 id=10155 的“科特布斯”（德丙）足球战绩
+
     （2026-05-16 vs 雷根斯堡 1:0 W 等 5 场）。SQL 查 football_match 表且未做 sport 校验，
+
     basketball_team.id 与 football_team.id 共享数值空间但映射不同实体，静默混淆。
+
+    '
 - round: 1
   atomic_id: C07-T1-a2
   tool: get_team_schedule
-  params: {team_id: 10155, direction: recent, limit: 5}
+  params:
+    team_id: 10155
+    direction: recent
+    limit: 5
   code: OK
   count: 5
   stub: false
-  note: |
-    同样混淆：返回“科特布斯”德丙赛程（match_id 4365094 等），sport 字段标注 football。
+  note: '同样混淆：返回“科特布斯”德丙赛程（match_id 4365094 等），sport 字段标注 football。
+
     签名无 sport 参数，docstring 明确写“MySQL football_team.id”。
+
+    '
 - round: 1
   atomic_id: C07-T1-a2
   tool: get_team_season_stats
-  params: {team_id: 10155}
+  params:
+    team_id: 10155
   code: OK
   count: 1
   stub: false
-  note: |
-    同样混淆：返回“科特布斯”德丙赛季统计（season_id=13381, competition=德丙, matches=38），
+  note: '同样混淆：返回“科特布斯”德丙赛季统计（season_id=13381, competition=德丙, matches=38），
+
     含红黄牌/传中等足球专属字段，与篮球无关。
+
+    '
 - round: 1
   atomic_id: C07-T1-a2
   tool: get_recent_form
-  params: {team_id: 10131, n: 5}
+  params:
+    team_id: 10131
+    n: 5
   code: OK
   count: 5
   stub: false
-  note: |
-    交叉验证：篮球 team_id=10131 (Phoenix Suns) → 返回 football_team id=10131 “格勒诺布尔”（法乙）
+  note: '交叉验证：篮球 team_id=10131 (Phoenix Suns) → 返回 football_team id=10131 “格勒诺布尔”（法乙）
+
     足球战绩（2026-05-10 vs 特鲁瓦 1:0 W 等）。确认 id 混淆为系统性问题，非个例。
+
+    '
 - round: 2
   atomic_id: C07-T1-a2
   tool: get_recent_form
-  params: {team_id: 14556, n: 3}
+  params:
+    team_id: 14556
+    n: 3
   code: OK
   count: 3
   stub: false
-  note: |
-    fallback 对照：用 resolve_team 返回的足球“奥林比亚勇士”team_id=14556 喂 get_recent_form，
+  note: 'fallback 对照：用 resolve_team 返回的足球“奥林比亚勇士”team_id=14556 喂 get_recent_form，
+
     返回真实足球战绩（2026-06-26 4:2 W 等）。证明工具本身对足球 team_id 工作正常，
+
     gap 在于 (a) 篮球场景无对应篮球版本工具，(b) 未做 sport 校验导致篮球 id 静默命中足球实体。
+
+    '
 satisfied:
 - C07-T1-a1
 blocking_gap:
   type: implementation_gap
   subtype: cross_sport_data_collision
-  description: |
-    C07 场景为 NBA 篮球“勇士vs太阳”，但近期战绩复盘所需的三件套
-    get_recent_form / get_team_schedule / get_team_season_stats 均为足球专用工具：
-    1. SQL 分别查 football_match / football_competition_teams_stats 表，工具签名无 sport 参数；
-    2. docstring 明确写“MySQL football_team.id”；
-    3. mysql_client 中不存在篮球版本（无 get_basketball_recent_form / get_basketball_team_schedule /
-       get_basketball_team_season_stats）。
-    更严重的是：basketball_team.id 与 football_team.id 共享同一数值空间但映射不同实体，
-    工具层未做 sport 校验。传入篮球 team_id（10155=勇士、10131=太阳）时不报 DATA_MISSING，
-    而是静默返回 football_team 表中同 id 的足球队（科特布斯/格勒诺布尔）的足球战绩、赛程、赛季统计，
-    code=OK。若 LLM 按原子分解“resolve_basketball_team → get_recent_form”执行，会把足球数据
-    当成 NBA 球队近期战绩汇报给用户，构成 false positive，比 DATA_MISSING 更危险。
-    Phase 2 重构未覆盖篮球近期战绩/赛程/赛季统计维度（仅 get_schedule_by_date 支持 sport 参数，
-    get_series_matchup 支持 sport=basketball，但均为系列赛/日期维度，非球队维度）。
+  description: "C07 场景为 NBA 篮球“勇士vs太阳”，但近期战绩复盘所需的三件套\nget_recent_form / get_team_schedule\
+    \ / get_team_season_stats 均为足球专用工具：\n1. SQL 分别查 football_match / football_competition_teams_stats\
+    \ 表，工具签名无 sport 参数；\n2. docstring 明确写“MySQL football_team.id”；\n3. mysql_client\
+    \ 中不存在篮球版本（无 get_basketball_recent_form / get_basketball_team_schedule /\n   get_basketball_team_season_stats）。\n\
+    更严重的是：basketball_team.id 与 football_team.id 共享同一数值空间但映射不同实体，\n工具层未做 sport 校验。传入篮球\
+    \ team_id（10155=勇士、10131=太阳）时不报 DATA_MISSING，\n而是静默返回 football_team 表中同 id 的足球队（科特布斯/格勒诺布尔）的足球战绩、赛程、赛季统计，\n\
+    code=OK。若 LLM 按原子分解“resolve_basketball_team → get_recent_form”执行，会把足球数据\n当成 NBA\
+    \ 球队近期战绩汇报给用户，构成 false positive，比 DATA_MISSING 更危险。\nPhase 2 重构未覆盖篮球近期战绩/赛程/赛季统计维度（仅\
+    \ get_schedule_by_date 支持 sport 参数，\nget_series_matchup 支持 sport=basketball，但均为系列赛/日期维度，非球队维度）。\n"
   failed_atomic: C07-T1-a2
 route_complete: false
 phase2_status:
@@ -117,11 +146,8 @@ phase2_status:
   basketball_team_season_stats: false
   sport_guard_missing: true
 verdict: ❌
-verdict_reason: |
-  resolve_basketball_team 能正确解析 NBA 勇士/太阳（T1-a1 satisfied），但后续三件套工具
-  不支持篮球且未做 sport 校验，静默返回足球数据，存在 cross-sport data collision 风险。
-  路径无法安全完成近期战绩复盘，且会误导 LLM 产出错误答案。建议 Phase 3：
-  (1) 新增 get_basketball_recent_form / get_basketball_team_schedule / get_basketball_team_season_stats
-      查 basketball_match / basketball 相关统计表；
-  (2) 或为现有三件套增加 sport 参数并在 SQL 层路由到对应表；
-  (3) 在 sport 不匹配时返回 DATA_MISSING 而非静默命中异类实体，作为短期守轨兜底。
+verdict_reason: "resolve_basketball_team 能正确解析 NBA 勇士/太阳（T1-a1 satisfied），但后续三件套工具\n\
+  不支持篮球且未做 sport 校验，静默返回足球数据，存在 cross-sport data collision 风险。\n路径无法安全完成近期战绩复盘，且会误导\
+  \ LLM 产出错误答案。建议 Phase 3：\n(1) 新增 get_basketball_recent_form / get_basketball_team_schedule\
+  \ / get_basketball_team_season_stats\n    查 basketball_match / basketball 相关统计表；\n\
+  (2) 或为现有三件套增加 sport 参数并在 SQL 层路由到对应表；\n(3) 在 sport 不匹配时返回 DATA_MISSING 而非静默命中异类实体，作为短期守轨兜底。\n"

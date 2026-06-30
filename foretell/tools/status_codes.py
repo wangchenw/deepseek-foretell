@@ -20,7 +20,8 @@ class PlayType(StrEnum):
     JINGCAI_FOOTBALL = "101"  # 竞彩足球
     JINGCAI_BASKETBALL = "201"  # 竞彩篮球
     BEIDAN_WIN_LOSS = "301"  # 北单胜负过关
-    FOURTEEN_MATCHES = "401"  # 十四场胜负彩 / 任九
+    FOURTEEN_MATCHES = "401"  # 十四场胜负彩(sfc)
+    RENJI = "405"  # 任选九场(rj,lottery_zc_match.type='rj',与 sfc 同期共享 14 场)
     HALF_FULL = "402"  # 半全场
     GOAL_LOTTERY = "403"  # 进球彩
     BEIDAN_HANDICAP = "404"  # 北单让球胜平负

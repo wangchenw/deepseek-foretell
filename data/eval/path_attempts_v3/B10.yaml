@@ -1,0 +1,22 @@
+type_id: B10
+case_id: TC-B10-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ tool_logic_gap(淘汰赛排名不适用,杯赛套联赛积分榜逻辑)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: |
+  get_standings 返回结构含 competition_type 字段(1=league/2=cup)。
+  实测杯赛 league_id=7484 返 ctype=2 rows=15,赛制感知生效。
+  LLM 可据 competition_type=2 判定杯赛不套联赛积分榜逻辑(降级为对阵树/小组赛),
+  修复 v2 的"杯赛硬套联赛排名"tool_logic_gap。
+attempts:
+  - round: 1
+    atomic_id: B10-T0-a1
+    tool: get_standings
+    params: {league_id: 7484}
+    code: OK
+    key_fields: {competition_type: 2, rows: 15}
+    stub: false
+satisfied: [B10-T0-a1]
+blocking_gap: null
+route_complete: true

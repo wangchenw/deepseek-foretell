@@ -10,7 +10,8 @@ attempts:
   code: OK
   count: 4
   stub: false
-  note: 北单胜负可售 4 场（巴西vs日本、IA阿克拉内斯vs弗拉姆、荷兰vs摩洛哥 等），均含 home/away/league/bf 比分赔率；match_id=null 但 lottery 列表自带实体信息，足以推荐比分
+  note: 北单胜负可售 4 场（巴西vs日本、IA阿克拉内斯vs弗拉姆、荷兰vs摩洛哥 等），均含 home/away/league/bf 比分赔率；match_id=null
+    但 lottery 列表自带实体信息，足以推荐比分
 - round: 1
   atomic_id: D08-T1-a1
   tool: resolve_lottery_match
@@ -25,7 +26,8 @@ attempts:
   atomic_id: D08-T1-a2
   category: synthesize_answer
   status: ok
-  note: 4 场北单均带 bf 比分赔率 + spf 让球胜平负，可按筛选标准选 3 场推荐比分；odds.spf.win 字段为被截断的 JSON 字符串（如 "{\"sf3\":\"2.80\""），LLM 仍可读出赔率值，属结构化小瑕疵不阻塞
+  note: 4 场北单均带 bf 比分赔率 + spf 让球胜平负，可按筛选标准选 3 场推荐比分；odds.spf.win 字段为被截断的 JSON 字符串（如
+    "{\"sf3\":\"2.80\""），LLM 仍可读出赔率值，属结构化小瑕疵不阻塞
 satisfied:
 - D08-T1-a1
 - D08-T1-a2

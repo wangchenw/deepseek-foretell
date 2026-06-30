@@ -1,0 +1,26 @@
+{
+  "type_id": "A11",
+  "case_id": "TC-A11-SYN",
+  "probe_status": "needs_manual",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "resolve_league",
+      "params": {
+        "name": "英超"
+      },
+      "code": "OK",
+      "stub": false
+    },
+    {
+      "tool": "get_standings",
+      "params": {
+        "league_id": 82
+      },
+      "code": "OK",
+      "count": 20,
+      "stub": false
+    }
+  ],
+  "error": null
+}

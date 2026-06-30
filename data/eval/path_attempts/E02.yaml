@@ -10,8 +10,8 @@ attempts:
   code: OK
   stub: false
   count: 15
-  note: 竞彩足球批次（世界杯 issue 260629/260630）拉取成功，含 spf/rq/bf/jq/bqc
-    全玩法赔率；entries 内 match_id 多为 null，需 resolve_lottery_match 回填
+  note: 竞彩足球批次（世界杯 issue 260629/260630）拉取成功，含 spf/rq/bf/jq/bqc 全玩法赔率；entries 内 match_id
+    多为 null，需 resolve_lottery_match 回填
 - round: 1
   atomic_id: E02-T1-a1
   tool: resolve_lottery_match
@@ -20,8 +20,8 @@ attempts:
     code: 周日004
   code: OK
   stub: false
-  note: 返回韦斯特罗 vs 哥德堡（瑞超 2026-05-31，sell_status=suspended）；match_id=null
-    且无 match_candidates，仅定位到 lottery 实体未回填 football_match
+  note: 返回韦斯特罗 vs 哥德堡（瑞超 2026-05-31，sell_status=suspended）；match_id=null 且无 match_candidates，仅定位到
+    lottery 实体未回填 football_match
 - round: 1
   atomic_id: E02-T1-a1
   tool: resolve_lottery_match
@@ -41,8 +41,8 @@ attempts:
   code: OK
   stub: false
   count: 1
-  note: 即将开赛样本——巴西 vs 日本 2026-06-30 世界杯，match_candidates[0].match_id=4459720，
-    sport=football，status=not_started，neutral=true；cross_sport 校验通过（sport 与 play_type=101 一致）
+  note: 即将开赛样本——巴西 vs 日本 2026-06-30 世界杯，match_candidates[0].match_id=4459720， sport=football，status=not_started，neutral=true；cross_sport
+    校验通过（sport 与 play_type=101 一致）
 - round: 2
   atomic_id: E02-T1-a2
   tool: get_odds_snapshot
@@ -123,8 +123,8 @@ satisfied:
 blocking_gap: null
 route_complete: true
 notes:
-  cross_sport: sport=any 但当前竞彩批次（101）全部为 football（世界杯）；resolve_lottery_match
-    的 match_candidates 显式返回 sport=football，未发现静默返回异类数据，无 cross_sport_data_collision
+  cross_sport: sport=any 但当前竞彩批次（101）全部为 football（世界杯）；resolve_lottery_match 的 match_candidates
+    显式返回 sport=football，未发现静默返回异类数据，无 cross_sport_data_collision
   param_caveats:
   - get_injury_report 接受 match_id（非 team_id）
   - get_standings 接受 league_id（非 competition_id）

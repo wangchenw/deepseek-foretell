@@ -4,69 +4,71 @@ explored_at: '2026-06-29'
 scenario: B (进球数深度 — 4.14 号 2 场最有把握比分 + 进球数 + 2/3 串一)
 turns:
 - turn_index: 0
-  text: 4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态，
-    有无演戏等等，还有推荐2串一，3串一，最有把握啊
+  text: 4.14号用足球精算出来最有把握的2场比分预测和进球数，最有把握啊，还要考虑球队利益状态， 有无演戏等等，还有推荐2串一，3串一，最有把握啊
 selected_matches:
 - match_id: 4343362
   home: 曼联
   away: 利兹联
   league: 英超 (league_id=82)
-  date: '2026-04-14 03:00'
+  date: 2026-04-14 03:00
   status: finished
   result: 1-2 (半场 0-2)
-  pick_rationale: 英超玫瑰德比，主队让一球亚盘 -0.75/-1.0；大小球 2.75/3.5 滚球盘剧烈拉升，
-    反映比赛中段被打破；曼联后防三主力伤停（德里赫特/马奎尔停赛/利马存疑），利兹联奥卡福尔双响；
+  pick_rationale: 英超玫瑰德比，主队让一球亚盘 -0.75/-1.0；大小球 2.75/3.5 滚球盘剧烈拉升， 反映比赛中段被打破；曼联后防三主力伤停（德里赫特/马奎尔停赛/利马存疑），利兹联奥卡福尔双响；
     战意/伤情数据齐全，进球数信号强。
 - match_id: 4339774
   home: 佛罗伦萨
   away: 拉齐奥
   league: 意甲 (league_id=108)
-  date: '2026-04-14 02:45'
+  date: 2026-04-14 02:45
   status: finished
   result: 1-0 (半场 1-0)
-  pick_rationale: 意甲第32轮，大小球 2.25/2.5 收盘拉低至 1.5/1.75，进球数偏少信号；
-    佛罗伦萨控球 34% 但高效反击 1 球小胜，戈森斯建功；拉齐奥 6 射正 0 进球。
+  pick_rationale: 意甲第32轮，大小球 2.25/2.5 收盘拉低至 1.5/1.75，进球数偏少信号； 佛罗伦萨控球 34% 但高效反击 1 球小胜，戈森斯建功；拉齐奥
+    6 射正 0 进球。
 attempts:
 - round: 1
   atomic_id: T1-a1
   tool: get_schedule_by_date
-  params: {date: '2026-04-14', sport: football, tier: top}
+  params:
+    date: '2026-04-14'
+    sport: football
+    tier: top
   code: OK
   count: 3
   stub: false
-  note: 顶级赛事 3 场（佛罗伦萨vs拉齐奥/曼联vs利兹联/莱万特vs赫塔菲），总 281 场；
-    按"最有把握"挑曼联vs利兹联（英超德比+让球盘清晰）与佛罗伦萨vs拉齐奥（意甲+大小球信号）
+  note: 顶级赛事 3 场（佛罗伦萨vs拉齐奥/曼联vs利兹联/莱万特vs赫塔菲），总 281 场； 按"最有把握"挑曼联vs利兹联（英超德比+让球盘清晰）与佛罗伦萨vs拉齐奥（意甲+大小球信号）
 - round: 1
   atomic_id: T1-a2
   tool: get_over_under_odds
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 5
   stub: false
-  note: 5 家大小球（含 Interwetten/18Bet/SB皇冠/10bet），初盘 2.75 → 滚球 3.5，
-    over 赔率从 0.81 飙至 4.68~9.0，进球数大球信号已被市场消化
+  note: 5 家大小球（含 Interwetten/18Bet/SB皇冠/10bet），初盘 2.75 → 滚球 3.5， over 赔率从 0.81 飙至
+    4.68~9.0，进球数大球信号已被市场消化
 - round: 1
   atomic_id: T1-a2
   tool: get_over_under_odds
-  params: {match_id: 4339774}
+  params:
+    match_id: 4339774
   code: OK
   count: 5
   stub: false
-  note: 5 家大小球，初盘 2.25/2.5 → 收盘 1.5/1.75，over 赔率 5.58~12.65，
-    小球信号强烈（实际 1-0）
+  note: 5 家大小球，初盘 2.25/2.5 → 收盘 1.5/1.75，over 赔率 5.58~12.65， 小球信号强烈（实际 1-0）
 - round: 1
   atomic_id: T1-b1
   tool: get_match_team_stats
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 2
   stub: false
-  note: 曼联 20射门9射正11角球42%控球1红3黄 vs 利兹联 15射6正4角58%控球；
-    控球反转+红牌事件清晰反映"利益状态"
+  note: 曼联 20射门9射正11角球42%控球1红3黄 vs 利兹联 15射6正4角58%控球； 控球反转+红牌事件清晰反映"利益状态"
 - round: 1
   atomic_id: T1-b1
   tool: get_match_team_stats
-  params: {match_id: 4339774}
+  params:
+    match_id: 4339774
   code: OK
   count: 2
   stub: false
@@ -74,52 +76,56 @@ attempts:
 - round: 1
   atomic_id: T1-b1
   tool: get_match_incidents
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 19
   stub: false
-  note: 3 进球（奥卡福尔双响 + 卡塞米罗点球附近）+ 1 红（利桑德罗·马丁内斯暴力行为）
-    + 5 黄 + 多次换人 + VAR；事件流完整支持"演戏/战意"叙事
+  note: 3 进球（奥卡福尔双响 + 卡塞米罗点球附近）+ 1 红（利桑德罗·马丁内斯暴力行为） + 5 黄 + 多次换人 + VAR；事件流完整支持"演戏/战意"叙事
 - round: 1
   atomic_id: T1-b1
   tool: get_match_incidents
-  params: {match_id: 4339774}
+  params:
+    match_id: 4339774
   code: OK
   count: 18
   stub: false
-  note: 1 进球（戈森斯 28'，哈里森助攻）+ 多次换人 + 4 黄 + VAR + 拖延时间黄牌；
-    反映下半场控场节奏
+  note: 1 进球（戈森斯 28'，哈里森助攻）+ 多次换人 + 4 黄 + VAR + 拖延时间黄牌； 反映下半场控场节奏
 - round: 1
   atomic_id: T1-b1
   tool: get_goals_lost_rate
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 7
   stub: false
-  note: 7 个时段进失球分布（1-15/16-30/31-45/46-60/61-75/76-90/90+），
-    31-45 客队进 28 概率最高，与实际奥卡福尔 29' 进球时段吻合
+  note: 7 个时段进失球分布（1-15/16-30/31-45/46-60/61-75/76-90/90+）， 31-45 客队进 28 概率最高，与实际奥卡福尔
+    29' 进球时段吻合
 - round: 1
   atomic_id: T1-b1
   tool: get_goals_lost_rate
-  params: {match_id: 4339774}
+  params:
+    match_id: 4339774
   code: OK
   count: 7
   stub: false
-  note: 7 时段分布，46-60 主队进 23 概率最高但实际 28' 已进球；
-    时段概率供进球数预测参考
+  note: 7 时段分布，46-60 主队进 23 概率最高但实际 28' 已进球； 时段概率供进球数预测参考
 - round: 1
   atomic_id: T1-b1
   tool: get_odds_snapshot
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 10
   stub: false
-  note: 欧赔 5 家（立博/威廉希尔/Interwetten/18Bet）+ 亚盘 5 家；
-    主胜从 1.61 飙至 148/151，客胜从 6.05 跌至 1.86，反映比赛中曼联被逆转+红牌
+  note: 欧赔 5 家（立博/威廉希尔/Interwetten/18Bet）+ 亚盘 5 家； 主胜从 1.61 飙至 148/151，客胜从 6.05 跌至
+    1.86，反映比赛中曼联被逆转+红牌
 - round: 1
   atomic_id: T1-b1
   tool: get_recent_form
-  params: {team_id: 10135, n: 5}
+  params:
+    team_id: 10135
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -127,7 +133,9 @@ attempts:
 - round: 1
   atomic_id: T1-b1
   tool: get_recent_form
-  params: {team_id: 10175, n: 5}
+  params:
+    team_id: 10175
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -135,7 +143,10 @@ attempts:
 - round: 1
   atomic_id: T1-b1
   tool: get_h2h
-  params: {team_a: 10135, team_b: 10175, n: 5}
+  params:
+    team_a: 10135
+    team_b: 10175
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -143,49 +154,50 @@ attempts:
 - round: 1
   atomic_id: T1-b1
   tool: get_intel_tags
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 5
   stub: false
-  note: 5 类情报（主正13条/主负1/客正4/客负8/中性0），含 B费转会传闻、卡里克赛前发布会、
-    主队 20 多天休整、客队多名主力伤停等"利益状态/演戏"角度素材充足
+  note: 5 类情报（主正13条/主负1/客正4/客负8/中性0），含 B费转会传闻、卡里克赛前发布会、 主队 20 多天休整、客队多名主力伤停等"利益状态/演戏"角度素材充足
 - round: 1
   atomic_id: T1-b1
   tool: get_injury_report
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 6
   stub: false
-  note: 主队 3 伤（德里赫特背伤/谢什科腿伤/乌加特十字韧带），客队 3 伤
-    （格鲁夫膝/施塔赫踝/朗斯塔夫疝气）；伤停数据直接支持战意判断
+  note: 主队 3 伤（德里赫特背伤/谢什科腿伤/乌加特十字韧带），客队 3 伤 （格鲁夫膝/施塔赫踝/朗斯塔夫疝气）；伤停数据直接支持战意判断
 - round: 1
   atomic_id: T1-b1
   tool: get_match_lineup
-  params: {match_id: 4343362}
+  params:
+    match_id: 4343362
   code: OK
   count: 29
   stub: false
-  note: 首发确认 confirmed=true，曼联 4-2-3-1（B费队长），利兹联 3-4-2-1（阿姆帕杜队长）；
-    主队 15 人 + 客队 14 人（含替补）
+  note: 首发确认 confirmed=true，曼联 4-2-3-1（B费队长），利兹联 3-4-2-1（阿姆帕杜队长）； 主队 15 人 + 客队 14
+    人（含替补）
 - round: 1
   atomic_id: T1-b1
   tool: get_standings
-  params: {league_id: 82}
+  params:
+    league_id: 82
   code: OK
   count: 20
   stub: false
-  note: 英超 20 队积分榜返回 OK，但所有 rows 的 points/played/goals 均为 0
-    （下赛季初始空榜），积分/排名数据缺失，仅可作联赛结构参考
+  note: 英超 20 队积分榜返回 OK，但所有 rows 的 points/played/goals 均为 0 （下赛季初始空榜），积分/排名数据缺失，仅可作联赛结构参考
 - round: 1
   atomic_id: T1-b2
   tool: synthesize_answer
-  params: {format: six_segment}
+  params:
+    format: six_segment
   code: OK
   count: 1
   stub: false
-  note: 六段式综合（精算推荐/比分预测/进球数分析/战意与演戏/2串1推荐/3串1推荐）
-    所需上游数据全部 OK；2 串 1 与 3 串 1 需引入第 3 场莱万特vs赫塔菲（已在 schedule 中可用，
-    同工具链可复用），合成由 LLM 在评审阶段完成，工具层无阻塞
+  note: 六段式综合（精算推荐/比分预测/进球数分析/战意与演戏/2串1推荐/3串1推荐） 所需上游数据全部 OK；2 串 1 与 3 串 1 需引入第 3
+    场莱万特vs赫塔菲（已在 schedule 中可用， 同工具链可复用），合成由 LLM 在评审阶段完成，工具层无阻塞
 satisfied:
 - T1-a1
 - T1-a2
@@ -197,13 +209,11 @@ blocking_gap:
   failed_atomic: null
 route_complete: true
 data_quality_notes:
-- get_standings(league_id=82) 返回 20 行但 points/played/goals 全为 0（下赛季初始空榜），
-  无法用于"球队利益状态/排名战意"分析；建议从 get_intel_tags 的"领先获胜率/落后输球率"
-  字段推导战意，或使用 match 上的 home_position/away_position（当前为 null）
-- 莱万特vs赫塔菲（match_id=4358864）未单独探路，但已在 schedule 出现且同库同工具链，
-  合成 3 串 1 时可直接复用本路径工具集
-- 大小球 latest 字段为滚球盘中段值（非真正收盘），分析"进球数预测"时需结合 incidents 时序
-  校验当前比分状态
+- get_standings(league_id=82) 返回 20 行但 points/played/goals 全为 0（下赛季初始空榜）， 无法用于"球队利益状态/排名战意"分析；建议从
+  get_intel_tags 的"领先获胜率/落后输球率" 字段推导战意，或使用 match 上的 home_position/away_position（当前为
+  null）
+- 莱万特vs赫塔菲（match_id=4358864）未单独探路，但已在 schedule 出现且同库同工具链， 合成 3 串 1 时可直接复用本路径工具集
+- 大小球 latest 字段为滚球盘中段值（非真正收盘），分析"进球数预测"时需结合 incidents 时序 校验当前比分状态
 phase2_verification:
   new_tools_implemented:
   - get_over_under_odds: OK (5 companies × 2 matches，大小球初盘/即时/收盘完整)
@@ -220,6 +230,6 @@ phase2_verification:
 known_gap_status:
   previous: 未探路（B14 为 P2 优先级，无前序记录）
   current: route_complete
-  resolution: Phase 2 工具链（over_under_odds + match_team_stats + match_incidents
-    + goals_lost_rate + intel_tags + injury_report + lineup + odds_snapshot + recent_form
-    + h2h）完整覆盖 B14 进球数深度分析所需数据；六段式合成与 2/3 串 1 推荐由 LLM 评审阶段完成
+  resolution: Phase 2 工具链（over_under_odds + match_team_stats + match_incidents + goals_lost_rate
+    + intel_tags + injury_report + lineup + odds_snapshot + recent_form + h2h）完整覆盖
+    B14 进球数深度分析所需数据；六段式合成与 2/3 串 1 推荐由 LLM 评审阶段完成

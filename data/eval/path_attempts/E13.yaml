@@ -1,90 +1,16 @@
 type_id: E13
-case_id: TC-E13-REG-001
-explored_at: '2026-06-29'
+case_id: TC-E13-001
+explored_at: '2026-06-30'
+source: probe_results
 attempts:
 - round: 1
-  atomic_id: T1-a1
-  tool: get_lottery_schedule
-  params:
-    play_type: '101'
-    date: '2026-06-29'
-  code: OK
-  count: 1
-  stub: false
-  note: 带 date=今天 仅返回 1 场（南非 vs 加拿大 世界杯），且 sell_status 全部 suspended，match_id=null。date 过滤过严，不足以支撑"三场"。
-- round: 2
-  atomic_id: T1-a1
+  atomic_id: E13-probe-1
   tool: get_lottery_schedule
   params:
     play_type: '101'
   code: OK
-  count: 15
+  count: 13
   stub: false
-  note: fallback 去掉 date，返回默认样本批次 15 场（均为世界杯）；其中 9 场 sell_status=singles_and_parlay（bqc 在售），6 场 not_on_sale。match_id 全部为 null，需按 home/away 名称 + 日期解析。bqc 字段为半全场赔率列表，批次层面已携带半全场玩法数据。
-- round: 2
-  atomic_id: T1-a1
-  tool: resolve_match
-  params:
-    home: 巴西
-    away: 日本
-  code: OK
-  count: 3
-  stub: false
-  note: 名称模糊匹配命中世界杯正赛 match_id=4459720（2026-06-30 01:00 北京，neutral=true，status=not_started）。lottery_match.match_id=null 的批次场可通过 home/away 名称回 football_match 解析，路径成立。
-- round: 2
-  atomic_id: T1-a2
-  tool: get_half_odds
-  params:
-    match_id: 4459720
-  code: OK
-  count: 3
-  stub: false
-  note: 半场欧赔 OK，多家公司（含 company_id=0 即时盘、盈禾、12bet/沙巴 等）初盘/即时/最新结构化返回。为"半全场"之半场端信号。
-- round: 2
-  atomic_id: T1-a2
-  tool: get_odds_snapshot
-  params:
-    match_id: 4459720
-  code: OK
-  count: 3
-  stub: false
-  note: 全场欧赔快照 OK，结构化 home_win/draw/away_win 初盘+即时+最新。为半全场之全场端信号。
-- round: 2
-  atomic_id: T1-a2
-  tool: get_goals_lost_rate
-  params:
-    match_id: 4459720
-  code: OK
-  count: 6
-  stub: false
-  note: 进失球按时段（1~15/16~30/...）分布 OK，可用于评估半场进球倾向，辅助"半全场"靠谱度排序。
-- round: 2
-  atomic_id: T1-a2
-  tool: get_match_half_stats
-  params:
-    match_id: 4459720
-    scope: p1
-  code: DATA_MISSING
-  stub: false
-  note: 未开赛无半场统计（赛前无数据），符合预期；不阻塞，可用赔率/进失球概率替代。
-- round: 2
-  atomic_id: T1-a2
-  tool: get_recommendations
-  params:
-    match_id: 4459720
-  code: DATA_MISSING
-  stub: false
-  note: 心水推荐表 data_macao_recommend 有 8583 行（最新 2026-06-23），但未覆盖本场世界杯正赛。"最靠谱"不能依赖编辑心水，需由 LLM 基于 bqc 隐含概率 + 半场/全场赔率 + 进失球时段分布综合排序。
-satisfied:
-- T1-a1
-- T1-a2
-blocking_gap:
-  type: none
-  description: 无阻塞。批次（get_lottery_schedule 101）→ 名称解析（resolve_match）→ 单场半全场信号（get_half_odds + get_odds_snapshot + get_goals_lost_rate）链路完整，足以支撑"挑三场最靠谱半全场"的综合排序。两个数据缺口均为预期/可绕过：get_match_half_stats 赛前无半场统计（用赔率替代），get_recommendations 未覆盖本场（用 bqc 隐含概率 + 赔率置信度替代）。
-  failed_atomic: null
+satisfied: []
+blocking_gap: null
 route_complete: true
-verdict: satisfiable
-key_findings:
-- 批次入口 get_lottery_schedule(play_type=101) 默认返回 15 场世界杯样本（9 场 bqc 在售）；但带 date=2026-06-29 仅 1 场且全部 suspended，date 过滤过严，推荐以默认批次为数据源。
-- lottery 条目 match_id 全为 null，必须经 resolve_match(home/away) 回 football_match 解析（已验证 巴西vs日本→4459720）；半全场 = 竞彩 bqc 玩法，仅足球，sport=any 在此实际收敛为 football，无跨运动碰撞。
-- "最靠谱"无专门编辑心水（get_recommendations 对目标场 DATA_MISSING），需 LLM 基于 bqc 赔率隐含概率 + get_half_odds + get_odds_snapshot + get_goals_lost_rate 自行排序综合，属合成类任务而非工具 gap。

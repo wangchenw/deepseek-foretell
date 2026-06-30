@@ -1,0 +1,139 @@
+type_id: B02
+case_id: TC-B02-001
+explored_at: '2026-06-30'
+v2_verdict: '⚠️ implementation_gap(主:lottery 未 JOIN lottery_match 取 match_id,intel 子链路阻断)+ parameter_gap(次:date 语义)'
+v3_verdict: '✅ pass (lottery match_id 已填充,deep 篮球 sport 路由全打通,无足球碰撞)'
+verdict_tier: pass
+change_summary: >-
+  阶段3重写:(1) get_lottery_schedule/resolve_lottery_match for play_type=201(竞彩篮球)
+  现已 LEFT JOIN lottery_match 回填 match_id(真实 basketball_match.id),v2 的 match_id=null
+  阻断解除;(2) deep 工具加 sport 参数,sport=basketball 走篮球表(recent_form/h2h/injury/intel
+  有数据,lineup/team_stats/player_stats/incidents/tlive 短路 DATA_MISSING+reason);(3) 篮球
+  resolve_basketball_team/standings/odds_trend 路径打通。竞彩篮球模板全链路可用。
+attempts:
+- round: 1
+  atomic_id: B02-T1-a1
+  tool: get_lottery_schedule
+  params: {play_type: '201', date: '2026-04-29'}
+  code: OK
+  count: 4
+  stub: false
+  evidence: >-
+    4 场全篮球(欧杯篮球×2 + 美职篮×2),match_id 字段已填充:
+    3918099(奥林匹亚vs摩纳哥)、3917966(帕纳辛纳vs巴伦西亚)、
+    3917723(尼克斯vs老鹰,周二303)、3917871(马刺vs开拓者,周二304)。
+    完整盘口 sf/rf/dxf/sfc,与 v2 SQL 基准(lottery_jclq_odds id=2039427/2039428)一致。
+    v2 的 match_id=null 已修复。
+- round: 1
+  atomic_id: B02-T1-a2
+  tool: resolve_lottery_match
+  params: {play_type: '201', code: '周二303', date: '2026-04-29'}
+  code: OK
+  count: 1
+  stub: false
+  evidence: >-
+    返回 lottery_id=2039427,match_id=3917723(尼克斯vs老鹰,美职篮),
+    完整盘口 sf(1.16/3.15)/rf(-6.5,1.65/1.75)/dxf(213.5,1.7/1.7)/sfc(12 档)。
+    v2 routing_gap(ENTITY_NOT_FOUND)已修复,code=周二303 命中。
+- round: 2
+  atomic_id: B02-T1-a3
+  tool: resolve_basketball_team
+  params: {name: 尼克斯}
+  code: OK
+  count: 10
+  stub: false
+  evidence: '首选 team_id=10115(New York Knicks, NBA competition_id=1)'
+- round: 2
+  atomic_id: B02-T1-a3
+  tool: resolve_basketball_team
+  params: {name: 老鹰}
+  code: OK
+  count: 10
+  stub: false
+  evidence: '首选 team_id=10125(Atlanta Hawks, NBA competition_id=1)'
+- round: 3
+  atomic_id: B02-T1-a4
+  tool: get_recent_form
+  params: {team_id: 10115, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: '尼克斯最近 5 场篮球(2026-06-04~14,全 L),数据来自 basketball_match ✅'
+- round: 3
+  atomic_id: B02-T1-a4
+  tool: get_h2h
+  params: {team_a: 10115, team_b: 10125, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: >-
+    5 场篮球交锋(2026-04-21~05-01),含 match_id=3917723(即 lottery 那场 4-29 尼克斯vs老鹰)。
+    ⚠ 字段语义错位:full_time 实为半场比分、half_time 实为全场、red_card/yellow_card 实为各节得分
+    (football 字段名复用),数据本身是篮球 ✅。
+- round: 3
+  atomic_id: B02-T1-a4
+  tool: get_injury_report
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 2
+  stub: false
+  evidence: '老鹰 2 名伤员(player_id 64422/69930),走 basketball_team_injury 表 ✅'
+- round: 3
+  atomic_id: B02-T1-a4
+  tool: get_intel_tags
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 5
+  stub: false
+  evidence: >-
+    5 条情报标签(主队正/负、客队正/负、中性),内容真实 NBA 篮球情报
+    (尼克斯vs老鹰系列赛 2-2、OG-阿努诺比 22+10、阿努诺比三世半场出勤等),
+    走 basketball_intelligence 表 ✅
+- round: 3
+  atomic_id: B02-T1-a5
+  tool: get_match_team_stats
+  params: {match_id: 3917723, sport: basketball}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  evidence: 'basketball_match_team_stats 表不存在,正确短路返 DATA_MISSING+reason ✅'
+- round: 3
+  atomic_id: B02-T1-a5
+  tool: get_odds_trend
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 50
+  stub: false
+  evidence: >-
+    50 点 2-way 篮球赔率(draw=0.0,home_win 1.45→1.36,away_win 2.55→3.30),
+    changed_at 1777165345~1777349468,公司韦德/onex/12bet/Bet365/平博/立博/易胜博/澳门官方 ✅
+satisfied:
+- B02-T1-a1
+- B02-T1-a2
+- B02-T1-a3
+- B02-T1-a4
+- B02-T1-a5
+blocking_gap: null
+route_complete: true
+route_path: >-
+  get_lottery_schedule(201, date) 拉 4 场竞彩篮球批次(match_id 已填)
+  → resolve_lottery_match(201, code, date) 精确定位单场+盘口
+  → resolve_basketball_team(主/客名) 取 team_id
+  → deep 篮球组合:get_recent_form(team_id, sport=basketball) + get_h2h(a,b, sport=basketball)
+    + get_injury_report(match_id, sport=basketball) + get_intel_tags(match_id, sport=basketball)
+  → get_odds_trend(match_id, sport=basketball) 取 2-way 赔率时序
+  → 篮球无数据的维度(lineup/team_stats/player_stats/incidents/tlive)返 DATA_MISSING+reason,LLM 降级处理
+caveats:
+- id: B02-h2h-field-semantics
+  category: tool_logic_gap
+  note: >-
+    get_h2h sport=basketball 复用 football 字段名:score_breakdown.full_time 实为半场比分、
+    half_time 实为全场、red_card/yellow_card 实为各节得分(1Q/2Q/3Q/4Q)。
+    数据正确但字段语义错位,LLM 需知道"篮球 red_card=主队某节得分"。
+    建议后续为篮球单独映射字段名(q1/q2/q3/q4/full/half)。
+- id: B02-schedule-sport-metadata
+  category: tool_logic_gap
+  note: >-
+    get_team_schedule sport=basketball 返回行内 sport 字段仍透传 "football"(元数据 bug),
+    status="interrupted"(篮球完场 status_id=10 映射失真)。数据本身是篮球 match_id,
+    但元数据透传未跟随 sport 参数。建议 sport 字段回填入参值,status 映射篮球 status_id。

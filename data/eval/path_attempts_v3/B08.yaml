@@ -1,0 +1,25 @@
+type_id: B08
+case_id: TC-B08-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ implementation_gap(4月8日 10 场 NBA + 14 家公司大小分盘口数据存在,工具未实现篮球深度)"
+v3_verdict: "⚠️"
+verdict_tier: "⚠️"
+change_summary: |
+  sport=basketball 路由生效:get_match_team_stats(sport=basketball) 返 DATA_MISSING +
+  明确 reason "该维度篮球暂未采集(basketball_match_team_stats 表不存在)",优于 v2 含糊空结果。
+  但 DB 实际有 basketball_match_team_data 表(数据存在),工具层未加该表的篮球分支,
+  故仍 ⚠️:DATA_MISSING 提示明确化(语义层升档),但数据可达性未解决(实现层残留)。
+attempts:
+  - round: 1
+    atomic_id: B08-T0-a1
+    tool: get_match_team_stats
+    params: {match_id: 3922409, sport: basketball}
+    code: DATA_MISSING
+    key_fields: {reason: "该维度篮球暂未采集(basketball_match_team_stats 表不存在)"}
+    stub: false
+satisfied: []
+blocking_gap:
+  type: implementation_gap
+  description: "篮球球队统计表实为 basketball_match_team_data(非 basketball_match_team_stats),工具未实现该表分支;DATA_MISSING 提示已明确化但数据不可达"
+  failed_atomic: B08-T0-a1
+route_complete: false

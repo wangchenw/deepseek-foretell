@@ -1,0 +1,87 @@
+type_id: G03
+case_id: TC-G03-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ (类 B:resolve_lottery_match 合成 ID 假命中 + 类 F:context_gap)"
+v3_verdict: "✅ (resolve_lottery_match 合成 ID 分离 + bf 结构化 + 球队赛季统计/欧赔齐备)"
+verdict_tier: "✅"
+change_summary: |
+  v3 resolve_lottery_match 合成 ID 分离 + 北单/竞彩 bf JSON 修复生效,G03 各比分概率工具链全通:
+    1. resolve_lottery_match(play_type=101, code="周二077", date=2026-07-01) ✅ OK:
+       - football_match_id=4459722(真实 football_match.id,4459xxx 系列)、
+         match_id=4459722(已等于真实 id)、lottery_official_id=2040345(合成 ID 单列)。
+         v2 合成 ID 假命中(26089x 碰撞 2009/2019 历史比赛)已修复。
+       - bf: 31 键结构化 {label:"1:0", odds:13.0}, {label:"1:1", odds:6.4}, {label:"0:0", odds:13.0}
+         + 胜其他/平其他/负其他,odds 为数值——各比分市场概率直接可得(1/odds 归一化)。
+       - match_candidates 含真实 team_id(11141/13820)+ environment(temp 31°C/humidity 44%/wind 4.0m/s)。
+    2. get_team_season_stats(football) ✅ 双方球队赛季进球/失球可得(Poisson 攻防强度输入):
+       - VPS瓦萨(10972): 5 场 goals=31 goals_against=1 控球 55%
+       - 图尔库国际(10746): 3 场 goals=12 goals_against=2 控球 64%
+    3. get_odds_snapshot(match_id=4550790) ✅ OK 5 家欧赔 + 5 家亚盘(initial/current/latest),
+       隐含概率与市场比分赔率交叉验证可得。
+    4. get_lottery_schedule(play_type=301) ✅ bf 结构化(见 G07),北单比分赔率备用。
+  各比分概率合成(Poisson/Dixon-Coles)为 agent 层计算,工具层已提供全部输入:
+    攻防强度(team_season_stats) + 市场比分赔率(resolve_lottery_match bf) + 欧赔隐含概率(odds_snapshot)。
+  v2 类 F context_gap(multi-turn 工作流继承):checkpointer 在生产可工作(v2 G07 代码审查),
+    非 tool gap;eval harness 单轮模式不端到端模拟,但不阻塞工具路径。
+attempts:
+  - round: 1
+    atomic_id: G03-T1-a2-resolve
+    tool: resolve_lottery_match
+    params: {play_type: "101", code: "周二077", date: "2026-07-01"}
+    code: OK
+    key_fields:
+      football_match_id: 4459722
+      match_id: 4459722
+      lottery_official_id: 2040345
+      bf_labels: "1:0/0:0/1:1/2:1/胜其他/平其他/负其他 等31键"
+      bf_sample: {label: "1:1", odds: 6.4}
+      team_ids: "home 11141 / away 13820"
+    stub: false
+    note: "v2 合成 ID 假命中 → v3 真实 match_id + bf 数值结构化"
+  - round: 1
+    atomic_id: G03-T1-a2-team_stats_home
+    tool: get_team_season_stats
+    params: {team_id: 10972}
+    code: OK
+    key_fields: {team: "VPS瓦萨", matches: 5, goals: 31, goals_against: 1, possession: 55}
+    stub: false
+    note: "Poisson 攻防强度输入(主队)"
+  - round: 1
+    atomic_id: G03-T1-a2-team_stats_away
+    tool: get_team_season_stats
+    params: {team_id: 10746}
+    code: OK
+    key_fields: {team: "图尔库国际", matches: 3, goals: 12, goals_against: 2, possession: 64}
+    stub: false
+    note: "Poisson 攻防强度输入(客队)"
+  - round: 1
+    atomic_id: G03-T1-a2-odds_snapshot
+    tool: get_odds_snapshot
+    params: {match_id: 4550790, market: europe}
+    code: OK
+    key_fields: {european_companies: 5, asian_companies: 5, sample_current: "3.24/3.16/2.11"}
+    stub: false
+    note: "欧赔隐含概率 + 亚盘,与模型比分概率交叉验证"
+  - round: 1
+    atomic_id: G03-T1-a2-bd_bf
+    tool: get_lottery_schedule
+    params: {play_type: "301"}
+    code: OK
+    count: 16
+    key_fields: {bf_numeric: true}
+    stub: false
+    note: "北单 bf 结构化备用(见 G07 验证)"
+satisfied:
+  - G03-T1-g0
+  - G03-T1-a1
+  - G03-T1-a2-resolve
+  - G03-T1-a2-team_stats_home
+  - G03-T1-a2-team_stats_away
+  - G03-T1-a2-odds_snapshot
+  - G03-T1-a2-bd_bf
+  - G03-T1-a2
+blocking_gap:
+  type: none
+  description: "工具链完整;各比分概率合成(Poisson/Dixon-Coles)为 agent 层计算,非 tool gap"
+  failed_atomic: null
+route_complete: true

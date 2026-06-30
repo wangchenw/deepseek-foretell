@@ -4,17 +4,27 @@ type_name: 定位失败
 explored_at: '2026-06-29'
 phase2_regression: true
 source: phase2_path_explorer
-scenario_summary: |
-  X04 "定位失败"：用户首问 "四大VS瓦勒伦加两队最可能的进球数"——"四大"
+scenario_summary: 'X04 "定位失败"：用户首问 "四大VS瓦勒伦加两队最可能的进球数"——"四大"
+
   为错字/误听（正确应为挪威球队 "斯达" / Start Kristiansand）。X 场景考察
+
   拒答正确性、假阴性风险、实体消歧。期望路径：
+
   (1) resolve_match(四大, 瓦勒伦加) → ENTITY_NOT_FOUND
+
   (2) apply_guardrails 触发 honest_decline / 请用户澄清
+
   (3) 用户改口 "斯达VS瓦勒伦加" → resolve_match 命中挪超历史对局
+
   Phase 1 gap: routing_gap（route_matrix 标 prompt_only，未实调工具）。
+
   Phase 2 重构后 resolve_match / resolve_team 实调可证：错名 ENTITY_NOT_FOUND、
+
   正名 OK 且消歧正确（exact alias "斯达" 命中 team_id=10858，绕开 substring 噪声
+
   如 "阿格斯达斯亚"）。
+
+  '
 attempts:
 - round: 1
   atomic_id: X04-T1-a1
@@ -27,9 +37,9 @@ attempts:
   count: 0
   stub: false
   notes:
-    - dimension=match_entity；返回 {home:"四大", away:"瓦勒伦加", date:null}
-    - "四大" 无法定位 → 正确触发拒答/澄清护栏
-    - 佐证 resolve_team(四大) 同样 ENTITY_NOT_FOUND（dimension=team_entity）
+  - dimension=match_entity；返回 {home:"四大", away:"瓦勒伦加", date:null}
+  - '"四大" 无法定位 → 正确触发拒答/澄清护栏'
+  - 佐证 resolve_team(四大) 同样 ENTITY_NOT_FOUND（dimension=team_entity）
 - round: 1
   atomic_id: X04-T1-a1-aux
   category: resolve_entity
@@ -40,9 +50,9 @@ attempts:
   count: 8
   stub: false
   notes:
-    - team_id=10488 (Vålerenga Fotball Elite, 挪超, national=0) 为首选
-    - 含 B队/U19/女足等 8 候选，主队唯一明确
-    - 证明问题在 "四大" 而非 "瓦勒伦加"，定位失败可定位到单边
+  - team_id=10488 (Vålerenga Fotball Elite, 挪超, national=0) 为首选
+  - 含 B队/U19/女足等 8 候选，主队唯一明确
+  - 证明问题在 "四大" 而非 "瓦勒伦加"，定位失败可定位到单边
 - round: 2
   atomic_id: X04-T1-a1-fallback
   category: resolve_entity
@@ -53,8 +63,8 @@ attempts:
   count: 10
   stub: false
   notes:
-    - 用户 turn2 改口 "斯达"；候选含 substring 噪声（阿格斯达斯亚/特尔斯达/哥斯达黎加…）
-    - exact alias "斯达" 命中 team_id=10858 (Start Kristiansand, 挪超)
+  - 用户 turn2 改口 "斯达"；候选含 substring 噪声（阿格斯达斯亚/特尔斯达/哥斯达黎加…）
+  - exact alias "斯达" 命中 team_id=10858 (Start Kristiansand, 挪超)
 - round: 2
   atomic_id: X04-T1-a1-fallback
   category: resolve_entity
@@ -66,45 +76,55 @@ attempts:
   count: 10
   stub: false
   notes:
-    - match_status=ambiguous；10 候选中斯达(10858) vs 瓦勒伦加(10488) 共 5 场
-    - 最新一场 match_id=4467553, 2026-05-25 挪超 status=finished
-    - 消歧正确：resolve_match 选中 exact alias 对应 team_id，未被 substring 噪声干扰
-    - 后续可按 date/round/status 收窄或转 get_team_schedule 拿近况
+  - match_status=ambiguous；10 候选中斯达(10858) vs 瓦勒伦加(10488) 共 5 场
+  - 最新一场 match_id=4467553, 2026-05-25 挪超 status=finished
+  - 消歧正确：resolve_match 选中 exact alias 对应 team_id，未被 substring 噪声干扰
+  - 后续可按 date/round/status 收窄或转 get_team_schedule 拿近况
 - round: 3
   atomic_id: X04-T1-a2
   category: synthesize_answer
   status: not_applicable
-  note: |
-    turn1 "四大" 实体未解，按 output-discipline 不应合成进球数预测；
+  note: 'turn1 "四大" 实体未解，按 output-discipline 不应合成进球数预测；
+
     a2 仅在 turn2 实体解出后才有意义（依赖 odds/result 路径，非本场景考察点）。
+
+    '
 - round: 1
   atomic_id: X04-T1-x1
   category: apply_guardrails
   status: prompt_only
-  note: |
-    护栏由 foretell-output-discipline skill 承担；触发信号为 T1-a1 的
+  note: '护栏由 foretell-output-discipline skill 承担；触发信号为 T1-a1 的
+
     ENTITY_NOT_FOUND。Phase 2 工具链已能给出可证伪的 ENTITY_NOT_FOUND，
+
     使 honest_decline 从启发式拒答升级为 DB-grounded 拒答。
+
+    '
 satisfied:
 - X04-T1-a1
 - X04-T1-x1
 blocking_gap:
   type: none
-  description: |
-    Phase 2 后路径完整：
-    - 错名 "四大" → resolve_match/resolve_team 一致返回 ENTITY_NOT_FOUND，
-      可靠触发 honest_decline / 澄清请求（X04 核心期望）。
-    - 正名 "斯达" → resolve_match OK 且消歧正确（exact alias 优先于 substring）。
-    - 护栏触发由 DB 信号驱动，不再是纯 prompt 启发式。
-    唯一保留项：synthesize_answer(a2) 在 turn1 不执行，属设计内行为，非 gap。
+  description: "Phase 2 后路径完整：\n- 错名 \"四大\" → resolve_match/resolve_team 一致返回 ENTITY_NOT_FOUND，\n\
+    \  可靠触发 honest_decline / 澄清请求（X04 核心期望）。\n- 正名 \"斯达\" → resolve_match OK 且消歧正确（exact\
+    \ alias 优先于 substring）。\n- 护栏触发由 DB 信号驱动，不再是纯 prompt 启发式。\n唯一保留项：synthesize_answer(a2)\
+    \ 在 turn1 不执行，属设计内行为，非 gap。\n"
   failed_atomic: null
 route_complete: true
-upgrade_recommendation: |
-  由 Phase 1 的 routing_gap(prompt_only) 升级为 ✅ route_complete。
+upgrade_recommendation: '由 Phase 1 的 routing_gap(prompt_only) 升级为 ✅ route_complete。
+
   理由：
+
   1. resolve_match 实调确认 "四大" ENTITY_NOT_FOUND（dimension=match_entity）
+
   2. resolve_team 实调确认 "瓦勒伦加" 可解、问题在 "四大" 单边
+
   3. fallback "斯达" 消歧正确，证明工具链具备从误听恢复的能力
+
   4. 护栏触发由 DB ENTITY_NOT_FOUND 信号驱动，拒答可证、可审计
+
   phase1_gap_status: routing_gap (prompt_only)
+
   phase2_gap_status: none (route_complete)
+
+  '

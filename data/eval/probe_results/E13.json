@@ -1,6 +1,8 @@
 {
   "type_id": "E13",
   "case_id": "TC-E13-001",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "get_lottery_schedule",
@@ -8,8 +10,9 @@
         "play_type": "101"
       },
       "code": "OK",
-      "count": 16,
+      "count": 13,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

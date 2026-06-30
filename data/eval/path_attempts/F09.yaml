@@ -18,9 +18,9 @@ attempts:
   count: 10
   stub: false
   note: 返回 10 个候选，match_status=ambiguous。全部为 football（日职联 league_id=567 / 天皇杯 577），无篮球碰撞。
-    候选含 1 场 not_started（match_id=4555420，2027-03-13 第26轮，home_pos=1/away_pos=7）与 1 场 finished（match_id=4470782，
-    2026-04-01 第11轮，home_pos=西区1/away_pos=西区4）。用户文案"神户西区榜首、清水第五、本赛季8场、今晚拿分"与 4470782
-    的西区1/西区4排名及第11轮时间窗最吻合（赛前前瞻写就），故选 4470782 为目标 match；4555420 为远期未开赛 fixture。
+    候选含 1 场 not_started（match_id=4555420，2027-03-13 第26轮，home_pos=1/away_pos=7）与 1
+    场 finished（match_id=4470782， 2026-04-01 第11轮，home_pos=西区1/away_pos=西区4）。用户文案"神户西区榜首、清水第五、本赛季8场、今晚拿分"与
+    4470782 的西区1/西区4排名及第11轮时间窗最吻合（赛前前瞻写就），故选 4470782 为目标 match；4555420 为远期未开赛 fixture。
 - round: 1
   atomic_id: F09-T1-a2
   tool: get_odds_snapshot
@@ -39,10 +39,10 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 返回 european 5 家 + asian 5 家。水位字段已结构化——asian 每家含 initial/current/latest 三段 {home_line, handicap,
-    away_line}，home_line/away_line 即上盘/下盘水位。样本（company_id=0）：initial home_line 0.88/handicap -0.5/away_line 0.93
-    → current 0.93/-0.5/0.9 → latest 1.19/-0.25/2.02，可读出水位由主队低水→升水、盘口由 -0.5 退至 -0.25 的方向。
-    欧赔同步结构化为 {home_win,draw,away_win} 三段。水位与盘口一致性可在此快照内交叉判断。
+  note: 返回 european 5 家 + asian 5 家。水位字段已结构化——asian 每家含 initial/current/latest 三段
+    {home_line, handicap, away_line}，home_line/away_line 即上盘/下盘水位。样本（company_id=0）：initial
+    home_line 0.88/handicap -0.5/away_line 0.93 → current 0.93/-0.5/0.9 → latest 1.19/-0.25/2.02，可读出水位由主队低水→升水、盘口由
+    -0.5 退至 -0.25 的方向。 欧赔同步结构化为 {home_win,draw,away_win} 三段。水位与盘口一致性可在此快照内交叉判断。
 - round: 1
   atomic_id: F09-T1-a2
   tool: get_odds_trend
@@ -52,27 +52,31 @@ attempts:
   count: 50
   stub: false
   note: 返回 50 个时序点，但全部为欧赔维度（odds.{home_win,draw,away_win} + changed_at），未暴露亚盘水位（home_line/away_line/handicap）
-    时序。即 get_odds_trend 实现仅覆盖 football_odds_europe_change_* 分区，缺亚盘水位维度——implementation_gap（非阻塞，见下方 SQL fallback）。
+    时序。即 get_odds_trend 实现仅覆盖 football_odds_europe_change_* 分区，缺亚盘水位维度——implementation_gap（非阻塞，见下方
+    SQL fallback）。
 - round: 1
   atomic_id: F09-T1-a2
   tool: sql
   params:
-    query: SELECT company_id, odd1 home_line, odd2 handicap, odd3 away_line, FROM_UNIXTIME(updated_at) changed_at FROM football_odds_asian_change_202603 WHERE match_id=4470782 ORDER BY updated_at LIMIT 15
+    query: SELECT company_id, odd1 home_line, odd2 handicap, odd3 away_line, FROM_UNIXTIME(updated_at)
+      changed_at FROM football_odds_asian_change_202603 WHERE match_id=4470782 ORDER
+      BY updated_at LIMIT 15
   code: OK
   count: 15
   stub: false
   note: SQL fallback 命中 football_odds_asian_change_202603 分区（该 match 共 2537 条水位变化记录）。odd1=主队水位(home_line)、
-    odd3=客队水位(away_line)、odd2=盘口(handicap)，随 updated_at 形成完整水位时序。样本：2026-03-27 18:12 home_line 0.95/away_line 0.87
-    → 18:21 0.81/0.98（主队升水）→ 18:25 盘口由 -0.5 升至 -0.75 → 18:30 home_line 0.97/away_line 0.78。水位方向与盘口变动时序完整可还原，
-    满足"水位变化方向"需求。分区按双月切分（202601/202603/202605...），需按 match 月份选分区；基表 football_odds_asian_change 为空。
+    odd3=客队水位(away_line)、odd2=盘口(handicap)，随 updated_at 形成完整水位时序。样本：2026-03-27 18:12
+    home_line 0.95/away_line 0.87 → 18:21 0.81/0.98（主队升水）→ 18:25 盘口由 -0.5 升至 -0.75
+    → 18:30 home_line 0.97/away_line 0.78。水位方向与盘口变动时序完整可还原， 满足"水位变化方向"需求。分区按双月切分（202601/202603/202605...），需按
+    match 月份选分区；基表 football_odds_asian_change 为空。
 - round: 1
   atomic_id: F09-T1-a2
   tool: synthesize_answer
   params: {}
   code: OK
   stub: false
-  note: 综合 get_odds_snapshot（亚盘 initial/current/latest 水位 + 欧赔三段）与 SQL asian_change 时序即可输出水位方向与盘口一致性分析；
-    无需额外工具。水位字段结构化返回，无需 LLM 解码裸数字。
+  note: 综合 get_odds_snapshot（亚盘 initial/current/latest 水位 + 欧赔三段）与 SQL asian_change
+    时序即可输出水位方向与盘口一致性分析； 无需额外工具。水位字段结构化返回，无需 LLM 解码裸数字。
 satisfied:
 - F09-T1-a1
 - F09-T1-a2
@@ -87,17 +91,17 @@ cross_sport_check:
   sport_inferred: football
   entries_all_football: true
   collision: false
-  note: resolve_match 10 个候选 league 全部为日职联/天皇杯（football），home_team_id=10070、away_team_id=10337 一致，
-    无篮球 team_id 碰撞。sport=any 风险不触发。
+  note: resolve_match 10 个候选 league 全部为日职联/天皇杯（football），home_team_id=10070、away_team_id=10337
+    一致， 无篮球 team_id 碰撞。sport=any 风险不触发。
 data_quality_notes:
 - 未开赛 fixture 4555420（2027-03-13）三类盘口表 count 均为 0，确认为真 data_gap；用户文案经排名/轮次对齐后应映射到已完赛
   4470782（2026-04-01），其盘口/水位数据完整。
 - get_odds_trend 仅返回欧赔走势，缺亚盘水位维度（implementation_gap）；亚盘水位时序需 SQL 直查 football_odds_asian_change_<YYYYMM>
   双月分区表（基表为空，2026h1/h2 命名不存在，需用 202601/202603/... 双月命名）。
-- get_odds_snapshot 的 asian.latest 段多家出现 suspended=true 且水位极端值（如 home_line 7.65/away_line 0.03），为走地/封盘后尾部值，
-  方向分析应以 initial→current 段为准，latest 仅作终态参考。
+- get_odds_snapshot 的 asian.latest 段多家出现 suspended=true 且水位极端值（如 home_line 7.65/away_line
+  0.03），为走地/封盘后尾部值， 方向分析应以 initial→current 段为准，latest 仅作终态参考。
 verdict: pass
-verdict_reason: F09 水位方向核心路径成立——resolve_match 定位神户vs清水（选 4470782），get_odds_snapshot 返回结构化亚盘水位
-  (home_line/handicap/away_line 三段) 与欧赔，可判断水位方向与盘口一致性；亚盘水位完整时序经 SQL football_odds_asian_change_202603
-  (2537 条) 补全。两个 atomic（resolve_entity、synthesize_answer）均满足，route_complete=true。唯一非阻塞缺口为 get_odds_trend
-  未暴露亚盘水位维度（implementation_gap），已由 SQL 分区表 fallback 解决。
+verdict_reason: F09 水位方向核心路径成立——resolve_match 定位神户vs清水（选 4470782），get_odds_snapshot
+  返回结构化亚盘水位 (home_line/handicap/away_line 三段) 与欧赔，可判断水位方向与盘口一致性；亚盘水位完整时序经 SQL football_odds_asian_change_202603
+  (2537 条) 补全。两个 atomic（resolve_entity、synthesize_answer）均满足，route_complete=true。唯一非阻塞缺口为
+  get_odds_trend 未暴露亚盘水位维度（implementation_gap），已由 SQL 分区表 fallback 解决。

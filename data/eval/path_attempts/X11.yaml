@@ -4,10 +4,8 @@ scenario: X
 case_id: TC-X11-SYN
 entity_entry: match
 explored_at: '2026-06-29'
-note: >-
-  probe_cases 中 X11 full_turns 仍为占位 `[年份误锚示例问法]`，probe_status=needs_manual。
-  本探针复用 X12 已验证的 法国 vs 挪威 fixture 复刻"年份误锚"模式：
-  用户给 2024-06-27（错误年份），实际意图为 2026-06-27 世界杯正赛。
+note: probe_cases 中 X11 full_turns 仍为占位 `[年份误锚示例问法]`，probe_status=needs_manual。 本探针复用
+  X12 已验证的 法国 vs 挪威 fixture 复刻"年份误锚"模式： 用户给 2024-06-27（错误年份），实际意图为 2026-06-27 世界杯正赛。
 attempts:
 - round: 1
   atomic_id: X11-T1-a1
@@ -31,10 +29,8 @@ attempts:
   count: 10
   stub: false
   match_status: ambiguous
-  note: >-
-    去 date fallback 返回 OK 但 ambiguous；10 条 candidates 全部为女足/青年队
-    （女欧U17、国际友谊女足、女欧国联、女欧U19、欧青U19 等），未包含
-    2026-06-27 男足世界杯正赛。drop-date 单独不足以定位用户实际意图比赛。
+  note: 去 date fallback 返回 OK 但 ambiguous；10 条 candidates 全部为女足/青年队 （女欧U17、国际友谊女足、女欧国联、女欧U19、欧青U19
+    等），未包含 2026-06-27 男足世界杯正赛。drop-date 单独不足以定位用户实际意图比赛。
 - round: 3
   atomic_id: X11-T1-a1
   fallback: reanchor_year_only
@@ -46,9 +42,7 @@ attempts:
   code: ENTITY_NOT_FOUND
   count: null
   stub: false
-  note: >-
-    仅修正年份（2024→2026）保持 法国 主场顺序仍 ENTITY_NOT_FOUND；
-    DB 中该场比赛以 挪威 为主场索引（与 X12 主客颠倒结论一致）。
+  note: 仅修正年份（2024→2026）保持 法国 主场顺序仍 ENTITY_NOT_FOUND； DB 中该场比赛以 挪威 为主场索引（与 X12 主客颠倒结论一致）。
 - round: 3
   atomic_id: X11-T1-a1
   fallback: reanchor_year_plus_swap_home_away
@@ -64,25 +58,21 @@ attempts:
   league_name: 世界杯
   match_status: finished
   match_time_beijing: '2026-06-27 03:00:00'
-  note: >-
-    修正年份 + swap home/away 后命中唯一 2026-06-27 世界杯正赛
-    （挪威 vs 法国，round_group=9, round_num=3, neutral=true）。
+  note: 修正年份 + swap home/away 后命中唯一 2026-06-27 世界杯正赛 （挪威 vs 法国，round_group=9, round_num=3,
+    neutral=true）。
 satisfied:
 - X11-T1-a1
 not_satisfied:
 - X11-T1-a2
 - X11-T1-x1
-not_satisfied_note: >-
-  T1-a2 (synthesize_answer) 与 T1-x1 (apply_guardrails "不输出中间态") 为
-  非工具可验证 atomic，需在 answer_playbook / LLM eval 阶段评估；
-  resolve 阶段已提供 match_id=4460928 + status=finished 等合成所需数据。
+not_satisfied_note: T1-a2 (synthesize_answer) 与 T1-x1 (apply_guardrails "不输出中间态")
+  为 非工具可验证 atomic，需在 answer_playbook / LLM eval 阶段评估； resolve 阶段已提供 match_id=4460928
+  + status=finished 等合成所需数据。
 blocking_gap:
   type: routing_gap
-  description: >-
-    X11 "年份误锚" 单独的 fallback（drop-date 或 year-only re-anchor）均不足以
-    定位用户实际意图比赛：drop-date 返回 ambiguous 且 candidates 不含 2026 男足
-    世界杯正赛；year-only re-anchor 仍 ENTITY_NOT_FOUND。完整路径隐式依赖 X12
-    的 swap_home_away fallback。LLM 若仅做"年份修正"会失败，必须同时检测并修正
-    主客颠倒。建议 playbook 将 X11 与 X12 视为复合场景。
+  description: X11 "年份误锚" 单独的 fallback（drop-date 或 year-only re-anchor）均不足以 定位用户实际意图比赛：drop-date
+    返回 ambiguous 且 candidates 不含 2026 男足 世界杯正赛；year-only re-anchor 仍 ENTITY_NOT_FOUND。完整路径隐式依赖
+    X12 的 swap_home_away fallback。LLM 若仅做"年份修正"会失败，必须同时检测并修正 主客颠倒。建议 playbook 将 X11
+    与 X12 视为复合场景。
   failed_atomic: null
 route_complete: true

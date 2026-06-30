@@ -1,6 +1,8 @@
 {
   "type_id": "A08",
   "case_id": "TC-A08-REG-003",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_team",
@@ -13,23 +15,24 @@
     {
       "tool": "get_team_schedule",
       "params": {
-        "team_id": 11331,
+        "team_id": 12082,
         "direction": "all",
         "limit": 5
       },
       "code": "OK",
-      "count": 5,
+      "count": 1,
       "stub": false
     },
     {
       "tool": "get_schedule_by_date",
       "params": {
-        "date": "2026-06-28",
+        "date": "2026-06-30",
         "tier": "top"
       },
       "code": "OK",
-      "count": 8,
+      "count": 3,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

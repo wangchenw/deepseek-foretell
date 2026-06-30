@@ -6,9 +6,8 @@ entity_entry: batch
 sport: any (比分串关，4 场均为足球)
 turns:
 - turn_index: 0
-  text: 对四场比赛做深度拆解，定稿主推方案和比分四串一。1. 周六001 日职联 水户蜀葵 VS
-    东京绿茵（2026/05/16 13:00）2. 周六002 日职联 浦和红钻 VS FC东京（15:00）3. 周六003
-    韩K联 大田市民 VS FC首尔（15:30）4. 周六004 日职联 横滨水手 VS 柏太阳神（16:00）
+  text: 对四场比赛做深度拆解，定稿主推方案和比分四串一。1. 周六001 日职联 水户蜀葵 VS 东京绿茵（2026/05/16 13:00）2. 周六002
+    日职联 浦和红钻 VS FC东京（15:00）3. 周六003 韩K联 大田市民 VS FC首尔（15:30）4. 周六004 日职联 横滨水手 VS 柏太阳神（16:00）
 attempts:
 - round: 1
   atomic_id: E11-T1-a1
@@ -19,9 +18,9 @@ attempts:
   code: OK
   count: 24
   stub: false
-  note: 竞彩足球批次 OK，命中周六001-004。每条 odds 含 spf/rq/bf/jq/bqc；bf 比分赔率为
-    list[31]（label+odds），正是比分四串一所需。match_id 在 lottery 条目中为 null（符合 schema
-    map 预期），需 resolve_match 回填。sell_status 多为 suspended（2026-05-16 已过开奖日）。
+  note: 竞彩足球批次 OK，命中周六001-004。每条 odds 含 spf/rq/bf/jq/bqc；bf 比分赔率为 list[31]（label+odds），正是比分四串一所需。match_id
+    在 lottery 条目中为 null（符合 schema map 预期），需 resolve_match 回填。sell_status 多为 suspended（2026-05-16
+    已过开奖日）。
 - round: 1
   atomic_id: E11-T1-a1
   tool: resolve_match
@@ -133,18 +132,18 @@ satisfied:
 - E11-T1-a2
 blocking_gap:
   type: none
-  description: 无阻断。比分四串一核心数据链已打通：get_lottery_schedule(play_type=101) 提供
-    4 场 bf 比分赔率（31 项 label+odds，含 1:0/2:1/胜其他/负其他 等），resolve_match 回填 4
-    个 match_id（M2/M3 命名差异经一轮 fallback 修正），深度拆解工具 get_match_result/get_goals_lost_rate/get_recent_form/get_h2h
-    均返回真实数据。比分预测无专用单工具，但 bf 比分赔率 + score_breakdown(h2h/近况) + 进失球概率
-    三者组合足以支撑 LLM 选定每场主推比分；四串一组合本身为 LLM 合成步骤（选 4 场比分 × 赔率连乘），非数据缺口。
+  description: 无阻断。比分四串一核心数据链已打通：get_lottery_schedule(play_type=101) 提供 4 场 bf 比分赔率（31
+    项 label+odds，含 1:0/2:1/胜其他/负其他 等），resolve_match 回填 4 个 match_id（M2/M3 命名差异经一轮
+    fallback 修正），深度拆解工具 get_match_result/get_goals_lost_rate/get_recent_form/get_h2h
+    均返回真实数据。比分预测无专用单工具，但 bf 比分赔率 + score_breakdown(h2h/近况) + 进失球概率 三者组合足以支撑 LLM 选定每场主推比分；四串一组合本身为
+    LLM 合成步骤（选 4 场比分 × 赔率连乘），非数据缺口。
   failed_atomic: null
   workaround: null
 route_complete: true
 verdict: pass
 verdict_reason: 路径完整。entity_entry=batch 经 get_lottery_schedule 一次拉取 4 场 bf 比分赔率即覆盖比分串关核心；4
-  场 resolve_match 全部命中（2 场需命名 fallback），均为足球无跨运动碰撞；深度拆解维度（比分拆解/进失球概率/近况/交锋）工具层全部
-  OK 且非 stub。串关组合为 synthesize_answer 范畴，无实现缺口。
+  场 resolve_match 全部命中（2 场需命名 fallback），均为足球无跨运动碰撞；深度拆解维度（比分拆解/进失球概率/近况/交锋）工具层全部 OK
+  且非 stub。串关组合为 synthesize_answer 范畴，无实现缺口。
 data_quality_notes:
 - bf 比分赔率为 list[31]，含精确比分（1:0 等）与"胜其他/平其他/负其他"聚合项，最低赔率项即隐含主推比分，可直接用于四串一选号
 - 4 场 sell_status 多为 suspended（已过 2026-05-16 开奖日），但赔率快照仍完整保留，不影响回溯分析

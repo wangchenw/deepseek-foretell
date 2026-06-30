@@ -1,0 +1,37 @@
+type_id: D05
+case_id: TC-D05-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ implementation_gap + tool_logic_gap(漏场次 + 损坏 JSON + 不 surface bf)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: "play_type 301(北单胜负过关)返 odds.bf 25 项结构化比分赔率,404(让球胜平负)只返 odds.sf{sf3,goal,sf0} 不返 bf — 玩法分流正确;spf/sf JSON 解析正确(键映射 win=sf3/draw=sf1/loss=sf0);match_id 真实 4459720;date 参数语义修复跨日未开赛在售场次(issue 26071 num 1 on_sale 命中)。"
+attempts:
+  - round: 1
+    atomic_id: D05-T1-a1
+    tool: get_lottery_schedule
+    params: {play_type: "404", date: "2026-06-30"}
+    code: OK
+    count: 5
+    key_fields:
+      sample_巴西vs日本: {lottery_official_id: 26069064, football_match_id: 4459720, match_id: 4459720}
+      odds_keys: [sf]
+      sf: {sf3: 1.65, goal: -0.5, sf0: 2.52}
+      sell_status_sf: suspended
+    stub: false
+    note: "404 只返 sf(让球胜平负),无 bf — 符合北单让球胜平负玩法定义,不再误 surface bf。"
+  - round: 2
+    atomic_id: D05-T1-a2
+    tool: get_lottery_schedule
+    params: {play_type: "301", date: "2026-06-30"}
+    code: OK
+    count: 5
+    key_fields:
+      sample_未开赛在售: {lottery_id: 26071001, issue: 26071, issue_num: 1, sell_status_bf: on_sale, football_match_id: 4550790}
+      bf_items: 25
+      bf_sample: [{label: "3:1", odds: 33.7}, {label: "0:0", odds: 16.69}, {label: "0:4", odds: 85.06}]
+      spf: {handicap: 0.0, win: 3.96, draw: 3.39, loss: 2.2}
+    stub: false
+    note: "301 返 bf 25 项结构化,用于猜比分筛选;date=2026-06-30 命中 issue 26071 num 1 未开赛在售场次(阿根廷vs哥伦比亚图斯特拉),v2 漏场次问题已修复。"
+satisfied: [D05-T1-a1, D05-T1-a2]
+blocking_gap: null
+route_complete: true

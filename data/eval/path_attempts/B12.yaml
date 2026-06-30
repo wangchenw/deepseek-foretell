@@ -3,9 +3,8 @@ case_id: TC-B12-SYN
 explored_at: '2026-06-29'
 scenario: B (深度分析 — 换线重定价)
 entity_entry: match
-probe_turns_note: probe_cases.yaml 中 probe_turns 为占位 '[换线重定价示例问法]'，
-  本轮以代表性 marquee 对阵「利物浦 VS 切尔西 2026-05-09 英超第36轮」实调验证；
-  type_name=换线重定价 / description=初盘即时盘换线 / patterns=换线|重定价|已换盘，
+probe_turns_note: probe_cases.yaml 中 probe_turns 为占位 '[换线重定价示例问法]'， 本轮以代表性 marquee
+  对阵「利物浦 VS 切尔西 2026-05-09 英超第36轮」实调验证； type_name=换线重定价 / description=初盘即时盘换线 / patterns=换线|重定价|已换盘，
   核心数据需求 = 初盘 vs 即时盘的赔率/亚盘线口变化 + 六段式深度分析上下文。
 turns:
 - turn_index: 1
@@ -79,8 +78,8 @@ attempts:
   code: OK
   count: 5
   stub: false
-  note: 近5次交锋含本场 1-1；2025-10-05 切尔西主 2-1、2025-05-04 切尔西主 3-1、2024-10-20
-    利物浦主 2-1、2024-02-25 切尔西主 0-0(加时 0-1)
+  note: 近5次交锋含本场 1-1；2025-10-05 切尔西主 2-1、2025-05-04 切尔西主 3-1、2024-10-20 利物浦主 2-1、2024-02-25
+    切尔西主 0-0(加时 0-1)
 - round: 1
   atomic_id: B12-T1-b1
   tool: get_odds_snapshot
@@ -89,11 +88,10 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 换线重定价核心数据。欧赔5家 + 亚盘5家，每家含 initial/current/latest 三档。欧赔立博
-    home_win 1.91→17.0、draw 3.9→1.05、away_win 3.5→19.0；威廉希尔 1.85/3.9/3.5 → 11.0/1.11/13.0；
-    SB/皇冠 1.93/4.1/3.6 → 23.0/1.03/26.0。亚盘 handicap 多家由 -0.5 换线至 -0.25 / 0.0 / +0.25
-    （皇冠 0.93/-0.5/0.95 → 5.88/-0.25/0.09；利记 -0.5 → 0.0；盈禾 -0.5 → +0.25 4.5）。
-    in_play=true、suspended 部分true，反映临场/滚球重定价。换线信号充分。
+  note: 换线重定价核心数据。欧赔5家 + 亚盘5家，每家含 initial/current/latest 三档。欧赔立博 home_win 1.91→17.0、draw
+    3.9→1.05、away_win 3.5→19.0；威廉希尔 1.85/3.9/3.5 → 11.0/1.11/13.0； SB/皇冠 1.93/4.1/3.6
+    → 23.0/1.03/26.0。亚盘 handicap 多家由 -0.5 换线至 -0.25 / 0.0 / +0.25 （皇冠 0.93/-0.5/0.95
+    → 5.88/-0.25/0.09；利记 -0.5 → 0.0；盈禾 -0.5 → +0.25 4.5）。 in_play=true、suspended 部分true，反映临场/滚球重定价。换线信号充分。
 - round: 1
   atomic_id: B12-T1-b1
   tool: get_odds_trend
@@ -102,9 +100,8 @@ attempts:
   code: OK
   count: 50
   stub: false
-  note: 50 个赔率变化点（changed_at 时间戳），覆盖平博/立博/威廉希尔/10bet/盈禾/onex/18Bet
-    等多家。home_win 由 1.74→1.91→1.85 区间震荡后，末段多家重定价至 11~23（平局塌缩至 1.0x）。
-    时间序列完整支撑"换线"叙事。
+  note: 50 个赔率变化点（changed_at 时间戳），覆盖平博/立博/威廉希尔/10bet/盈禾/onex/18Bet 等多家。home_win 由
+    1.74→1.91→1.85 区间震荡后，末段多家重定价至 11~23（平局塌缩至 1.0x）。 时间序列完整支撑"换线"叙事。
 - round: 1
   atomic_id: B12-T1-b1
   tool: get_kelly
@@ -113,9 +110,8 @@ attempts:
   code: OK
   count: 5
   stub: false
-  note: 5 家凯利指数。company_id=0 implied_prob draw=0.793 kelly=0.4795（平局正价值）；
-    立博 kelly draw=-1.2001（极端负值，赔率塌缩后无价值）；威廉希尔/易胜博/SB 三家 home/away
-    kelly 均为负值，反映主胜客胜无投资价值。重定价后价值面清晰。
+  note: 5 家凯利指数。company_id=0 implied_prob draw=0.793 kelly=0.4795（平局正价值）； 立博 kelly
+    draw=-1.2001（极端负值，赔率塌缩后无价值）；威廉希尔/易胜博/SB 三家 home/away kelly 均为负值，反映主胜客胜无投资价值。重定价后价值面清晰。
 - round: 1
   atomic_id: B12-T1-b1
   tool: get_match_lineup
@@ -142,8 +138,7 @@ attempts:
   code: OK
   count: 0
   stub: false
-  note: 综合层非工具调用；上游 fundamentals/odds/intel 三 subagent 数据均 OK，六段式合成所需
-    输入齐备（赛果/近况/交锋/初盘-即时盘换线/凯利价值/伤停首发）。
+  note: 综合层非工具调用；上游 fundamentals/odds/intel 三 subagent 数据均 OK，六段式合成所需 输入齐备（赛果/近况/交锋/初盘-即时盘换线/凯利价值/伤停首发）。
 satisfied:
 - B12-T1-a1
 - B12-T1-a2
@@ -151,19 +146,18 @@ satisfied:
 - B12-T1-b2
 blocking_gap:
   type: null
-  description: 无阻断。换线重定价核心数据链（get_odds_snapshot 三档对比 + get_odds_trend
-    50点时序 + get_kelly 价值面）全部 OK，且与基本面/伤停/首发/交锋数据可联合支撑六段式输出。
+  description: 无阻断。换线重定价核心数据链（get_odds_snapshot 三档对比 + get_odds_trend 50点时序 + get_kelly
+    价值面）全部 OK，且与基本面/伤停/首发/交锋数据可联合支撑六段式输出。
   failed_atomic: null
   workaround: null
 route_complete: true
 data_quality_notes:
-- odds_snapshot 三档（initial/current/latest）字段齐全；current 与 latest 在 in_play 后会出现
-  大幅偏离（立博 draw 1.05、SB/皇冠 home_win 23.0），系滚球/临场塌缩，非工具 bug；分析层需识别
-  in_play/suspended 标志并以 initial→current 作为"换线"主对比。
-- get_odds_trend 50 点全部为欧赔变化，未单独提供亚盘 trend；亚盘换线需依赖 odds_snapshot 的
-  initial vs latest 对比（已足够）。
-- probe_cases.yaml 的 probe_turns 仍为占位符，建议后续补一条真实"换线/已换盘"问法以闭环
-  LLM eval；当前路径层已 verified。
+- odds_snapshot 三档（initial/current/latest）字段齐全；current 与 latest 在 in_play 后会出现 大幅偏离（立博
+  draw 1.05、SB/皇冠 home_win 23.0），系滚球/临场塌缩，非工具 bug；分析层需识别 in_play/suspended 标志并以 initial→current
+  作为"换线"主对比。
+- get_odds_trend 50 点全部为欧赔变化，未单独提供亚盘 trend；亚盘换线需依赖 odds_snapshot 的 initial vs latest
+  对比（已足够）。
+- probe_cases.yaml 的 probe_turns 仍为占位符，建议后续补一条真实"换线/已换盘"问法以闭环 LLM eval；当前路径层已 verified。
 phase2_verification:
   new_tools_implemented:
   - get_odds_snapshot: OK (5 european + 5 asian, initial/current/latest 三档)

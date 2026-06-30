@@ -22,8 +22,8 @@ attempts:
   code: OK
   count: 3
   stub: false
-  note: 命中席特拉(id=22220, competition_id=641 巴林超);艾阿利未命中。再列 competition_id=641
-    球队,定位 Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263)
+  note: 命中席特拉(id=22220, competition_id=641 巴林超);艾阿利未命中。再列 competition_id=641 球队,定位
+    Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263)
 - round: 3
   atomic_id: F02-T1-a1
   tool: resolve_match
@@ -33,8 +33,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 用 DB 规范名解析成功,count=10(ambiguous 多历史对阵),sport=football 无跨运动碰撞。候选含
-    4440177(2025-12-29 艾阿利主)与 4536558(2026-05-06 席特拉主)
+  note: 用 DB 规范名解析成功,count=10(ambiguous 多历史对阵),sport=football 无跨运动碰撞。候选含 4440177(2025-12-29
+    艾阿利主)与 4536558(2026-05-06 席特拉主)
 - round: 3
   atomic_id: F02-T1-a2
   tool: get_odds_trend
@@ -58,6 +58,9 @@ blocking_gap:
 route_complete: true
 verdict_lean: verified
 key_findings:
-- F02 核心能力 get_odds_trend 实测可用:match 4536558 返回 50 个时点,odd-month 月分区路由(2026-05→football_odds_europe_change_202605)正常,多家公司欧赔变动轨迹完整,无 stub。
-- 阻塞仅是队名别名 routing_gap:"艾阿利"=Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263),resolve_match 用规范名即 OK(count=10),无需 3 轮以上。
-- 无跨运动碰撞:巴林超(competition_id=641)为足球,team_id 15263/22220 未与 basketball_team 整数空间冲突;两队均 status_id=8 完赛,赔率走势为盘口历史复盘维度。
+- F02 核心能力 get_odds_trend 实测可用:match 4536558 返回 50 个时点,odd-month 月分区路由(2026-05→football_odds_europe_change_202605)正常,多家公司欧赔变动轨迹完整,无
+  stub。
+- 阻塞仅是队名别名 routing_gap:"艾阿利"=Al-Ahli(Manama) 规范名"麦纳麦国民"(id=15263),resolve_match 用规范名即
+  OK(count=10),无需 3 轮以上。
+- 无跨运动碰撞:巴林超(competition_id=641)为足球,team_id 15263/22220 未与 basketball_team 整数空间冲突;两队均
+  status_id=8 完赛,赔率走势为盘口历史复盘维度。

@@ -10,9 +10,9 @@ attempts:
   code: OK
   stub: false
   count: 14
-  note: 返回 issue=26089 的 14 场候选（巴西vs日本…哥伦比vs加纳，均世界杯）。SQL 校验：lottery_zc_match
-    中 type='rj' 与 type='sfc' 每期共享同一批 14 场（同 match_id/home/away/match_time），故 14 候选
-    场次真实可取。但 foretell 将 401 硬编码为 type='sfc'（十四场胜负彩），产品语义被误标为十四场而非任九。
+  note: 返回 issue=26089 的 14 场候选（巴西vs日本…哥伦比vs加纳，均世界杯）。SQL 校验：lottery_zc_match 中 type='rj'
+    与 type='sfc' 每期共享同一批 14 场（同 match_id/home/away/match_time），故 14 候选 场次真实可取。但 foretell
+    将 401 硬编码为 type='sfc'（十四场胜负彩），产品语义被误标为十四场而非任九。
 - round: 1
   atomic_id: E06-T1-a1
   tool: sql_verify
@@ -45,31 +45,30 @@ attempts:
   count: 4
   fallback: user_premise_301_renji
   note: 用户假设"301=任九"错误。301=BEIDAN_WIN_LOSS(北单胜负过关)，查 lottery_bd_odds，返回 issue=26069
-    的北单场次（含 spf/bf/jq/bqc/sxp 完整赔率），与任九完全不同产品。此为错误路由，不可用于 E06。
-    另注：301 赔率字段存在 JSON 片段截断解析 bug（odds 值形如 "{\"sf3\":\"2.81\""），属工具层独立问题。
+    的北单场次（含 spf/bf/jq/bqc/sxp 完整赔率），与任九完全不同产品。此为错误路由，不可用于 E06。 另注：301 赔率字段存在 JSON
+    片段截断解析 bug（odds 值形如 "{\"sf3\":\"2.81\""），属工具层独立问题。
 - round: 1
   atomic_id: E06-T1-a2
   tool: synthesize_answer
   params: {}
   code: NOT_APPLICABLE
   stub: true
-  note: 任选9场 + 稳胆(001/012/013/018)/搏冷(019/020) 组合综合需逐场基本面（近期form/赔率snapshot/伤停）。
-    get_recent_form/get_odds_snapshot 等 delegate_subagent 依赖工具为 stub（与 E05 同源）；且任九(rj)产品
-    未被工具层暴露，无法区分任九与十四场结果/选号语义。
+  note: 任选9场 + 稳胆(001/012/013/018)/搏冷(019/020) 组合综合需逐场基本面（近期form/赔率snapshot/伤停）。 get_recent_form/get_odds_snapshot
+    等 delegate_subagent 依赖工具为 stub（与 E05 同源）；且任九(rj)产品 未被工具层暴露，无法区分任九与十四场结果/选号语义。
 satisfied:
 - E06-T1-a1
 blocking_gap:
   type: implementation_gap
-  description: foretell 工具层无任九(rj)专属 play_type——PlayType 枚举仅 401=FOURTEEN_MATCHES 且硬编码
-    lottery_zc_match.type='sfc'，301 实为北单(lottery_bd_odds)。因 rj 与 sfc 每期共享同一批 14 候选场次，
-    T1-a1 的 14 场 match 实体可经 401 真实取得（非合成 ID 假命中，场次本身正确），但产品语义被误标为
-    十四场胜负彩。任九专属的 lottery_zc_issue.type='rj' 期次/开奖结果与"任选9场"选号逻辑均未暴露；
-    T1-a2 综合所需逐场基本面(form/odds/injury)依赖工具为 stub（与 E05 同源）。合成 ID 假命中风险点：
-    若仅以 401 count=14 即判 E06 满足，会误把十四场胜负彩当成任九——需以 rj/sfc 产品区分为准。
+  description: foretell 工具层无任九(rj)专属 play_type——PlayType 枚举仅 401=FOURTEEN_MATCHES
+    且硬编码 lottery_zc_match.type='sfc'，301 实为北单(lottery_bd_odds)。因 rj 与 sfc 每期共享同一批
+    14 候选场次， T1-a1 的 14 场 match 实体可经 401 真实取得（非合成 ID 假命中，场次本身正确），但产品语义被误标为 十四场胜负彩。任九专属的
+    lottery_zc_issue.type='rj' 期次/开奖结果与"任选9场"选号逻辑均未暴露； T1-a2 综合所需逐场基本面(form/odds/injury)依赖工具为
+    stub（与 E05 同源）。合成 ID 假命中风险点： 若仅以 401 count=14 即判 E06 满足，会误把十四场胜负彩当成任九——需以 rj/sfc
+    产品区分为准。
   failed_atomic: E06-T1-a2
 route_complete: false
 verdict: fail
-verdict_reason: 14 候选场次实体可取（T1-a1 满足），但任九(rj)产品未被 foretell 工具层正确表达——401
-  硬编码 sfc、301 实为北单，无 rj 专属路由；T1-a2 所需逐场基本面为 stub。存在与 E05 同源的合成 ID
-  假命中风险（误将十四场胜负彩 sfc 当任九 rj）。需新增 PlayType.RJ（play_type 如 405）映射 lottery_zc_match.type='rj'，
-  并实现 get_recent_form/get_odds_snapshot 等逐场基本面工具后方可 route_complete。
+verdict_reason: 14 候选场次实体可取（T1-a1 满足），但任九(rj)产品未被 foretell 工具层正确表达——401 硬编码 sfc、301
+  实为北单，无 rj 专属路由；T1-a2 所需逐场基本面为 stub。存在与 E05 同源的合成 ID 假命中风险（误将十四场胜负彩 sfc 当任九 rj）。需新增
+  PlayType.RJ（play_type 如 405）映射 lottery_zc_match.type='rj'， 并实现 get_recent_form/get_odds_snapshot
+  等逐场基本面工具后方可 route_complete。

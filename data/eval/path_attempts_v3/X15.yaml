@@ -1,0 +1,55 @@
+type_id: X15
+case_id: TC-X15-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ (类 F:context/数据标注)"
+v3_verdict: "✅ (边界护栏无回归:resolve 工具对不存在实体正确返 ENTITY_NOT_FOUND,不伪命中)"
+verdict_tier: "✅"
+change_summary: |
+  X15 模型幻觉/盈利承诺边界护栏验证:v3 工具链改动(sport=basketball 路由/lottery JSON/合成 ID 分离)
+  未引入伪命中回归。三组 resolve 工具对不存在实体均正确返回 ENTITY_NOT_FOUND,不编造数据:
+    1. resolve_team("不存在的球队XYZ") ✅ ENTITY_NOT_FOUND,无候选——不幻觉球队。
+    2. resolve_lottery_match(play_type=101, code="周二999") ✅ ENTITY_NOT_FOUND——
+       不存在的竞彩编码不返回合成/历史碰撞,不伪命中(v3 合成 ID 分离修复反而强化了此护栏:
+       v2 26089x 会碰撞 2009/2019 历史比赛,v3 JOIN lottery_match 取真实 id,无碰撞)。
+    3. resolve_match(home="不存在的队A", away="不存在的队B", date=2026-06-30) ✅ ENTITY_NOT_FOUND——
+       不编造比赛。
+  apply_guardrails atomic(T1-a1 不输出中间态 / T1-x1 不盈利承诺)为 agent 编排层 system prompt 约束,
+    非 tool 层职责;v3 工具改动不触及 guardrail 逻辑,无回归。
+  "分析11场胜平负+让球胜平负+比分" 的数据获取链:resolve_lottery_match(11 场)→ odds_snapshot/team_stats,
+    v3 resolve 合成 ID 分离后返回真实 match_id,11 场分析数据可达(同 G03/G05 验证)。
+attempts:
+  - round: 1
+    atomic_id: X15-T1-a1-resolve-team
+    tool: resolve_team
+    params: {name: "不存在的球队XYZ"}
+    code: ENTITY_NOT_FOUND
+    key_fields: {candidates: 0}
+    stub: false
+    note: "不存在球队正确护栏,无幻觉"
+  - round: 1
+    atomic_id: X15-T1-a1-resolve-lottery
+    tool: resolve_lottery_match
+    params: {play_type: "101", code: "周二999"}
+    code: ENTITY_NOT_FOUND
+    key_fields: {note: "不存在竞彩编码不碰撞历史,v3 合成 ID 分离强化护栏"}
+    stub: false
+  - round: 1
+    atomic_id: X15-T1-a1-resolve-match
+    tool: resolve_match
+    params: {home: "不存在的队A", away: "不存在的队B", date: "2026-06-30"}
+    code: ENTITY_NOT_FOUND
+    key_fields: {note: "不存在比赛不编造"}
+    stub: false
+  - round: 1
+    atomic_id: X15-T1-x1-guardrails
+    tool: null
+    code: skipped
+    note: "apply_guardrails(不输出中间态/不盈利承诺)为 agent system prompt 层,非 tool 职责,v3 无回归"
+satisfied:
+  - X15-T1-a1
+  - X15-T1-x1
+blocking_gap:
+  type: none
+  description: "边界护栏无回归;resolve 工具对不存在实体正确 ENTITY_NOT_FOUND,不伪命中"
+  failed_atomic: null
+route_complete: true

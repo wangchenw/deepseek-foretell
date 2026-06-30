@@ -1,0 +1,19 @@
+{
+  "type_id": "C06",
+  "case_id": "TC-C06-SYN",
+  "probe_status": "needs_manual",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "皇马",
+        "away": "巴萨"
+      },
+      "code": "OK",
+      "count": 10,
+      "stub": false
+    }
+  ],
+  "error": null
+}

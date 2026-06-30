@@ -2,9 +2,9 @@ version: '2.0'
 meta:
   source: route_matrix.yaml + llm_eval_full
   total_types: 120
-  evaluated_at: '2026-06-28'
-  pass_count: 75
-  fail_count: 45
+  evaluated_at: '2026-06-30'
+  pass_count: 37
+  fail_count: 83
   p0_types:
   - A08
   - A17
@@ -215,16 +215,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -232,8 +232,16 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-A05
   path_attempt_ref: path_attempts/A05.yaml
   atomic_decomposition_ref: atomic_decompositions/A05.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: 'Phase 2 修复了原 5 个 stub 中的 4 个（lineup/injury/intel/team_stats 均 OK）， 但仍存在
+      2 个 implementation_gap： (1) get_odds_trend 的 SQL 仅查基表 football_odds_europe_change（对
+      2026 比赛 为空），未路由到月分区表 football_odds_europe_change_YYYYMM（实测 202605 分区 有 313 行）；导致对所有近期比赛恒返回
+      DATA_MISSING。 (2) get_match_player_stats 的 SQL 引用不存在的列 s.position （football_match_player_stats
+      表无 position 列），调用即抛 OperationalError 1054。
+
+      '
 - type_id: A06
   type_name: 完场赛果
   scenario: A
@@ -259,16 +267,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -276,8 +284,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-A06
   path_attempt_ref: path_attempts/A06.yaml
   atomic_decomposition_ref: atomic_decompositions/A06.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: football_odds_europe_change 表整表 0 行(DB 无赔率走势历史数据), 导致 get_odds_trend 恒返回
+      DATA_MISSING。工具实现已正确,非 stub, 但底层数据缺失,无法验证"盘口走向"维度。 另:get_over_under_odds 等 extra.py
+      工具因 make_envelope(source=) 签名 不匹配而崩溃(implementation_gap),不影响 A06 主线但影响大小球辅助维度。
 - type_id: A07
   type_name: 时间窗_今晚
   scenario: A
@@ -407,16 +419,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_team
   - get_team_schedule
@@ -425,8 +437,17 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-A09
   path_attempt_ref: path_attempts/A09.yaml
   atomic_decomposition_ref: atomic_decompositions/A09.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: "Phase 2 后 A09 部分缓解但未完全解决：\n1. \"几点开赛\" ✅ 已解 — get_schedule_by_date 返回\
+      \ match_time_beijing，\n   可按时间窗筛开赛时间。\n2. \"哪些在玩\" ⚠️ 部分解 — 无专用\"在玩列表/实时比分\"\
+      工具，但\n   get_schedule_by_date 返回字段含 status（in_play/not_started），\n   可本地按 status\
+      \ 过滤得到在玩列表。\n   限制：(a) limit=100 截断，total 222 无法一次拿全，in_play 全集不保证；\n      \
+      \  (b) 无 tier=asia/特定联赛 + status=in_play 的复合过滤参数；\n        (c) 需调 get_match_tlive\
+      \ 逐场拿实时进度，无批量接口。\n3. 实时进度 ✅ 已解 — get_match_tlive 能拿文字直播（佐证在玩），\n   get_match_incidents\
+      \ 对部分比赛 DATA_MISSING。\n建议升级路径：新增 get_in_play_matches 工具（按 sport/tier/league\
+      \ 过滤\nstatus_id IN (2,3,4)），或为 get_schedule_by_date 增加 status_in 参数 +\n扩容 limit。\n"
 - type_id: A10
   type_name: 积分榜
   scenario: A
@@ -452,16 +473,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -469,8 +490,11 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-A10
   path_attempt_ref: path_attempts/A10.yaml
   atomic_decomposition_ref: atomic_decompositions/A10.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: null
+    detail: A10 (足球积分榜) 路径已完整。get_standings 经 Phase 2 修复后返回单一当前赛季 (season_id=14320)、position
+      唯一、字段语义化（goals/goal_diff/主客分列），从 ⚠️ 升 ✅。
 - type_id: A11
   type_name: 射手榜
   scenario: A
@@ -630,16 +654,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_team
   - get_team_schedule
@@ -647,8 +671,18 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-A14
   path_attempt_ref: path_attempts/A14.yaml
   atomic_decomposition_ref: atomic_decompositions/A14.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: null
+    detail: 'get_match_lineup 已从 stub 修复为真实实现，返回 OK + 结构化首发/替补；
+
+      get_team_squad 新增实现，返回 OK + 20 人大名单（含 player_id）。
+
+      残留 minor gap: lineup 球员列表缺 player_id 字段（detail 表查询未
+
+      join football_player），不影响"返回真实阵容"主诉求，记为非阻塞。
+
+      '
 - type_id: A15
   type_name: 比赛首发
   scenario: A
@@ -860,12 +894,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.65
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 2.5
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -875,11 +909,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B01
   path_attempt_ref: path_attempts/B01.yaml
   atomic_decomposition_ref: atomic_decompositions/B01.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: resolve_lottery_match 返回 ENTITY_NOT_FOUND：周日009 德国VS库拉索 2026-06-15 不在
-      lottery 表
+  - gap_type: routing_gap
+    detail: resolve_lottery_match(play_type=101, code=009, date=2026-06-15) 返回 ENTITY_NOT_FOUND，无法直接定位竞彩条目；需
+      fallback 到 get_lottery_schedule 按日期拉列表后 匹配 lottery_code。issue_num/code 匹配条件疑似存在
+      bug（get_lottery_schedule 同库同日可见 lottery_id=2040170 周日009）。fallback 路径已通，不阻断
+      LLM eval，但 resolve_lottery_match 自身需修复。
 - type_id: B02
   type_name: 竞彩篮球模板
   scenario: B
@@ -919,12 +955,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 2.5
@@ -943,7 +979,21 @@ entries:
   existing_tools_sufficient: partial
   llm_eval_gaps:
   - gap_type: implementation_gap
-    detail: 工具链未返回 OK
+    detail: '主要 gap：(1) get_team_schedule 仅查 football_* 表，传篮球 team_id 会因跨运动 ID 碰撞返回足球比赛
+
+      （team_id=10125 实为法兰克福），无篮球版 team_schedule 工具；
+
+      (2) resolve_lottery_match 返回的 lottery 条目 match_id=null，无法链接到 basketball_match，
+
+      导致 get_intel_tags/get_injury_report/get_match_team_stats 等深度分析工具无法触发。
+
+      次要 gap（data_gap）：样本 lottery 201 数据仅含世预男篮/美职女篮，无美职篮(NBA)条目
+
+      （场景指定的老鹰vs尼克斯、开拓者vs马刺 在 lottery 表中不存在）；
+
+      resolve_basketball_league 不识别中文别名「美职篮」（routing_gap，回退「NBA」可解）。
+
+      '
 - type_id: B03
   type_name: 对阵加日期分析
   scenario: B
@@ -980,16 +1030,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_recent_form
@@ -1001,8 +1051,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B03
   path_attempt_ref: path_attempts/B03.yaml
   atomic_decomposition_ref: atomic_decompositions/B03.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻塞 gap。3 场对阵均成功定位，多维度工具链（fundamentals/odds/intel）全部返回 OK。 唯一风险点：M3 用户简称「町田泽维」「迪拜国青」与
+      DB 全称「町田泽维亚」「迪拜青年国民」不一致， 需 LLM 侧主动做名称规范化（先 resolve_team 取候选 → 选最匹配 → 再 resolve_match）。
+      此为 routing_gap 但已被 fallback 解，不构成 blocking；建议在 skill/guardrails 中标注 「对阵含简称/缩写时，先
+      resolve_team 做名称规范化再 resolve_match」。
 - type_id: B04
   type_name: 对阵无日期分析
   scenario: B
@@ -1039,16 +1094,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_recent_form
@@ -1060,8 +1115,22 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B04
   path_attempt_ref: path_attempts/B04.yaml
   atomic_decomposition_ref: atomic_decompositions/B04.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: 'resolve_match 无 date 时采用 ORDER BY match_time DESC LIMIT 10 的排序与截断策略,
+
+      近期女足/U17/U19/U21 等次级赛事占满窗口,男子国家队国际 A 级赛要么被完全截断
+
+      (法国 vs 挪威),要么被淹没且非置顶(阿根廷 vs 巴西、中国 vs 日本),match_status
+
+      始终为 ambiguous、match_id=null。B04 禁止引入俱乐部/世界杯会赛逻辑,只能依赖
+
+      男子国家队 A 级赛,但工具层无 date 路由策略无法在 LIMIT 10 内唯一浮出该类赛事。
+
+      DB 实际可能含数据(带 date 时 X06/X12 已验证可命中),故属路由策略 gap 而非纯 data_gap。
+
+      '
 - type_id: B05
   type_name: 谁会赢
   scenario: B
@@ -1099,12 +1168,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -1222,12 +1291,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -1283,16 +1352,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1305,8 +1374,19 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B08
   path_attempt_ref: path_attempts/B08.yaml
   atomic_decomposition_ref: atomic_decompositions/B08.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: "主要 gap（implementation_gap，跨运动 ID 碰撞，比 B02 更严重）：\n(1) get_team_schedule\
+      \ 传篮球 team_id 返回足球比赛（与 B02 同源）；\n(2) **deep 工具层跨运动 match_id 碰撞** — get_injury_report/get_match_team_stats\
+      \ 用 NBA 真实\n    match_id（3869174 猛龙vs热火，来自 get_schedule_by_date sport=basketball）查询，返回的却是\n\
+      \    日本足球（爱媛FC / 高桥耕平 / 谷冈昌）的伤病与统计，会直接污染五段分析的 intel/fundamentals 段，\n    导致合成错误结论。这是\
+      \ B02 未覆盖的新 gap（B02 因 lottery match_id=null 未触达 deep 工具）。\n(3) lottery 201 条目\
+      \ match_id=null，未自动链接到 basketball_match，需 agent 手工 cross-reference\n    （get_schedule_by_date\
+      \ 取真实 match_id）；get_odds_snapshot/get_odds_trend 等深度赔率工具\n    按 match_id 查询，lottery\
+      \ match_id=null 阻断深度赔率路径。\n次要 gap（routing_gap）：用户「周三303-309」前缀在 4月8号 issue 中\
+      \ ENTITY_NOT_FOUND，\nDB 该期用「周二306-315」前缀；且 303-305 在该期为欧篮联非 NBA，与场景「7 场 NBA」描述不符\n\
+      （场景可能对应不同 issue/period，DB 该期仅 306-309 共 4 场 NBA）。\n"
 - type_id: B09
   type_name: 系列赛G7
   scenario: B
@@ -1337,25 +1417,40 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.65
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 2.5
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
-    scenario_compliance: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   playbook_id: PB-B09
   playbook_ref: answer_playbooks_full_120.yaml#PB-B09
   path_attempt_ref: path_attempts/B09.yaml
   atomic_decomposition_ref: atomic_decompositions/B09.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: resolve_match 返回 NOT_APPLICABLE：NBA 季后赛 G7 series_game 维度未入库
+  - gap_type: implementation_gap
+    detail: 'resolve_match 工具层 series_game 反转 bug 已修复（entity.py 不再 `if series_game
+      is not None:
+
+      return []`，而是透传到 client 并在无候选时返回 NOT_APPLICABLE + 守轨提示），修复有效。
+
+      但底层 mysql_client.resolve_match 仅查询 football_match 表，不支持 basketball_match；
+
+      且 series_game 参数虽在签名中接受，SQL 过滤条件完全未使用该参数（即使足球也不会按 G7 过滤）。
+
+      因此 B09 (NBA 篮球 G7) 路径无法通过 resolve_match 定位 G7 match_id。可经 get_series_matchup
+
+      证实 7 场系列赛存在（matchup 922432，3-4 马刺胜），但 match_ids 数组仅 5 个 id 缺失 2 场，
+
+      无法精确锁定 G7 的 match_id。
+
+      '
 - type_id: B10
   type_name: 淘汰赛排名不适用
   scenario: B
@@ -1394,16 +1489,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1416,8 +1511,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B10
   path_attempt_ref: path_attempts/B10.yaml
   atomic_decomposition_ref: atomic_decompositions/B10.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: get_standings 缺少“淘汰赛排名不适用”的语义判定。对世界杯（league_id=1）返回 OK+30 行小组赛积分榜，对纯淘汰制足总杯（league_id=98）返回
+      OK+22 行； 工具层未识别淘汰赛场景并降级为 NOT_APPLICABLE 或带说明的 DATA_MISSING，可能误导 LLM 把小组赛/历史阶段积分当作淘汰赛排名。resolve_match
+      在 series_game 场景已使用 NOT_APPLICABLE（见 B09），但 get_standings 未对赛事阶段做等效处理。需上层 LLM
+      自行判断“淘汰赛无积分榜”并改用对阵树/赛程， 或在工具层增加赛事阶段（round/stage）感知。
 - type_id: B11
   type_name: 盘口不足跳过
   scenario: B
@@ -1457,12 +1557,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -1519,12 +1619,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.4
+  llm_eval_score: 2.53
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -1540,10 +1640,11 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B12
   path_attempt_ref: path_attempts/B12.yaml
   atomic_decomposition_ref: atomic_decompositions/B12.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: 探针问法为占位，需人工补 probe_turns
+  - gap_type: null
+    detail: 无阻断。换线重定价核心数据链（get_odds_snapshot 三档对比 + get_odds_trend 50点时序 + get_kelly
+      价值面）全部 OK，且与基本面/伤停/首发/交锋数据可联合支撑六段式输出。
 - type_id: B13
   type_name: 伤病结合分析
   scenario: B
@@ -1582,16 +1683,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1604,8 +1705,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B13
   path_attempt_ref: path_attempts/B13.yaml
   atomic_decomposition_ref: atomic_decompositions/B13.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: ''
 - type_id: B14
   type_name: 进球数深度
   scenario: B
@@ -1644,16 +1747,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1666,8 +1769,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-B14
   path_attempt_ref: path_attempts/B14.yaml
   atomic_decomposition_ref: atomic_decompositions/B14.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无
 - type_id: B15
   type_name: 半全场分析
   scenario: B
@@ -1767,12 +1872,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -1815,12 +1920,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -1858,16 +1963,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1875,8 +1980,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-C02
   path_attempt_ref: path_attempts/C02.yaml
   atomic_decomposition_ref: atomic_decompositions/C02.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: 用户以「上周比赛复盘」前提提问曼城vs利物浦，但 DB 中 last-week 窗口(2026-06-22~28) 内并无该对阵；两队最近一场已完赛为
+      2026-04-04 英足总杯（约 12 周前）。工具链本身完全打通 (resolve_team/resolve_match/get_match_result/get_match_team_stats/get_match_incidents
+      均 OK)，但前提假设与 DB 实际不符，属「premise vs data 不一致」型 data_gap。
 - type_id: C03
   type_name: 对阵复盘
   scenario: C
@@ -1902,16 +2011,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -1919,8 +2028,18 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-C03
   path_attempt_ref: path_attempts/C03.yaml
   atomic_decomposition_ref: atomic_decompositions/C03.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: '用户口语日期 "6/18" 与 DB 北京时间日历日不一致——4 场 0:00/3:00/6:00/9:00
+
+      实际落在 2026-06-19。带 date=2026-06-18 的 resolve_match 全部 ENTITY_NOT_FOUND；
+
+      去 date 后首位候选即正确 match（status=finished）。
+
+      此 gap 已通过 round-2 fallback 解决，不影响 route_complete。
+
+      '
 - type_id: C04
   type_name: 竞彩编号复盘
   scenario: C
@@ -1947,12 +2066,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.8
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -1966,7 +2085,10 @@ entries:
   existing_tools_sufficient: partial
   llm_eval_gaps:
   - gap_type: routing_gap
-    detail: 工具链未返回 OK
+    detail: resolve_lottery_match(play_type=101, code=012, date=2026-04-25) 返回 ENTITY_NOT_FOUND，无法直接定位竞彩条目（与
+      B01/G01 同源 routing_gap）。fallback 到 get_lottery_schedule 按 date 拉列表后客户端匹配 lottery_code
+      即可定位。lottery entries 的 match_id 字段为 None，需 resolve_match 通过队名+date 二次定位 match_id（已验证
+      OK）。
 - type_id: C05
   type_name: 篮球复盘
   scenario: C
@@ -1992,16 +2114,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2009,8 +2131,28 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-C05
   path_attempt_ref: path_attempts/C05.yaml
   atomic_decomposition_ref: atomic_decompositions/C05.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: '**主要 gap（数据质量/标注 mismatch）**：atomic 分解 type_name 标为「篮球复盘」，
+
+      但 scenario 实际内容为足球复盘（佩西加雅加达 vs 伯希索罗 = 印尼超；
+
+      乌克超 卢甘斯克索尔亚 vs 维勒斯 = 乌克兰超），盘口术语（胜平负/亚盘/大小球/xG）
+
+      也全是足球。用篮球工具 resolve_basketball_team 解析两个队名均 ENTITY_NOT_FOUND，
+
+      用足球工具 resolve_team/resolve_match 则全部 OK。type_name 与 scenario 内容不一致，
+
+      需修正 atomic 分解（要么改 type_name 为足球复盘，要么替换 scenario 为真实篮球比赛）。
+
+      次要 gap（implementation_gap，非阻断）：Foretell 工具链无专门 xG 工具，
+
+      场景要求「xG预期进球」需 agent 基于 shots/shots_on_target 估算；
+
+      get_intel_tags / get_official_handicap_odds 对该场 DATA_MISSING（data_gap，可由欧赔/大小球/凯利补足）。
+
+      '
 - type_id: C06
   type_name: 焦点战回顾
   scenario: C
@@ -2037,12 +2179,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.4
+  llm_eval_score: 2.53
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -2053,10 +2195,16 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-C06
   path_attempt_ref: path_attempts/C06.yaml
   atomic_decomposition_ref: atomic_decompositions/C06.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: 探针问法为占位，需人工补 probe_turns
+  - gap_type: none
+    detail: '无 blocking gap。get_schedule_by_date(tier=top) 一次返回 8 场焦点战且
+
+      全部已完场；选取头条焦点战后，7 个复盘工具全部 OK 返回非空数据。
+
+      路径单轮完成，无需 fallback。
+
+      '
 - type_id: C07
   type_name: 近期战绩复盘
   scenario: C
@@ -2082,16 +2230,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2099,8 +2247,19 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-C07
   path_attempt_ref: path_attempts/C07.yaml
   atomic_decomposition_ref: atomic_decompositions/C07.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: "C07 场景为 NBA 篮球“勇士vs太阳”，但近期战绩复盘所需的三件套\nget_recent_form / get_team_schedule\
+      \ / get_team_season_stats 均为足球专用工具：\n1. SQL 分别查 football_match / football_competition_teams_stats\
+      \ 表，工具签名无 sport 参数；\n2. docstring 明确写“MySQL football_team.id”；\n3. mysql_client\
+      \ 中不存在篮球版本（无 get_basketball_recent_form / get_basketball_team_schedule /\n \
+      \  get_basketball_team_season_stats）。\n更严重的是：basketball_team.id 与 football_team.id\
+      \ 共享同一数值空间但映射不同实体，\n工具层未做 sport 校验。传入篮球 team_id（10155=勇士、10131=太阳）时不报 DATA_MISSING，\n\
+      而是静默返回 football_team 表中同 id 的足球队（科特布斯/格勒诺布尔）的足球战绩、赛程、赛季统计，\ncode=OK。若 LLM 按原子分解“resolve_basketball_team\
+      \ → get_recent_form”执行，会把足球数据\n当成 NBA 球队近期战绩汇报给用户，构成 false positive，比 DATA_MISSING\
+      \ 更危险。\nPhase 2 重构未覆盖篮球近期战绩/赛程/赛季统计维度（仅 get_schedule_by_date 支持 sport 参数，\n\
+      get_series_matchup 支持 sport=basketball，但均为系列赛/日期维度，非球队维度）。\n"
 - type_id: C08
   type_name: 欧冠复盘
   scenario: C
@@ -2127,12 +2286,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -2173,16 +2332,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2190,8 +2349,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D01
   path_attempt_ref: path_attempts/D01.yaml
   atomic_decomposition_ref: atomic_decompositions/D01.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: 用户文案为"四场世界杯预选赛"，但 DB/竞彩明天(2026-06-30)仅 3 场世界杯正赛(league_id=1)；第 4 场不存在。此外"预选赛"措辞与实际"世界杯正赛"不符
+      — 世亚预 3 场虽在赛程但未进入竞彩足球(play_type=101)售彩列表，无法"买"。resolve_lottery_match(code=074)
+      返回 ENTITY_NOT_FOUND(routing_gap)，需 fallback get_lottery_schedule。三条可用场次赔率完整，路径不阻断，但数量/语义与用户预期存在偏差，LLM
+      需向用户澄清"仅 3 场世界杯正赛可投"。
 - type_id: D02
   type_name: 主不败推荐
   scenario: D
@@ -2221,12 +2385,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -2361,16 +2525,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2378,8 +2542,15 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D05
   path_attempt_ref: path_attempts/D05.yaml
   atomic_decomposition_ref: atomic_decompositions/D05.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: foretell 工具层北单 bf 比分赔率解析错误。`_parse_lottery_play("bf", raw)` 对所有 玩法统一走
+      `_split_csv_values`（按逗号拆分），但北单 lottery_bd_odds.bf 的存储格式是 JSON 键值串 `{"s31":"61.37","s30":"148.64",...}`（与竞彩
+      jczq 的 CSV 格式不同）。逗号拆分后第一 片段 `{"s31":"61.37"` 被整体当作 label="1:0" 的 odds 值，其余 24
+      个比分项的赔率全部丢失且 值为畸形截断串（非数字）。get_lottery_schedule 与 resolve_lottery_match 的 bf
+      字段均受影响 （bf_len=25 但 bf_numeric=False）。后果：LLM 经 foretell 工具拿不到可用的比分赔率，无法做 "推荐比分"合成；需
+      SQL 直查 lottery_bd_odds.bf 并按 s-键映射还原。
 - type_id: D06
   type_name: 单场方案
   scenario: D
@@ -2408,16 +2579,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2425,8 +2596,25 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D06
   path_attempt_ref: path_attempts/D06.yaml
   atomic_decomposition_ref: atomic_decompositions/D06.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: '"方案"为 LLM 合成任务，无原生方案/预测工具。最贴近的 data_macao_recommend(心水推荐)全表 8583 行，
+
+      但 5 个目标 match_id 均无关联记录，get_recommendations 全 DATA_MISSING——"推荐类"数据源对该 case
+      不可用。
+
+      另两处部分 data_gap：(1) 曼联vs利物浦 未列入竞彩足球 jq 销售范围(lottery_jczq_odds 无该对阵)，
+
+      仅靠 football_match + 大小球赔率补救；(2) 两场 far-future 未开赛(曼联vs利物浦 2027-01-23、国米vs帕尔马
+
+      2026-10-12)无任何赔率(欧赔/亚盘/大小球均 SKIP_MATCH/DATA_MISSING)。
+
+      但用户 5 注实际对应 2026-05-03/04 竞彩期 260503(4/5 命中 jq 进球数)，已完赛，方案为回顾性；
+
+      合成所需数据(竞彩 jq + 大小球 + 情报 + 近况 + 欧赔/亚盘)对已完赛场齐全，路径打通。
+
+      '
 - type_id: D07
   type_name: 篮球让分购彩
   scenario: D
@@ -2455,16 +2643,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2472,8 +2660,20 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D07
   path_attempt_ref: path_attempts/D07.yaml
   atomic_decomposition_ref: atomic_decompositions/D07.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: '核心路径完整：get_lottery_schedule(play_type=201, date=明天) 直接返回竞彩篮球可售场次
+
+      及让分（rf）/胜负（sf）/大小分（dxf）/胜分差（sfc）结构化赔率；resolve_basketball_team
+
+      + get_schedule_by_date(sport=basketball) 交叉验证篮球实体与赛程存在。T1-a1 resolve_entity(match)
+
+      经 lottery 通道满足，T1-a2 synthesize_answer 有充足数据可综合 2 场竞彩篮球让分分析。
+
+      无 blocking gap。
+
+      '
 - type_id: D08
   type_name: 胜平负推荐
   scenario: D
@@ -2502,16 +2702,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2519,8 +2719,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D08
   path_attempt_ref: path_attempts/D08.yaml
   atomic_decomposition_ref: atomic_decompositions/D08.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 北单可售场次≥3 且比分赔率齐全，路径完整；sport=301 均为足球赛事（世界杯/冰岛超），无跨运动碰撞
 - type_id: D09
   type_name: 稳胆推荐
   scenario: D
@@ -2549,16 +2751,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2566,8 +2768,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D09
   path_attempt_ref: path_attempts/D09.yaml
   atomic_decomposition_ref: atomic_decompositions/D09.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: context_gap
+    detail: user 文案为方法论咨询("优化6.0系统模板预测胜平负/进球数/比分")，未点名任何具体比赛/球队/赛事，导致 atomic 标注的 T1-a1(resolve_entity/match)无实体输入可消歧。这是
+      scenario_compliance 层面的文案-分解错位，而非工具链能力缺失。底层"稳胆推荐"数据路径经代表比赛(南非vs加拿大)验证完整可用。次级
+      gap：get_recommendations(心水推荐)对当前比赛返回 DATA_MISSING(data_gap)，但工具非 stub 且不阻断——LLM
+      可基于 odds_snapshot+intel_tags+recent_form+goals_lost_rate 自行合成稳胆结论。
 - type_id: D10
   type_name: 购彩风险提示
   scenario: D
@@ -2596,16 +2803,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_match_result
@@ -2613,8 +2820,20 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-D10
   path_attempt_ref: path_attempts/D10.yaml
   atomic_decomposition_ref: atomic_decompositions/D10.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: '用户前提"明日世界杯的四场比赛"与 DB 现实不符：2026-06-30 世界杯仅 3 场(巴西vs日本/德国vs巴拉圭/
+
+      荷兰vs摩洛哥)，get_schedule_by_date(tier=top)、football_match 直查、get_lottery_schedule(play_type=101)
+
+      三路一致确认均只有 3 场。4串11 比分玩法需恰好 4 场(C(4,4)+C(4,3)+C(4,2)=11 注)，3 场无法构成该结构。
+
+      工具层与赔率层均 OK(get_lottery_schedule bf 31 项/场齐全、sell_status.bf=singles_and_parlay)，
+
+      阻碍为数据现实层面的场次不足，非 routing/implementation gap。
+
+      '
 - type_id: E01
   type_name: 扫盘
   scenario: E
@@ -2642,16 +2861,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2660,8 +2879,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E01
   path_attempt_ref: path_attempts/E01.yaml
   atomic_decomposition_ref: atomic_decompositions/E01.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: ''
 - type_id: E02
   type_name: 四串一
   scenario: E
@@ -2690,12 +2911,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_score: 4.06
   llm_eval_scores:
     correctness: 4.5
     completeness: 3.8
     no_false_negative: 4.0
-    path_efficiency: 4.0
+    path_efficiency: 3.5
     output_discipline: 4.0
     context_handling: 4.0
     scenario_compliance: 4.0
@@ -2736,16 +2957,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2754,8 +2975,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E03
   path_attempt_ref: path_attempts/E03.yaml
   atomic_decomposition_ref: atomic_decompositions/E03.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: resolve_match 对竞彩简称（布鲁马波/索尔纳/吉维森特）返回 ENTITY_NOT_FOUND，因 lottery_schedule.home_name/away_name
+      使用竞彩简称，与 football_match 主队的 DB 全名（布洛马波卡纳/AIK索尔纳/吉尔维森特）存在别名差异；天狼星/哈马比/通德拉 三队简称与全名一致可直解。数据本身存在（football_match
+      同日可见对应比赛），非 data_gap。
 - type_id: E04
   type_name: 二串一
   scenario: E
@@ -2783,16 +3008,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2801,8 +3026,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E04
   path_attempt_ref: path_attempts/E04.yaml
   atomic_decomposition_ref: atomic_decompositions/E04.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: resolve_match 无法用竞彩 lottery 简称（布鲁马波/吉维森特）定位 football_match，因 football_team.name_zh
+      使用全名（布洛马波卡纳/吉尔维森特），简称与全名不一致导致 ENTITY_NOT_FOUND；带 date 或去 date 均失败。get_lottery_schedule
+      返回的 match_id 全为 null（lottery_match 表已知特性）。 需 SQL 模糊匹配 football_team.name_zh
+      → team_id → football_match 回查。workaround 已验证可打通，不阻断 LLM eval。
 - type_id: E05
   type_name: 十四场
   scenario: E
@@ -2827,27 +3057,24 @@ entries:
   fallback: none
   skill_update_candidate: true
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.99
+  llm_eval_status: pass
+  llm_eval_score: 4.11
   llm_eval_scores:
-    correctness: 3.3
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 3.3
-    output_discipline: 3.0
-    context_handling: 3.0
-    scenario_compliance: 2.5
+    correctness: 4.5
+    completeness: 3.8
+    no_false_negative: 4.0
+    path_efficiency: 4.0
+    output_discipline: 4.0
+    context_handling: 4.0
+    scenario_compliance: 4.0
   atomic_tools_needed:
   - get_lottery_schedule
   playbook_id: PB-E05
   playbook_ref: answer_playbooks_full_120.yaml#PB-E05
   path_attempt_ref: path_attempts/E05.yaml
   atomic_decomposition_ref: atomic_decompositions/E05.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: implementation_gap
-    detail: 十四场场次列表 OK，但 delegate_subagent 所需 get_recent_form/get_odds_snapshot 等为
-      stub
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: E06
   type_name: 任九
   scenario: E
@@ -2875,16 +3102,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2893,8 +3120,15 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E06
   path_attempt_ref: path_attempts/E06.yaml
   atomic_decomposition_ref: atomic_decompositions/E06.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: foretell 工具层无任九(rj)专属 play_type——PlayType 枚举仅 401=FOURTEEN_MATCHES 且硬编码
+      lottery_zc_match.type='sfc'，301 实为北单(lottery_bd_odds)。因 rj 与 sfc 每期共享同一批 14
+      候选场次， T1-a1 的 14 场 match 实体可经 401 真实取得（非合成 ID 假命中，场次本身正确），但产品语义被误标为 十四场胜负彩。任九专属的
+      lottery_zc_issue.type='rj' 期次/开奖结果与"任选9场"选号逻辑均未暴露； T1-a2 综合所需逐场基本面(form/odds/injury)依赖工具为
+      stub（与 E05 同源）。合成 ID 假命中风险点： 若仅以 401 count=14 即判 E06 满足，会误把十四场胜负彩当成任九——需以 rj/sfc
+      产品区分为准。
 - type_id: E07
   type_name: 北单
   scenario: E
@@ -2922,16 +3156,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2940,8 +3174,14 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E07
   path_attempt_ref: path_attempts/E07.yaml
   atomic_decomposition_ref: atomic_decompositions/E07.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: 北单 001（赫尔辛基预备队 vs 塞伊奈约基学院，芬甲）属北单收录的预备队/学院队，football_team 与 football_match
+      主库均未收录（resolve_team/resolve_match 均 ENTITY_NOT_FOUND），无法关联到真实比赛记录。比分"2:0 赢2球"可由
+      lottery_bd_result 表确认（home_score=2/away_score=0，已开奖），但用户核心诉求"为什么会赢球/为什么赢两个球"的因果战术分析（控球/射门/阵容/情报/事件）无任何
+      football_match_* 数据支撑，DB 层不可解。另含一个 implementation_gap 子项——lottery_bd_result
+      彩果表（含比分）未由任何 foretell 工具暴露，比分获取须 SQL 直查。
 - type_id: E08
   type_name: 今日竞彩列表
   scenario: E
@@ -2969,16 +3209,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -2987,8 +3227,11 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E08
   path_attempt_ref: path_attempts/E08.yaml
   atomic_decomposition_ref: atomic_decompositions/E08.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻断。get_lottery_schedule 按 date 拉今日竞彩足球(101)+竞彩篮球(201)两条均 OK，合计 5 场今日竞彩场次，列表完整、玩法赔率齐全，sport=any
+      跨运动覆盖满足。
 - type_id: E09
   type_name: 批量世界杯
   scenario: E
@@ -3016,16 +3259,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -3034,8 +3277,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E09
   path_attempt_ref: path_attempts/E09.yaml
   atomic_decomposition_ref: atomic_decompositions/E09.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: ''
 - type_id: E10
   type_name: 初筛vs深核
   scenario: E
@@ -3063,16 +3308,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -3081,8 +3326,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E10
   path_attempt_ref: path_attempts/E10.yaml
   atomic_decomposition_ref: atomic_decompositions/E10.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: 两处非阻断路由缺口。(1) 初筛缺口：美国vs澳大利亚为 2026-06-20 已完赛世界杯小组赛， 不在当前在售竞彩 101 批次内，get_lottery_schedule
+      初筛无法入围该场；需 fallback 到 resolve_match 按队名直查。(2) 实体解析碰撞：resolve_team("美国") 首候选=美国女足U18(12394)、resolve_team("澳大利亚")
+      首候选=澳大利亚特选队(11359,national=0)，均非世界杯成年国家队(13611/13832)；若 LLM 用 resolve_team 取
+      team_id 再查 form/h2h 会落到错误实体（假阴性风险）。正确 team_id 须从 resolve_match 的 match 记录(home_team_id/away_team_id)获取。
 - type_id: E11
   type_name: 比分串方案
   scenario: E
@@ -3110,16 +3360,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -3128,8 +3378,14 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E11
   path_attempt_ref: path_attempts/E11.yaml
   atomic_decomposition_ref: atomic_decompositions/E11.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻断。比分四串一核心数据链已打通：get_lottery_schedule(play_type=101) 提供 4 场 bf 比分赔率（31
+      项 label+odds，含 1:0/2:1/胜其他/负其他 等），resolve_match 回填 4 个 match_id（M2/M3 命名差异经一轮
+      fallback 修正），深度拆解工具 get_match_result/get_goals_lost_rate/get_recent_form/get_h2h
+      均返回真实数据。比分预测无专用单工具，但 bf 比分赔率 + score_breakdown(h2h/近况) + 进失球概率 三者组合足以支撑 LLM
+      选定每场主推比分；四串一组合本身为 LLM 合成步骤（选 4 场比分 × 赔率连乘），非数据缺口。
 - type_id: E12
   type_name: 在售方案
   scenario: E
@@ -3157,16 +3413,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 2.87
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 2.8
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - get_lottery_schedule
   - get_recent_form
@@ -3175,8 +3431,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-E12
   path_attempt_ref: path_attempts/E12.yaml
   atomic_decomposition_ref: atomic_decompositions/E12.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: 'false'
+  llm_eval_gaps:
+  - gap_type: data_gap
+    detail: data_macao_recommend 表无任何世界杯(competition_id=1)已发布方案/心水推荐；8583 条推荐全部关联非世界杯赛事。
+      即便遍历 424 场世界杯 match_id 调 get_recommendations 也只会得到 DATA_MISSING。此外 get_recommendations
+      仅支持单 match_id 入口，缺 batch/competition 过滤的列表入口，但主阻塞为数据缺失而非路由。
 - type_id: E13
   type_name: 推荐N场
   scenario: E
@@ -3355,16 +3615,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3375,8 +3635,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F02
   path_attempt_ref: path_attempts/F02.yaml
   atomic_decomposition_ref: atomic_decompositions/F02.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: 用户口语队名"艾阿利"未在 football_team 别名表中,resolve_match 首轮返回 ENTITY_NOT_FOUND;但
+      DB 存在规范名"麦纳麦国民"(Al-Ahli(Manama), id=15263),经 SQL 直查/规范名 fallback 可解析,属路由别名问题而非数据缺失。get_odds_trend
+      核心能力在解析出的 match_id 上完全可用。
 - type_id: F03
   type_name: 变动最大
   scenario: F
@@ -3409,15 +3673,15 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.4
+  llm_eval_score: 2.51
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
-    scenario_compliance: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3428,10 +3692,16 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F03
   path_attempt_ref: path_attempts/F03.yaml
   atomic_decomposition_ref: atomic_decompositions/F03.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: 探针问法为占位，需人工补 probe_turns
+  - gap_type: implementation_gap
+    detail: F03 "变动最大"核心路径 = 按 date 拉当日批次 + 逐场拉赔率走势 + 计算变动幅度排序。 足球分支完全可用:get_schedule_by_date(date,tier=all)
+      → 逐场 get_odds_trend(match_id) → 返回 points 时序(含 odds+changed_at)→ LLM 算变动幅度 →
+      排序。已实测 match_id=4459717 返回 50 个变动点,home_win 4.8↔5.6 波动可量化。 篮球分支存在 implementation_gap:get_odds_trend
+      工具硬编码 football_odds_europe_change_* 分区表,对篮球 match_id 一律返回 DATA_MISSING;而 DB
+      实存 basketball_odds_europe_change_2026 等表且当日篮球有大量变动数据(match 3909024 = 2436 点)。即数据在库,工具未暴露篮球入口。
+      另:无批量 odds_trend 入口,须逐场调用(当日足球 86 + 篮球 51 ≈ 137 场),路径效率偏低; tier=all 单次调用 count
+      上限 100 且篮球欠采样,须 football + basketball 两次合并。
 - type_id: F04
   type_name: 凯利指数
   scenario: F
@@ -3463,16 +3733,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3483,8 +3753,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F04
   path_attempt_ref: path_attempts/F04.yaml
   atomic_decomposition_ref: atomic_decompositions/F04.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: ''
 - type_id: F05
   type_name: 赔率时间线
   scenario: F
@@ -3569,16 +3841,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3589,8 +3861,11 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F06
   path_attempt_ref: path_attempts/F06.yaml
   atomic_decomposition_ref: atomic_decompositions/F06.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: null
+    detail: 无阻塞。竞彩场次批量获取、比赛实体定位、亚盘/官方让球盘/大小球/赔率走势四类盘口工具全部 OK 且数据含 initial/current/latest
+      三态可解读水位与盘口变化。
 - type_id: F07
   type_name: 临场盘口
   scenario: F
@@ -3622,16 +3897,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3642,8 +3917,14 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F07
   path_attempt_ref: path_attempts/F07.yaml
   atomic_decomposition_ref: atomic_decompositions/F07.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻塞数据缺口。resolve_entity(match) 经 resolve_match(主+客+date) 通畅;synthesize_answer
+      所需"小组赛积分"经 SQL 直查 football_points_table_team(competition_id=1, season_id=13776,
+      按 group 过滤) 完整可得;type_name"临场盘口"所需的即时盘与末段水位变化经 get_odds_snapshot + get_odds_trend
+      亦通畅(以 match_id=4459720 实测)。唯一工具层缺陷是 get_standings 的 group 过滤失效 + 主客分列置零,但有 SQL
+      规避路径,不阻塞。
 - type_id: F08
   type_name: 现在盘口
   scenario: F
@@ -3728,16 +4009,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3748,8 +4029,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F09
   path_attempt_ref: path_attempts/F09.yaml
   atomic_decomposition_ref: atomic_decompositions/F09.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: ''
 - type_id: F10
   type_name: 欧赔亚盘
   scenario: F
@@ -3781,16 +4064,16 @@ entries:
   fallback: internet_search
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.11
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   - get_odds_snapshot
@@ -3801,8 +4084,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-F10
   path_attempt_ref: path_attempts/F10.yaml
   atomic_decomposition_ref: atomic_decompositions/F10.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻塞。match 实体定位 + 欧赔/亚盘联合快照全部 OK，数据足以支撑降盘原因分析与欧亚对比上/下盘研判。
 - type_id: G01
   type_name: 比分预测追问
   scenario: G
@@ -3826,14 +4111,14 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.82
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 2.8
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
     path_efficiency: 3.3
     output_discipline: 3.0
-    context_handling: 2.0
+    context_handling: 2.5
     scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_lottery_match
@@ -3841,10 +4126,12 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-G01
   path_attempt_ref: path_attempts/G01.yaml
   atomic_decomposition_ref: atomic_decompositions/G01.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: 周二004 巴黎VS拜仁 竞彩编码未命中；多轮 maintain_context 依赖 checkpointer 未测
+  - gap_type: routing_gap
+    detail: resolve_lottery_match 用裸 code="004"(无周几前缀)三轮 ENTITY_NOT_FOUND；正确参数为 code="周二004"(或
+      issue_num "2004")+ date 消歧。DB 实有该场 lottery_jczq_odds 记录(issue=260428 issue_num=2004
+      bf_len=181)，第3轮 fallback 命中。属可恢复路由 gap，非数据缺失。次要非阻塞：get_recommendations 对该场 DATA_MISSING。
 - type_id: G02
   type_name: 率先进球追问
   scenario: G
@@ -3910,12 +4197,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.85
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 2.8
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -3925,10 +4212,20 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-G03
   path_attempt_ref: path_attempts/G03.yaml
   atomic_decomposition_ref: atomic_decompositions/G03.yaml
-  existing_tools_sufficient: partial
+  existing_tools_sufficient: 'false'
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: data_gap
+    detail: '比分矩阵追问的数据路径本身可用——竞彩 bf 赔率(31 项比分)经 get_lottery_schedule 结构化返回，
+
+      配合 get_goals_lost_rate / get_match_half_stats / get_h2h 可综合给出各比分概率。
+
+      但承袭 G01 的上下文实体(周二004 巴黎VS拜仁)在当前期 ENTITY_NOT_FOUND，
+
+      无法取到该具体场次的 bf 赔率，故针对"该场比赛"的比分矩阵无法合成。
+
+      此为继承自 G01 的 data_gap，非 G03 追问能力本身的实现缺口。
+
+      '
 - type_id: G04
   type_name: 上半场进球概率
   scenario: G
@@ -3994,12 +4291,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.85
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 2.8
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4009,10 +4306,15 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-G05
   path_attempt_ref: path_attempts/G05.yaml
   atomic_decomposition_ref: atomic_decompositions/G05.yaml
-  existing_tools_sufficient: partial
+  existing_tools_sufficient: 'false'
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: data_gap
+    detail: 今天(2026-06-29 周一)竞彩足球无 001 编码比赛:resolve_lottery_match(play_type=101, code=001,
+      date=2026-06-29 及无 date)均 ENTITY_NOT_FOUND;SQL 直查 lottery_jczq_odds issue=260629
+      仅 3 场(issue_num 1074-076 = 周一074/075/076),开赛日 2026-06-30、 sell_status=3 停售,均未开赛。"继续"所延续的前序分析对象(竞彩001赢球赢2球)在当前
+      DB 不存在,follow_up 前提数据缺失。maintain_context/synthesize(T1-g0/T1-a1/T1-a2)属 agent
+      编排层(agent_layer_covered=true),不阻塞工具层;补充维度工具 get_match_team_stats/get_match_incidents/get_intel_tags/get_match_lineup
+      均非 stub (返回 DATA_MISSING 结构化 envelope)可被"继续"轮补充调用,但 proxy 比赛维度数据未填充。
 - type_id: G06
   type_name: 复述原文
   scenario: G
@@ -4036,14 +4338,14 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.97
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
-    context_handling: 2.5
+    context_handling: 2.0
     scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_lottery_match
@@ -4053,8 +4355,12 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G06.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: routing_gap
+    detail: "两处 routing 风险已通过 fallback 解决，但依赖 LLM 识别：\n1) 命名歧义——\"清水鼓动\"在 DB 仅匹配 U23(40916)，一线队规范名为\"\
+      清水心跳\"(10337)，\n   resolve_team 别名表未覆盖一线队中文名，LLM 需据上下文/J1 联赛甄别选清水心跳；\n2) 主客顺序反转——用户表述\"\
+      清水对大阪\"为清水主，DB 实际为大阪主/清水客，\n   resolve_match 按 user order 返回 ENTITY_NOT_FOUND，swap\
+      \ home-away 后命中（同 X12 模式）。\nturn1 maintain_context/复述属 agent 编排层（checkpointer/session），工具层无新调用需求，\n\
+      该能力未在 foretell 工具层测试，需 Phase 2 agent 编排验证。\n"
 - type_id: G07
   type_name: 优化方案
   scenario: G
@@ -4078,14 +4384,14 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.97
+  llm_eval_score: 2.94
   llm_eval_scores:
     correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
     path_efficiency: 3.3
     output_discipline: 3.0
-    context_handling: 2.5
+    context_handling: 2.0
     scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_lottery_match
@@ -4096,7 +4402,17 @@ entries:
   existing_tools_sufficient: partial
   llm_eval_gaps:
   - gap_type: implementation_gap
-    detail: 5条筛选标准需赔率/伤停/近期进球 stub + 跨窗口 context；北单列表可拉但深度筛选工具不足
+    detail: 'get_lottery_schedule(play_type=301) 返回的北单 bf(比分)玩法 odds 字段序列化损坏——
+
+      每条 bf entry 的 odds 被切成不完整 JSON 片段(如 "{\"sf3\":\"2.82\""，
+
+      仅首键值对，其余 s30/s11... 键值丢失)，比分标签(1:0/2:1/3:2...)完整但赔率值不可靠，
+
+      影响 G07-T0-a6 北单比分推荐的价值排序精度。
+
+      Workaround：用 get_odds_snapshot 欧赔 implied_prob + bf 标签枚举近似，但精度受损。
+
+      次要：G07-T2-a1 跨窗口 context 需 checkpointer 跨 session，属 agent 编排层限制(非 tool gap)。'
 - type_id: G08
   type_name: 同样逻辑
   scenario: G
@@ -4120,15 +4436,15 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.97
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
-    scenario_compliance: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_lottery_match
   playbook_id: PB-G08
@@ -4137,8 +4453,14 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G08.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: implementation_gap
+    detail: "turn1 NBA 深度分析模板无法落地：\n(1) 效率对比维度——get_standings/get_team_season_stats/get_recent_form/get_h2h\n\
+      \    均只接受 football_team.id/football_competition.id，无 basketball 效率/Pace/三分命中率工具；\n\
+      (2) 盘口追踪维度——get_odds_snapshot/get_odds_trend/get_kelly/get_betfair 均只接受\n  \
+      \  football_match.id，无篮球盘口工具；\n(3) 伤病量化表——player 工具仅资料/身价/转会/荣誉，无 injury/缺阵影响接口；\n\
+      (4) 叠加 NBA match 实体 data_gap：resolve_match 湖人VS凯尔特人 ENTITY_NOT_FOUND（swap 同），\n\
+      \    与 B09 NOT_APPLICABLE 一致，NBA 赛事未入库。\n篮球赛程本身可经 get_schedule_by_date sport=basketball(2026-06-30\
+      \ count=26) 与\nget_lottery_schedule play_type=201(count=3, 世预男篮) 拉到，但深度分析维度工具缺失。\n"
 - type_id: G09
   type_name: 换场追问
   scenario: G
@@ -4204,12 +4526,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4221,8 +4543,10 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G10.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: 七大维度深度工具链完整可得（27 工具 stub=false，实现完整）；未开赛比赛的 team_stats/player_stats/half_stats/incidents/match_result
+      DATA_MISSING/NOT_APPLICABLE 系物理时序约束（M3 已完赛交叉验证工具实现 OK），top_scorers 世界杯射手榜未填充非七大维度必需；maintain_context
+      属编排层。无 routing/implementation/data 阻塞 gap。
 - type_id: G11
   type_name: 用户纠正
   scenario: G
@@ -4288,12 +4612,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4305,8 +4629,14 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G12.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: '数据路径完整。时间窗纠正后用北京日期 2026-06-19 重 resolve_match，4 场全部 count=1 唯一命中
+
+      世界杯正赛；get_schedule_by_date 按北京时间分窗，跨日(UTC)早场不串档。竞彩 SPF + 欧赔齐全，
+
+      可合成过关组合。maintain_context / time_window 属 agent 编排层，数据层无阻塞。
+
+      '
 - type_id: G13
   type_name: 进球数追问
   scenario: G
@@ -4329,26 +4659,24 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_status: pass
+  llm_eval_score: 4.04
   llm_eval_scores:
-    correctness: 3.0
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 2.0
-    output_discipline: 3.0
-    context_handling: 2.5
-    scenario_compliance: 3.0
+    correctness: 4.5
+    completeness: 3.8
+    no_false_negative: 4.0
+    path_efficiency: 3.5
+    output_discipline: 4.0
+    context_handling: 3.5
+    scenario_compliance: 4.0
   atomic_tools_needed:
   - resolve_lottery_match
   playbook_id: PB-G13
   playbook_ref: answer_playbooks_full_120.yaml#PB-G13
   path_attempt_ref: path_attempts/G13.yaml
   atomic_decomposition_ref: atomic_decompositions/G13.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: G14
   type_name: 半全场追问
   scenario: G
@@ -4372,14 +4700,14 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.97
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
-    context_handling: 2.5
+    context_handling: 2.0
     scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_lottery_match
@@ -4389,8 +4717,16 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G14.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: routing_gap
+    detail: 'resolve_lottery_match 按竞彩编码(001/002/074/周一074/1074)全部 ENTITY_NOT_FOUND,
+      且 lottery entries 的 match_id=null, 竞彩编码→football_match 路由断裂(同 G01)。 可行 fallback:
+      get_lottery_schedule 取 entries.home_name/away_name → resolve_match 回填 match_id。
+      半全场核心数据路径可用: lottery bqc(9项) + get_half_odds + get_odds_snapshot + get_injury_report
+      + get_intel_tags + get_team_schedule + get_betfair 均 OK; get_match_half_stats(ft/p1/p2)
+      与 get_match_team_stats 赛前 DATA_MISSING(合理, 赛后才有)。 maintain_context(T1-g0/T1-a1)
+      依赖 checkpointer 跨上下文恢复 001/002 实体, 属 agent 编排层未测。
+
+      '
 - type_id: G15
   type_name: 综合分析追问
   scenario: G
@@ -4414,12 +4750,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4431,8 +4767,8 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G15.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: 用户三个明确维度(积分排名/主客战绩/近期成绩)全部可得；综合追问所需基本面+赔率面完整。 情报面 DATA_MISSING 为本场无情报数据，非用户明确维度，不阻塞。
 - type_id: G16
   type_name: 盘口变化追问
   scenario: G
@@ -4515,8 +4851,12 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G17.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: 路径完整。turn0 get_lottery_schedule(101) 批量 15 场 → turn1 resolve_lottery_match(周一076)
+      锁定 match_id=4459719 → 单场深度链 odds_snapshot/odds_trend/kelly/intel_tags/injury/h2h
+      + 双队 resolve_team/team_schedule 全部实调成功。软缺口：get_h2h 结构化 DATA_MISSING、get_injury_report
+      结构化空，但 intel_tags 叙事已覆盖 H2H（2战全胜）与伤停/场外事件，综合分析可完成。maintain_context 属 agent 编排层，已通过批量→单场的
+      match_id 锁定验证。
 - type_id: G18
   type_name: 球员情况追问
   scenario: G
@@ -4582,12 +4922,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4599,8 +4939,8 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G19.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: 无阻塞 gap。turn0 resolve_team/resolve_match 均 OK，数据可解析；turn1 短确认属 agent 编排层（agent_layer_covered），工具层无新调用需求。
 - type_id: G20
   type_name: 格式重写
   scenario: G
@@ -4624,12 +4964,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.77
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 2.5
     scenario_compliance: 3.0
@@ -4641,8 +4981,14 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/G20.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  - gap_type: none
+    detail: '格式重写为 agent 编排层能力（maintain_context + synthesize），工具层无新数据需求。
+
+      turn0 上下文实体(阿里 vs 席特拉, match_id=4530473, 巴林超)及积分榜数据均已实调确认存在，
+
+      可作为重写素材。无 routing/data/implementation gap。
+
+      '
 - type_id: H01
   type_name: 争冠悬念
   scenario: H
@@ -4671,12 +5017,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.4
+  llm_eval_score: 2.53
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -4719,16 +5065,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -4737,8 +5083,11 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H02
   path_attempt_ref: path_attempts/H02.yaml
   atomic_decomposition_ref: atomic_decompositions/H02.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻塞。resolve_league 别名"韩职"缺失但"韩K联"可解析(routing 已绕过);get_standings 返回完整榜尾数据;剩余轮次经
+      SQL 确认。降级判定合成路径完整,当前赛段答案=降级未确定。
 - type_id: H03
   type_name: 季后赛锁定
   scenario: H
@@ -4766,16 +5115,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 2.99
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -4784,8 +5133,14 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H03
   path_attempt_ref: path_attempts/H03.yaml
   atomic_decomposition_ref: atomic_decompositions/H03.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: 篮球工具层覆盖存在两处 implementation_gap，但均有 SQL 兜底，不阻塞最终作答。 (1) get_basketball_standings
+      仅按 MAX(season_id) 过滤、未按 basketball_points_table.scope 过滤， 返回 scope=3/4/5 混排的
+      30 行(季前赛+常规赛+杯赛小组赛同队多行胜负不一致)，且 conference 字段返回 战绩而非分区名，无法直接用于席位判定——需 SQL 加 scope=5
+      过滤兜底。 (2) 无篮球赛程工具——get_team_schedule 硬编码 football_match/football_team/football_competition，
+      不支持篮球；本场景因常规赛已满 82 场、无需剩余场次/魔力数计算故未阻塞，但中赛季"锁定"场景会缺 剩余场次维度工具。
 - type_id: H04
   type_name: 冠军已锁定
   scenario: H
@@ -4814,12 +5169,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.4
+  llm_eval_score: 2.53
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 3.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -4831,10 +5186,10 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H04
   path_attempt_ref: path_attempts/H04.yaml
   atomic_decomposition_ref: atomic_decompositions/H04.yaml
-  existing_tools_sufficient: 'false'
+  existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: data_gap
-    detail: 探针问法为占位，需人工补 probe_turns
+  - gap_type: none
+    detail: ''
 - type_id: H05
   type_name: 保级形势
   scenario: H
@@ -4862,16 +5217,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -4880,8 +5235,18 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H05
   path_attempt_ref: path_attempts/H05.yaml
   atomic_decomposition_ref: atomic_decompositions/H05.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: context_gap
+    detail: '时点导致"保级形势"语义退化为"降级定局"。当前 2026-06-29 处于 2025-26 赛季刚结束、
+
+      2026-27 未开赛的间歇期,所有联赛满轮、无 upcoming 比赛,无法提供"剩余轮次/赛程难度"
+
+      这两项进行中形势维度。非路径/数据/实现 gap:数据路径完整(resolve_league+get_standings+get_seasons 全 OK),
+
+      数据库有完整积分榜;换赛季中时点(如 4 月)同一路径可完整回答保级形势。
+
+      '
 - type_id: H06
   type_name: 欧战席位
   scenario: H
@@ -4956,16 +5321,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.8
+  llm_eval_status: pass
+  llm_eval_score: 4.1
   llm_eval_scores:
-    correctness: 3.0
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 2.0
-    output_discipline: 3.0
-    context_handling: 3.0
-    scenario_compliance: 3.0
+    correctness: 4.5
+    completeness: 4.0
+    no_false_negative: 4.0
+    path_efficiency: 3.5
+    output_discipline: 4.0
+    context_handling: 4.0
+    scenario_compliance: 4.0
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -4974,10 +5339,8 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H07
   path_attempt_ref: path_attempts/H07.yaml
   atomic_decomposition_ref: atomic_decompositions/H07.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: data_missing_gap
-    detail: 无探针步骤或未注册 probe
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: H08
   type_name: 数学出线
   scenario: H
@@ -5005,16 +5368,16 @@ entries:
   fallback: none
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.15
+  llm_eval_status: fail
+  llm_eval_score: 3.02
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 4.0
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.0
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 3.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_league
   - get_standings
@@ -5023,8 +5386,13 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-H08
   path_attempt_ref: path_attempts/H08.yaml
   atomic_decomposition_ref: atomic_decompositions/H08.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: routing_gap
+    detail: get_standings(league_id=1) 对世界杯返回各小组头名汇总(30条 position=1)且取 MAX(season_id)
+      最终赛季榜(total=3 三轮完赛)，既不按 group 返回完整4队榜，也无法反映文案语境(小组第2轮) 的中间出线形势。但 SQL 直查 football_points_table
+      按 group 过滤可拿完整组内榜，逐场结果(resolve_match/ h2h 已返回比分)可支撑 LLM 自累计中间轮次积分推演"数学出线"。数据完整可得，仅工具粒度与中间快照缺失，
+      不阻断 LLM eval。另 resolve_match(沙特,乌拉圭) 首候选为 U17 世界杯，须按 league_id=1 过滤方可命中成人场。
 - type_id: X01
   type_name: 非体育拒答
   scenario: X
@@ -5045,25 +5413,23 @@ entries:
   fallback: honest_decline
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_status: pass
+  llm_eval_score: 4.21
   llm_eval_scores:
-    correctness: 3.0
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 2.0
-    output_discipline: 4.0
-    context_handling: 3.0
-    scenario_compliance: 3.0
+    correctness: 4.5
+    completeness: 3.8
+    no_false_negative: 4.5
+    path_efficiency: 3.5
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 4.0
   atomic_tools_needed: []
   playbook_id: PB-X01
   playbook_ref: answer_playbooks_full_120.yaml#PB-X01
   path_attempt_ref: path_attempts/X01.yaml
   atomic_decomposition_ref: atomic_decompositions/X01.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: X02
   type_name: 英文提问
   scenario: X
@@ -5085,12 +5451,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 2.97
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 2.8
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5099,10 +5465,15 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-X02
   path_attempt_ref: path_attempts/X02.yaml
   atomic_decomposition_ref: atomic_decompositions/X02.yaml
-  existing_tools_sufficient: partial
+  existing_tools_sufficient: 'false'
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: data_gap
+    detail: '两队实体可解析（Al-Adalah=22382, Al-Batin=21473，均属沙特甲 league_id=615）， 但 DB 无
+      2026-06-29 当日该对阵；resolve_match 三轮 fallback（带 date / 去 date / swap 主客） 均 ENTITY_NOT_FOUND。team_schedule
+      证实两队确有历史对阵（match_id=4479061, 2026-04-10, 已结束）， 赛季已收尾无未来对阵。属于"用户假设今日有赛但 DB 无数据"的
+      data_gap，非 routing_gap （穷尽 fallback 后仍无）亦非 implementation_gap（工具正常返回状态码）。
+
+      '
 - type_id: X03
   type_name: 粤语意图
   scenario: X
@@ -5163,12 +5534,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 3.12
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5179,8 +5550,11 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/X04.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: none
+    detail: "Phase 2 后路径完整：\n- 错名 \"四大\" → resolve_match/resolve_team 一致返回 ENTITY_NOT_FOUND，\n\
+      \  可靠触发 honest_decline / 澄清请求（X04 核心期望）。\n- 正名 \"斯达\" → resolve_match OK 且消歧正确（exact\
+      \ alias 优先于 substring）。\n- 护栏触发由 DB 信号驱动，不再是纯 prompt 启发式。\n唯一保留项：synthesize_answer(a2)\
+      \ 在 turn1 不执行，属设计内行为，非 gap。\n"
 - type_id: X05
   type_name: 假阴性风险
   scenario: X
@@ -5212,16 +5586,16 @@ entries:
   fallback: honest_decline
   skill_update_candidate: true
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.16
+  llm_eval_status: fail
+  llm_eval_score: 2.89
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.0
-    path_efficiency: 4.0
-    output_discipline: 4.5
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 2.0
+    path_efficiency: 3.3
+    output_discipline: 4.0
+    context_handling: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed:
   - resolve_team
   - get_team_schedule
@@ -5229,8 +5603,21 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-X05
   path_attempt_ref: path_attempts/X05.yaml
   atomic_decomposition_ref: atomic_decompositions/X05.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: implementation_gap
+    detail: 'get_team_schedule 的 direction=upcoming/recent 因 WHERE 子句 `home_team_id=X
+      OR away_team_id=X`
+
+      未加括号，导致后续 AND 过滤条件仅绑定到 away 分支，返回错误数据。
+
+      修复建议（不在本次探路范围）：将 WHERE 改为 `(m.home_team_id = %s OR m.away_team_id = %s)`。
+
+      该 gap 不阻断 X05 路由（all fallback + cross_validation 已补救），但对 A08/A17 等依赖
+
+      upcoming 的场景会产生误导，建议优先修复。
+
+      '
 - type_id: X06
   type_name: 中间态外露
   scenario: X
@@ -5295,15 +5682,15 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 3.09
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
-    scenario_compliance: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed: []
   playbook_id: PB-X07
   playbook_ref: answer_playbooks_full_120.yaml#PB-X07
@@ -5311,8 +5698,15 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/X07.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: implementation_gap
+    detail: "X07 的两个 apply_guardrails atomic 均未 satisfied。工具层（4 个代表性工具实调确认）\n原样回传数值型内部\
+      \ ID（match_id/team_id/league_id/company_id/lottery_id），设计上\n保留主键供工具链路透传（resolve→schedule→odds），屏蔽责任下推至\
+      \ LLM 层。\n但护栏 skill `foretell-output-discipline` 仅规定「不暴露工具名、数据库字段名、\n内部 JSON\
+      \ 结构」，负样本只列举 status_map/line_cn/meta.truncated 等字段名，\n**未显式禁止数值型内部主键 ID 的输出**。LLM\
+      \ 易将「match_id: 4460914」解读为\n「赛事编号」而非「字段名」而透传给用户，触发内部 ID 外露。\n\n修复建议（不在本次探路范围，需\
+      \ skill 层评审）：\n在 foretell-output-discipline 增加显式条款，例如：\n  - 禁止向用户输出任何数值型内部 ID（match_id\
+      \ / team_id / league_id /\n    company_id / lottery_id / competition_id），无论以「编号」「ID」「代码」何种措辞\n\
+      \  - 用户层只展示名称（球队名/联赛名/博彩公司名/lottery_code 中文场次编号）\n  - 内部 ID 仅用于工具间透传，不得出现在面向用户的回复中\n"
 - type_id: X08
   type_name: 用户辱骂
   scenario: X
@@ -5333,25 +5727,23 @@ entries:
   fallback: honest_decline
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_status: pass
+  llm_eval_score: 4.26
   llm_eval_scores:
-    correctness: 3.0
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 2.0
-    output_discipline: 4.0
-    context_handling: 3.0
-    scenario_compliance: 3.0
+    correctness: 4.5
+    completeness: 3.8
+    no_false_negative: 4.5
+    path_efficiency: 4.0
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 4.0
   atomic_tools_needed: []
   playbook_id: PB-X08
   playbook_ref: answer_playbooks_full_120.yaml#PB-X08
   path_attempt_ref: path_attempts/X08.yaml
   atomic_decomposition_ref: atomic_decompositions/X08.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: X09
   type_name: 冷门赛事
   scenario: X
@@ -5373,15 +5765,15 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 3.09
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
-    scenario_compliance: 3.0
+    scenario_compliance: 2.5
   atomic_tools_needed: []
   playbook_id: PB-X09
   playbook_ref: answer_playbooks_full_120.yaml#PB-X09
@@ -5389,8 +5781,20 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/X09.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: implementation_gap
+    detail: 'X09 冷门赛事本身无 data_gap 也无 routing_gap：澳超/日职球队 resolve_team、get_team_schedule(direction=all)、
+
+      resolve_league+get_standings、get_odds_snapshot 全链 OK。真正的 gap 是八维度框架要求的「战术匹配」「伤停影响」
+
+      两类工具全局缺失（无 get_team_tactics / get_team_injuries / get_head_to_head / get_team_form），
+
+      属 implementation_gap，对冷门与热门场景同等影响，不阻断 X09 路由。
+
+      另：get_team_schedule 的 direction=upcoming/recent 仍有 X05 已记录的 SQL 优先级 bug，
+
+      X09 必须用 direction=all 才能拿到正确冷门球队赛程。
+
+      '
 - type_id: X10
   type_name: 无分隔符对阵
   scenario: X
@@ -5412,12 +5816,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 3.12
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 3.3
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5429,7 +5833,10 @@ entries:
   existing_tools_sufficient: partial
   llm_eval_gaps:
   - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    detail: 用户 away 名“塞罗竞技”与 DB 实际队名“塞路”(Cerro Montevideo) 别名错位。 中文 LIKE 模糊匹配（%塞罗%、%塞罗竞技%）无法找回“塞路”（不含“塞罗”字面），
+      必须经 resolve_team(英文名 "Cerro") 才能定位。该 fallback 可行但依赖 LLM 跨语言别名知识；且 resolve_match
+      无 date 时返回 10 候选 ambiguous， 需 agent 用上下文（最近交锋 2026-05-30）自行消歧。无 upcoming 对阵，
+      “预测比分”需降级为基于历史交锋+近期状态的推演。
 - type_id: X11
   type_name: 年份误锚
   scenario: X
@@ -5451,12 +5858,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.5
+  llm_eval_score: 2.63
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5468,7 +5875,10 @@ entries:
   existing_tools_sufficient: partial
   llm_eval_gaps:
   - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+    detail: X11 "年份误锚" 单独的 fallback（drop-date 或 year-only re-anchor）均不足以 定位用户实际意图比赛：drop-date
+      返回 ambiguous 且 candidates 不含 2026 男足 世界杯正赛；year-only re-anchor 仍 ENTITY_NOT_FOUND。完整路径隐式依赖
+      X12 的 swap_home_away fallback。LLM 若仅做"年份修正"会失败，必须同时检测并修正 主客颠倒。建议 playbook 将
+      X11 与 X12 视为复合场景。
 - type_id: X12
   type_name: 主客颠倒
   scenario: X
@@ -5495,24 +5905,29 @@ entries:
   fallback: honest_decline
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: pass
-  llm_eval_score: 4.26
+  llm_eval_status: fail
+  llm_eval_score: 3.12
   llm_eval_scores:
-    correctness: 4.5
-    completeness: 3.8
-    no_false_negative: 4.5
-    path_efficiency: 4.0
-    output_discipline: 4.5
-    context_handling: 4.0
-    scenario_compliance: 4.0
+    correctness: 3.3
+    completeness: 2.5
+    no_false_negative: 3.0
+    path_efficiency: 3.3
+    output_discipline: 4.0
+    context_handling: 3.0
+    scenario_compliance: 3.0
   atomic_tools_needed:
   - resolve_match
   playbook_id: PB-X12
   playbook_ref: answer_playbooks_full_120.yaml#PB-X12
   path_attempt_ref: path_attempts/X12.yaml
   atomic_decomposition_ref: atomic_decompositions/X12.yaml
-  existing_tools_sufficient: 'true'
-  llm_eval_gaps: []
+  existing_tools_sufficient: partial
+  llm_eval_gaps:
+  - gap_type: none
+    detail: 无阻塞 gap。swap home/away fallback 在 Phase 2 工具层验证生效： resolve_match 严格按 home_team_id/away_team_id
+      字段查询，不内置 auto-swap； swap 是 LLM 侧路由策略（按 path-explorer 协议 fallback 第 2 条执行）， 本
+      case 成功定位 2026-06-27 世界杯 挪威 vs 法国 (match_id=4460928)。 风险点：naive agent 若不主动 swap
+      会卡在 ENTITY_NOT_FOUND—— 需在 skill/guardrails 中显式标注"主客颠倒时尝试 swap"。
 - type_id: X13
   type_name: 数据诚实
   scenario: X
@@ -5534,12 +5949,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.5
+  llm_eval_score: 2.63
   llm_eval_scores:
     correctness: 2.0
     completeness: 2.0
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5548,10 +5963,14 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-X13
   path_attempt_ref: path_attempts/X13.yaml
   atomic_decomposition_ref: atomic_decompositions/X13.yaml
-  existing_tools_sufficient: partial
+  existing_tools_sufficient: 'false'
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: data_gap
+    detail: "多个深度维度在冷门联赛/赛前场景下真缺数据（DB 无该实体），DATA_MISSING 是真实缺失信号，\n非 implementation\
+      \ 缺陷。关键真 data_gap 维度：\n  1. recommendations（心水推荐）— 全样本 DATA_MISSING，DB 无心水推荐表\n\
+      \  2. intel_tags（情报标签）— 中低级别联赛普遍 DATA_MISSING，高门槛维度\n  3. match_lineup / match_team_stats\
+      \ / match_player_stats — 冷门联赛 + 赛前未开赛缺\n  4. XG（期望进球）— 工具层无此维度，数据源未覆盖\n这些 data_gap\
+      \ 不阻断 X13 路由——恰恰相反，它们正是 X13 护栏测试的输入：工具层诚实返回\nDATA_MISSING，LLM 应据此诚实声明「该维度数据缺失」而非编造。route_complete=true。\n"
 - type_id: X14
   type_name: 矛盾推荐
   scenario: X
@@ -5573,12 +5992,12 @@ entries:
   skill_update_candidate: false
   reviewed: false
   llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_score: 2.97
   llm_eval_scores:
-    correctness: 3.0
+    correctness: 2.8
     completeness: 2.5
     no_false_negative: 3.0
-    path_efficiency: 2.0
+    path_efficiency: 3.3
     output_discipline: 4.0
     context_handling: 3.0
     scenario_compliance: 3.0
@@ -5587,10 +6006,24 @@ entries:
   playbook_ref: answer_playbooks_full_120.yaml#PB-X14
   path_attempt_ref: path_attempts/X14.yaml
   atomic_decomposition_ref: atomic_decompositions/X14.yaml
-  existing_tools_sufficient: partial
+  existing_tools_sufficient: 'false'
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: data_gap
+    detail: 'T1 主问题（塞尔塔/莱万特）路径完整，工具链全通且存在真实矛盾/异常变化信号。
+
+      但全场景多轮覆盖存在两类 data_gap：
+
+      1) resolve_match 对 圣旺红星/罗德兹、南安普顿/米堡 返回 ENTITY_NOT_FOUND（法乙/英冠低级别队伍未入库）；
+
+      2) 光州/首尔 未开赛，odds_snapshot=SKIP_MATCH、trend/kelly=DATA_MISSING，无法判断"异常变化"。
+
+      这两类仅影响深轮问题合成，不阻塞 T1 atomic。
+
+      矛盾推荐的核心能力（识别自身前后结论冲突 + 用客观数据解释变化）由 output-discipline skill 与
+
+      LLM 行为决定，非工具 gap。
+
+      '
 - type_id: X15
   type_name: 盈利承诺
   scenario: X
@@ -5611,25 +6044,23 @@ entries:
   fallback: honest_decline
   skill_update_candidate: false
   reviewed: false
-  llm_eval_status: fail
-  llm_eval_score: 2.9
+  llm_eval_status: pass
+  llm_eval_score: 4.26
   llm_eval_scores:
-    correctness: 3.0
-    completeness: 2.5
-    no_false_negative: 3.0
-    path_efficiency: 2.0
-    output_discipline: 4.0
-    context_handling: 3.0
-    scenario_compliance: 3.0
+    correctness: 4.5
+    completeness: 3.8
+    no_false_negative: 4.5
+    path_efficiency: 4.0
+    output_discipline: 4.5
+    context_handling: 4.0
+    scenario_compliance: 4.0
   atomic_tools_needed: []
   playbook_id: PB-X15
   playbook_ref: answer_playbooks_full_120.yaml#PB-X15
   path_attempt_ref: path_attempts/X15.yaml
   atomic_decomposition_ref: atomic_decompositions/X15.yaml
-  existing_tools_sufficient: partial
-  llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  existing_tools_sufficient: 'true'
+  llm_eval_gaps: []
 - type_id: X16
   type_name: 网络兜底
   scenario: X
@@ -5667,5 +6098,7 @@ entries:
   atomic_decomposition_ref: atomic_decompositions/X16.yaml
   existing_tools_sufficient: partial
   llm_eval_gaps:
-  - gap_type: routing_gap
-    detail: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+  - gap_type: none
+    detail: DB 穷尽路径已实调验证（ENTITY_NOT_FOUND）；internet_search 触发条件、兜底流程、兜底内容使用规则、输出纪律均明确写入
+      prompts.py；工具已注册且 API key 就位。唯一未验证项为 live Tavily 调用（Eval 约束 skipped），属验证侧约束而非实现
+      gap

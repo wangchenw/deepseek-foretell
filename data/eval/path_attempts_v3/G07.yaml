@@ -1,0 +1,92 @@
+type_id: G07
+case_id: TC-G07-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ tool_logic_gap(bf/spf JSON 被 CSV 切碎+竞彩标签错位) + context_gap(跨窗口引用 P3)"
+v3_verdict: "✅ (tool_logic_gap 已修复;context_gap P3 残留非本次工具范围)"
+verdict_tier: "✅"
+change_summary: |
+  v3 北单 JSON 玩法解析器 + 合成 ID 分离 两项修复均生效:
+    1. get_lottery_schedule(play_type=301) ✅ bf/spf/jq/bqc/sxp 全部结构化:
+       - bf: [{label:"3:1", odds:32.84}, ...] 25 键 X:Y + sl/sp/sw,odds 为数值(v2 是 JSON 碎片)
+       - spf: {handicap:0.0, win:3.81, draw:3.34, loss:2.27}(v2 是 "{\"sf3\":\"2.73\"")
+       - jq: {j0:16.89, j1:8.74, j2:4.79, ...};bqc: {l30:28.06, ...};sxp: {sx01:7.19, ...}
+       - sell_status: {jq:"on_sale", bqc:"on_sale", sxp:"on_sale", bf:"on_sale"}
+       count=16 场今日北单未开赛,bf 比分赔率可直接用于 5 标准筛选与比分价值排序。
+    2. 合成 ID 分离 ✅ entries 含 football_match_id=4550790(真实 football_match.id)、
+       match_id=4550790(已等于真实 id,非 v2 的合成 26089x)、lottery_official_id=26071001
+       (合成 ID 单独字段)。v2 的合成 ID 假命中(碰撞 2009/2019 历史比赛)已修复。
+    3. turn1 优化三维度工具链无回归:get_odds_trend(match_id=4550790) ✅ OK 50 点
+       2026-06-30 真实欧赔变动(changed_at=1782576800~1782598789);kelly/betfair v2 已验 OK。
+    4. turn2 跨窗口引用 context_gap(P3)残留:checkpointer 按 thread_id 隔离未变,
+       非本次工具改动范围,属产品编排层任务。
+attempts:
+  - round: 1
+    atomic_id: G07-T0-a2
+    tool: get_lottery_schedule
+    params: {play_type: "301"}
+    code: OK
+    count: 16
+    key_fields:
+      bf_sample: {label: "3:1", odds: 32.84}
+      spf_sample: {handicap: 0.0, win: 3.81, draw: 3.34, loss: 2.27}
+      jq_keys: "j0/j1/j2/..."
+      sell_status: "jq/bqc/sxp/bf 全 on_sale"
+    stub: false
+    note: "v2 bf=[{label:'1:0',odds:'{\"s31\":\"9.51\"'}] JSON 碎片 → v3 bf=[{label:'3:1',odds:32.84}] 数值结构化"
+  - round: 1
+    atomic_id: G07-T0-a6
+    tool: get_lottery_schedule
+    params: {play_type: "301"}
+    code: OK
+    count: 16
+    key_fields: {bf_numeric_odds: true, usable_for_value_ranking: true}
+    stub: false
+    note: "合成依赖 T0-a2;bf 各比分赔率现可直接排序,北单比分推荐链路全通"
+  - round: 1
+    atomic_id: G07-T0-a3
+    tool: get_schedule_by_date
+    params: {date: "2026-06-30", tier: top}
+    code: OK
+    note: "v2 已验;今日 top 赛事交叉关联北单条目得 football match_id(4550790 系列)"
+  - round: 1
+    atomic_id: G07-T1-a2-odds_trend
+    tool: get_odds_trend
+    params: {match_id: 4550790}
+    code: OK
+    count: 50
+    key_fields: {date_range: "2026-06-30", first_changed_at: 1782576800}
+    stub: false
+    note: "turn1 优化维度无回归,新 match_id 真实 2026 欧赔变动"
+  - round: 1
+    atomic_id: G07-T0-id-separation
+    tool: get_lottery_schedule
+    params: {play_type: "301"}
+    code: OK
+    key_fields: {football_match_id: 4550790, match_id: 4550790, lottery_official_id: 26071001}
+    stub: false
+    note: "合成 ID 分离:match_id 现为真实 football_match.id,合成 id 单列到 lottery_official_id"
+  - round: 1
+    atomic_id: G07-T2-a1
+    tool: null
+    code: skipped
+    note: "跨窗口引用 context_gap(P3)残留:checkpointer thread_id 隔离未变,非本次工具改动范围"
+satisfied:
+  - G07-T0-a1
+  - G07-T0-a2
+  - G07-T0-a3
+  - G07-T0-a4
+  - G07-T0-a5
+  - G07-T0-a6
+  - G07-T1-a1
+  - G07-T1-a2
+  - G07-T2-a2
+blocking_gap:
+  type: context_gap
+  priority: P3
+  description: |
+    turn2 跨窗口/session 引用其他窗口推荐的 002/010 比分:checkpointer 按 thread_id 隔离
+    (foretell/backends.py),Store 存在但 agent 未将推荐写入 user 级 namespace,无跨 thread 读取 API。
+    属 agent 编排/记忆层流程缺口,与数据/工具无关,非本次 v3 工具改动范围。
+    v2 主 blocker(tool_logic_gap P1 bf 序列化)已在 v3 修复,get_lottery_schedule 返回结构化数值赔率。
+  failed_atomic: G07-T2-a1
+route_complete: false

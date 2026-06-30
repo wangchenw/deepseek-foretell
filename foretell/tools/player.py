@@ -17,6 +17,17 @@ def _default_meta(client) -> dict:
     return {"source": _META_SOURCE, "freshness": client.freshness}
 
 
+def _basketball_unavailable(client, dimension: str, player_id, table_name: str) -> str:
+    """篮球该维度暂未采集时返回明确的 DATA_MISSING(非含糊空结果)。"""
+    return make_envelope(
+        StatusCode.DATA_MISSING,
+        dimension,
+        {"player_id": player_id, "sport": "basketball",
+         "reason": f"该维度篮球暂未采集({table_name} 表不存在)"},
+        meta=_default_meta(client),
+    )
+
+
 @tool
 def get_player_profile(player_id: int | str, sport: Literal["football", "basketball"] = "football") -> str:
     """查询球员资料（含国籍、身高、体重、位置、身价）。
@@ -40,13 +51,17 @@ def get_player_profile(player_id: int | str, sport: Literal["football", "basketb
 
 
 @tool
-def get_player_market_value(player_id: int | str) -> str:
+def get_player_market_value(player_id: int | str, sport: str = "football") -> str:
     """查询球员身价历史（含时间、币种、年龄）。
 
     Args:
-        player_id: MySQL football_player.id。
+        player_id: MySQL football_player.id 或 basketball_player.id。
+        sport: "football"(默认)或 "basketball"。篮球球员身价暂未采集
+            (basketball_player_market 表不存在,NBA 无身价概念),返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "player_market_value", player_id, "basketball_player_market")
     result = client.get_player_market_value(player_id)
     if not result:
         return make_envelope(

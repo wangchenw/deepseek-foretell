@@ -1,6 +1,8 @@
 {
   "type_id": "B01",
   "case_id": "TC-B01-001",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_lottery_match",
@@ -12,5 +14,6 @@
       "code": "ENTITY_NOT_FOUND",
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

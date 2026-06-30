@@ -1,0 +1,21 @@
+type_id: A18
+case_id: TC-A18-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ tool_logic_gap(缺 season_id 过滤,多赛季合并 position=1)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: |
+  get_standings(168 荷甲) 返 ctype=1 rows=18 r0pts=84(埃因霍温),
+  season 智能选择命中 2025-26 真实赛季(pt.total>0 过滤空壳),
+  position 序列 1-18 非全 1。与 v3_verification_3domains.md 结论一致,维持 ✅。
+attempts:
+  - round: 1
+    atomic_id: A18-T0-a1
+    tool: get_standings
+    params: {league_id: 168}
+    code: OK
+    key_fields: {competition_type: 1, rows: 18, r0_points: 84}
+    stub: false
+satisfied: [A18-T0-a1]
+blocking_gap: null
+route_complete: true

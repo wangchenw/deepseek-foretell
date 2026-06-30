@@ -62,7 +62,10 @@ def test_resolve_lottery_match() -> None:
     result = _parse(resolve_lottery_match.invoke({"play_type": "101", "code": "周二004"}))
     assert result["code"] == "OK"
     assert result["data"]["lottery_id"]
-    assert "match_id" not in result
+    # 修复 E07/E05 后,resolve_lottery_match JOIN lottery_match 回填真实 football_match_id。
+    # match_id 现在指向真实 football_match.id(非合成 ID),若存在则必须为 int。
+    if "match_id" in result:
+        assert isinstance(result["match_id"], int)
     if result["data"].get("match_candidates"):
         assert isinstance(result["data"]["match_candidates"][0]["match_id"], int)
     assert result["data"]["lottery_code"]

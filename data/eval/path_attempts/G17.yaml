@@ -1,7 +1,8 @@
 type_id: G17
 case_id: TC-G17-001
 explored_at: '2026-06-29'
-scenario_note: 多场比赛追问；entity_entry=context，sport=any，tags=[follow_up]。turn0 批量分析今日所有体彩足球比赛；turn1 在批量上下文中追问单场（"荷兰这场/摩洛哥这场"），验证从批量切换到单场的能力。
+scenario_note: 多场比赛追问；entity_entry=context，sport=any，tags=[follow_up]。turn0 批量分析今日所有体彩足球比赛；turn1
+  在批量上下文中追问单场（"荷兰这场/摩洛哥这场"），验证从批量切换到单场的能力。
 turns:
 - turn: 0
   intent: 批量拉取今日竞彩足球（体彩足球）全部比赛
@@ -14,7 +15,9 @@ turns:
     code: OK
     count: 15
     stub: false
-    note: play_type=101 为竞彩足球；返回 15 场世界杯（lottery_code 周一074..周五088），含 spf/rq/bf/jq/bqc 全玩法赔率与 sell_status；entries 中 match_id 为 null，需 turn1 用 resolve_lottery_match 锁定底层 football_match
+    note: play_type=101 为竞彩足球；返回 15 场世界杯（lottery_code 周一074..周五088），含 spf/rq/bf/jq/bqc
+      全玩法赔率与 sell_status；entries 中 match_id 为 null，需 turn1 用 resolve_lottery_match
+      锁定底层 football_match
 - turn: 1
   intent: 多场追问单场——maintain_context 保持批量上下文 + 锁定被追问单场 match_id + 单场深度工具链
   attempts:
@@ -27,7 +30,8 @@ turns:
       target_lottery_code: 周一076
     code: OK
     stub: false
-    note: 编排层维持 turn0 批量列表上下文，按用户"荷兰这场/摩洛哥这场"锁定 lottery_code=周一076；maintain_context 属 agent 编排层，非工具调用
+    note: 编排层维持 turn0 批量列表上下文，按用户"荷兰这场/摩洛哥这场"锁定 lottery_code=周一076；maintain_context
+      属 agent 编排层，非工具调用
   - round: 1
     atomic_id: T1-a1
     tool: resolve_lottery_match
@@ -38,7 +42,9 @@ turns:
     code: OK
     count: 1
     stub: false
-    note: code 需完整格式"周X###"（短码"076"返回 ENTITY_NOT_FOUND，已 fallback）；match_candidates[0] 给出 match_id=4459719（荷兰10870 vs 摩洛哥11763，世界杯，neutral=true，status=not_started，09:00 开赛，含环境温度湿度风气压）+ 竞彩全玩法赔率
+    note: code 需完整格式"周X###"（短码"076"返回 ENTITY_NOT_FOUND，已 fallback）；match_candidates[0]
+      给出 match_id=4459719（荷兰10870 vs 摩洛哥11763，世界杯，neutral=true，status=not_started，09:00
+      开赛，含环境温度湿度风气压）+ 竞彩全玩法赔率
     fallback_from:
       round: 0
       failed_params:
@@ -149,7 +155,11 @@ satisfied:
 - T1-a2
 blocking_gap:
   type: none
-  description: 路径完整。turn0 get_lottery_schedule(101) 批量 15 场 → turn1 resolve_lottery_match(周一076) 锁定 match_id=4459719 → 单场深度链 odds_snapshot/odds_trend/kelly/intel_tags/injury/h2h + 双队 resolve_team/team_schedule 全部实调成功。软缺口：get_h2h 结构化 DATA_MISSING、get_injury_report 结构化空，但 intel_tags 叙事已覆盖 H2H（2战全胜）与伤停/场外事件，综合分析可完成。maintain_context 属 agent 编排层，已通过批量→单场的 match_id 锁定验证。
+  description: 路径完整。turn0 get_lottery_schedule(101) 批量 15 场 → turn1 resolve_lottery_match(周一076)
+    锁定 match_id=4459719 → 单场深度链 odds_snapshot/odds_trend/kelly/intel_tags/injury/h2h
+    + 双队 resolve_team/team_schedule 全部实调成功。软缺口：get_h2h 结构化 DATA_MISSING、get_injury_report
+    结构化空，但 intel_tags 叙事已覆盖 H2H（2战全胜）与伤停/场外事件，综合分析可完成。maintain_context 属 agent 编排层，已通过批量→单场的
+    match_id 锁定验证。
   failed_atomic: null
 soft_gaps:
 - tool: get_h2h
@@ -164,6 +174,10 @@ soft_gaps:
 route_complete: true
 verdict: pass
 key_findings:
-- 批量→单场上下文切换验证成功：get_lottery_schedule(101) 出 15 场竞彩足球，按用户追问的"荷兰这场"用 resolve_lottery_match(周一076, date=2026-06-30) 锁定 match_id=4459719；关键 fallback 为 code 必须带星期前缀（短码"076"返回 ENTITY_NOT_FOUND）。
-- 单场深度链全覆盖：odds_snapshot(5欧5亚)、odds_trend(50变动点)、kelly(5公司+隐含概率)、intel_tags(5条主/客/中立情报)、双队 team_schedule(各6场)；冷热比值=主胜/客胜=2.35/3.22≈0.73 落在 0.7~1.2 五五开区间，符合用户"别猜"判定。
-- 软数据缺口由情报叙事补偿：结构化 get_h2h（DATA_MISSING）与 get_injury_report（空）虽无行数据，但 intel_tags 已提供 H2H（2战全胜）、伤停/场外（加克波、廷贝尔、阿什拉夫）、旅途、裁判等，综合分析不阻塞；无跨运动 ID 碰撞（荷兰/摩洛哥 resolve_team 首候选均为 football national=1）。
+- 批量→单场上下文切换验证成功：get_lottery_schedule(101) 出 15 场竞彩足球，按用户追问的"荷兰这场"用 resolve_lottery_match(周一076,
+  date=2026-06-30) 锁定 match_id=4459719；关键 fallback 为 code 必须带星期前缀（短码"076"返回 ENTITY_NOT_FOUND）。
+- 单场深度链全覆盖：odds_snapshot(5欧5亚)、odds_trend(50变动点)、kelly(5公司+隐含概率)、intel_tags(5条主/客/中立情报)、双队
+  team_schedule(各6场)；冷热比值=主胜/客胜=2.35/3.22≈0.73 落在 0.7~1.2 五五开区间，符合用户"别猜"判定。
+- 软数据缺口由情报叙事补偿：结构化 get_h2h（DATA_MISSING）与 get_injury_report（空）虽无行数据，但 intel_tags 已提供
+  H2H（2战全胜）、伤停/场外（加克波、廷贝尔、阿什拉夫）、旅途、裁判等，综合分析不阻塞；无跨运动 ID 碰撞（荷兰/摩洛哥 resolve_team 首候选均为
+  football national=1）。

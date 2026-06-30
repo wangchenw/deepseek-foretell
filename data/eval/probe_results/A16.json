@@ -1,6 +1,8 @@
 {
   "type_id": "A16",
   "case_id": "TC-A16-001",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_team",
@@ -21,5 +23,6 @@
       "count": 3,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

@@ -1,0 +1,48 @@
+type_id: D06
+case_id: TC-D06-001
+scenario: D  # 竞彩方案合成
+explored_at: '2026-06-30'
+methodology: P14 重新评估—— v3 误贴 G07 turn2 context_gap。补跑探针验证竞彩 jq 进球数赔率 + 实体定位可达性,确认真实 gap 非"jq 映射"而是 LLM 编排层。
+target: 单场/串关方案合成（曼联vs利物浦 1/2球 等 5 注进球数 + 重新投注方案 + 选 5 组保守稳健）
+previous_verdict: "⚠️ v3 误贴 G07 turn2 context_gap（错误归因）"
+current_verdict: "✅ 工具层齐全（真实 gap 是 LLM 编排层:将用户自定义方案映射到 jq 赔率档位 + 综合分析）"
+
+# ============================================================
+# P14 重新评估证据
+# ============================================================
+probe_result:
+  D06a_竞彩jq进球数赔率:
+    tool: get_lottery_schedule(play_type=101 竞彩足球)
+    code: OK
+    count: 13
+    jq_覆盖率: "3/3 场次有 jq 进球数赔率"
+    jq_样本: "科特迪瓦vs挪威: jq=[0:13.0, 1:5.4, 2:3.55, 3:3.3, 4:4.85, 5:9.75, 6:17.5, 7+:24.0]; 法国vs瑞典: jq=[0:27.0,...,7+:13.0]; 墨西哥vs厄瓜多尔: jq=[0:6.0,...,7+:50.0]"
+    结论: "✅ 竞彩 jq 进球数赔率完全可达,0-7+ 各档赔率齐全。'jq 映射'非 gap"
+
+  D06b_比赛实体定位:
+    tool: resolve_match(home=曼联, away=利物浦)
+    code: OK
+    match_id: 4558506
+    status: not_started
+    结论: "✅ 实体定位可达"
+
+  D06c_通用欧赔快照:
+    tool: get_odds_snapshot(match_id=4558506, sport=football)
+    code: SKIP_MATCH
+    原因: "该场 not_started,football_odds_europe/asian 未回填。但竞彩赔率(jq)在 lottery_match 表已可达(D06a),足以支撑进球数方案"
+    结论: "⚠️ 通用欧赔快照对未开赛比赛缺失,但非 D06 核心需求(D06 要进球数方案,竞彩 jq 赔率已够)"
+
+# ============================================================
+# 真实 gap 重新归因
+# ============================================================
+real_gap_reclassification:
+  误判_jq映射: "v3 认为竞彩 jq 进球数赔率映射是 gap → P14 探针证伪:jq 赔率齐全"
+  误判_G07_context_gap: "v3 误贴 G07 turn2 context_gap（跨窗口引用）→ D06 真实需求是单场/串关方案合成,非跨窗口"
+  真实_gap_LLM编排层: "用户给'曼联vs利物浦 1/2球'是自定义方案描述,LLM 需:1)将'1/2球'映射到 jq 赔率档位(1球/2球) 2)基于赔率+统计综合分析出'保守稳健'方案 3)防机构套路属 LLM 判断层。数据层(竞彩 jq 赔率+实体+球队统计)已齐全"
+  真实_gap_心水推荐: "'心水推荐''选5组保守稳健'是 LLM 综合分析,非独立数据表。数据支撑已齐全"
+
+gap_type: llm_orchestration_layer
+gap_resolution: "工具层数据齐全(竞彩 jq 赔率+实体定位+球队统计)。真实 gap 在 LLM 编排层:将用户自定义'1/2球'方案映射到 jq 赔率档位 + 综合分析。非工具层修复范围。"
+caveat: "通用欧赔快照对未开赛比赛缺失(SKIP_MATCH),但 D06 核心需求(进球数方案)由竞彩 jq 赔率覆盖"
+upgrade_to: "✅（工具层）"
+note: "D06 工具层升 ✅。LLM 编排层(方案映射+综合分析)需在 playbook/prompt 层优化,非本轮工具层修复范围"

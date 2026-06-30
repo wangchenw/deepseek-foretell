@@ -5,7 +5,6 @@ source: path_explorer_phase1
 scenario_summary: 4月21日韩K联 全北现代(主,第3) vs 仁川联(客,第10) 七段式赛前分析模板
 entity_entry: match
 attempts:
-# ===== T1-a1: resolve_entity(match) =====
 - round: 1
   atomic_id: B07-T1-a1
   tool: resolve_team
@@ -36,7 +35,6 @@ attempts:
   stub: false
   match_id: 4480384
   note: 韩K联 league_id=581 round_num=9 status=finished，主位3客位10，环境温度13°C湿度42%风力1.1m/s
-# ===== 第一部分：基础数据对比 =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_recent_form
@@ -66,7 +64,6 @@ attempts:
   count: 12
   stub: false
   note: 韩K联积分榜，含主客场拆分（全北主场 5胜0平2负，仁川客场 3胜3平1负）
-# ===== 第二部分：战术体系 =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_match_lineup
@@ -84,7 +81,6 @@ attempts:
   count: 2
   stub: false
   note: 控球 51/49、射门 3/6、射正 1/4、角球 7/1、黄牌 0/4
-# ===== 第三部分：关键球员状态 =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_match_player_stats
@@ -113,7 +109,6 @@ attempts:
   count: 33
   stub: false
   note: 仁川完整大名单（含位置/球衣号）
-# ===== 第四部分：历史交锋 =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_h2h
@@ -125,7 +120,6 @@ attempts:
   count: 5
   stub: false
   note: 最近5次交锋含 full/half 比分 + 红黄牌角球（4/21 全北1-2仁川）
-# ===== 第五部分：高阶数据 =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_match_team_stats
@@ -134,8 +128,8 @@ attempts:
   code: OK
   count: 2
   stub: false
-  note: 提供 shots/shots_on_target/ball_possession 等可替代 xG/xGA；数据源不直接提供 xG 字段，需 LLM 基于射门数据估算
-# ===== 第六部分：外部因素 =====
+  note: 提供 shots/shots_on_target/ball_possession 等可替代 xG/xGA；数据源不直接提供 xG 字段，需 LLM
+    基于射门数据估算
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_team_schedule
@@ -163,8 +157,8 @@ attempts:
   category: referee_lookup
   tool: get_referee
   status: skipped
-  note: resolve_match 候选未含 referee_id 字段，无法直接调用 get_referee；裁判风格维度需依赖 intel_tags 补充或视为 minor gap
-# ===== 子智能体 intel =====
+  note: resolve_match 候选未含 referee_id 字段，无法直接调用 get_referee；裁判风格维度需依赖 intel_tags 补充或视为
+    minor gap
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_intel_tags
@@ -174,7 +168,6 @@ attempts:
   count: 5
   stub: false
   note: 完整赛前情报（主队积极/消极、客队积极/消极、中立），内容覆盖近5年交锋胜率、穆戈沙射手榜第1、孔帕尼奥未首秀等
-# ===== 子智能体 odds =====
 - round: 1
   atomic_id: B07-T1-b1
   tool: get_odds_snapshot
@@ -183,7 +176,6 @@ attempts:
   code: OK
   stub: false
   note: 5家欧赔公司 + 5家亚盘公司（初盘/即时/最新，含 in_play 标识），亚盘初盘主-0.5→即时-0.75
-# ===== T1-a2 / T1-b2: synthesize_answer (非工具) =====
 - round: 1
   atomic_id: B07-T1-a2
   category: synthesize_answer
@@ -204,9 +196,11 @@ satisfied:
 blocking_gap: null
 minor_gaps:
 - type: implementation_gap
-  description: xG/xGA 直接指标不在数据源；可用 shots/shots_on_target/ball_possession 估算，第五部分"实际进球 vs xG"需 LLM 做近似推理
+  description: xG/xGA 直接指标不在数据源；可用 shots/shots_on_target/ball_possession 估算，第五部分"实际进球
+    vs xG"需 LLM 做近似推理
 - type: routing_gap
-  description: resolve_match 候选未含 referee_id，第六部分裁判风格维度无法直接 get_referee；可由 intel_tags 部分替代
+  description: resolve_match 候选未含 referee_id，第六部分裁判风格维度无法直接 get_referee；可由 intel_tags
+    部分替代
 route_complete: true
 verdict: pass
 verdict_emoji: ✅

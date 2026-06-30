@@ -1,0 +1,152 @@
+type_id: D09
+case_id: TC-D09-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ (context_gap 文案-分解错位 + data_gap 心水推荐缺失,route_complete=true,verdict_lean=conditional_pass)"
+v3_verdict: "⚠️_improved (维持 conditional_pass,但 v3 合成 ID 分离使 lottery→football_match 链路可靠,odds_trend 用真实 match_id 不撞历史;context_gap 与心水 data_gap 保留,非阻断)"
+verdict_tier: ⚠️
+change_summary: |
+  v3 阶段3「lottery 合成 ID 分离」对 D09 底层工具链可靠性有实质升档:
+  1. get_lottery_schedule(play_type=101, date=2026-07-01) 现返回分离字段:
+     football_match_id=4459721(真实 football_match.id) + lottery_official_id=2040346(合成彩票官方 ID),
+     match_id 向后兼容指向真实 id(4459721),不再透传合成 ID 撞历史。
+  2. resolve_lottery_match(code=周二078, date=2026-07-01) 同样返回分离字段 +
+     match_candidates(含 home_position/away_position/environment 33°C/38%/4.5m/s)。
+  3. 下游赔率/情报链路用真实 match_id 4459721 全部 OK:
+     - get_odds_snapshot: 5 欧赔 + 5 亚盘,initial/current/latest 三档,法国热门(主胜 1.28-1.30)
+     - get_odds_trend: 50 点 2026-06-25~06-30 真实时序(changed_at 1782528060~1782532492),
+       无 v2 类 F03 的「撞 football_match.id 返回 2023 历史赔率」伪命中
+     - get_intel_tags: 5 类情报(登贝莱帽子戏法/德尚重返/萨利巴复出/瑞典林德洛夫+希恩伤情/裁判马克列/双方身价14.7亿vs4.28亿)
+     - get_recent_form(法国 10234): 4W1L,近5场进14球
+  主 gap 未变:
+  - context_gap: 用户文案为方法论咨询("优化6.0系统模板预测胜平负/进球数/比分"),未点名具体比赛,
+    需 playbook 澄清分支引导用户提供具体比赛后再走 resolve_match→odds+intel+form 路径。
+  - data_gap: get_recommendations(心水推荐,4459721)=DATA_MISSING,工具非 stub(8583行覆盖部分赛事),
+    世界杯淘汰赛无心水数据,需模型基于赔率+情报自推导稳胆(非阻断)。
+attempts:
+- round: 1
+  atomic_id: D09-T1-a1
+  tool: get_schedule_by_date
+  params: {date: '2026-07-01', tier: top, sport: football}
+  code: OK
+  count: 3
+  stub: false
+  note: 明日(2026-07-01)tier=top 世界杯 3 场未开赛——科特迪瓦vs挪威(4459722,01:00)、
+    法国vs瑞典(4459721,05:00)、墨西哥vs厄瓜多尔(4459723,09:00)。meta.total_count=181、tier_count=3、truncated=false。
+    用作稳胆候选代表比赛(取法国vs瑞典为深度验证对象)。
+- round: 1
+  atomic_id: D09-T1-a1
+  tool: get_lottery_schedule
+  params: {play_type: '101', date: '2026-07-01'}
+  code: OK
+  count: 3
+  stub: false
+  note: 竞彩足球 issue=260630 当期 3 条世界杯——周二077科特迪瓦vs挪威(lottery_id=2040345)、
+    周二078法国vs瑞典(lottery_id=2040346)、周二079墨西哥vs厄瓜多尔(lottery_id=2040351)。
+    v3 关键升档:entry 含分离字段 football_match_id(真实 4459722/4459721/4459723)+ 
+    lottery_official_id(合成,=lottery_id);match_id 向后兼容指真实 id。
+    odds.bf 31项/场齐全、spf/rq/jq/bqc 齐全;sell_status.bf=singles_and_parlay。
+- round: 1
+  atomic_id: D09-T1-a1
+  tool: resolve_lottery_match
+  params: {play_type: '101', code: '周二078', date: '2026-07-01'}
+  code: OK
+  count: 1
+  stub: false
+  note: v3 合成 ID 分离验证通过——football_match_id=4459721(真实)、lottery_official_id=2040346(合成)、
+    match_id=4459721(向后兼容指真实)。match_candidates 含 1 候选:法国(10234,position=2)vs瑞典(10869,position=37),
+    neutral=true、round_group=0、environment{temp:33°C,humidity:38%,wind:4.5m/s,pressure:763mmHg}。
+    odds 完整(bf 31项/spf/rq/jq/bqc),sell_status_raw="2,1,2,2,2"。
+- round: 1
+  atomic_id: D09-T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4459721}
+  code: OK
+  count: 10
+  stub: false
+  note: 5 欧赔(匿名/18Bet/明陞/盈禾/平博)+5 亚盘(18Bet/平博/ＳＢ皇冠/盈禾/12bet沙巴),
+    含 initial/current/latest 三档。法国明显热门:欧赔主胜 current 1.28-1.30、客胜 9.35-11.0;
+    亚盘 handicap -1.25→-1.5(升盘),in_play=false(未开赛)。
+- round: 1
+  atomic_id: D09-T1-a2
+  tool: get_odds_trend
+  params: {match_id: 4459721}
+  code: OK
+  count: 50
+  stub: false
+  note: 50 点欧赔时序,changed_at 1782528060~1782532492(2026-06-25~06-30 真实时序),
+    13 家公司(Bet365/18Bet/盈禾/立博/10bet/威廉希尔/ＳＢ皇冠/韦德/Interwetten/onex等)。
+    v3 升档验证:用真实 match_id 4459721 调 odds_trend 无 v2 类 F03 的「撞 football_match.id 返回 2023 历史赔率」伪命中,
+    全部为 2026 当期数据。主胜从 1.43→1.39(微降),客胜从 7.5→9.0+(瑞典被看衰)。
+- round: 1
+  atomic_id: D09-T1-a2
+  tool: get_intel_tags
+  params: {match_id: 4459721}
+  code: OK
+  count: 5
+  stub: false
+  note: 5 类情报(主正/主负/客正/客负/中性),稳胆素材极丰富:
+    主正:登贝莱30分钟帽子戏法(世界杯历史第二快)、法国3战全胜(自1998首达)、德尚重返、萨利巴复出、迪涅+巴尔科拉首发调整;
+    主负:特奥状态低迷被替换、图拉姆+坎特小伤(影响有限);
+    客正:瑞典小组赛轰7球、埃兰加冲击连续三届进球纪录;
+    客负:瑞典1-5惨败荷兰、林德洛夫伤存隐患、希恩告别世界杯、23次交锋法国12胜5平6负;
+    中性:双方26人名单+身价(法国14.7亿vs瑞典4.28亿)、裁判马克列(场均4.5黄)。
+- round: 1
+  atomic_id: D09-T1-a2
+  tool: get_recent_form
+  params: {team_id: 10234, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 法国近5场 4W1L,场均进2.8球——4-1挪威、3-0伊拉克、3-1塞内加尔、3-1(某队)、1-2(负)。
+    状态极佳,支撑「法国主胜稳胆」结论。
+- round: 1
+  atomic_id: D09-T1-a2
+  tool: get_recommendations
+  params: {match_id: 4459721}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  note: 心水推荐(最贴合「稳胆」)对世界杯淘汰赛 4459721 无数据,与 v1 一致。
+    工具非 stub(data_macao_recommend 表 8583 行,抽样 5073890 返回 OK);
+    世界杯淘汰赛不在心水覆盖范围,属 data_gap。非阻断——模型可基于 odds_snapshot+intel_tags+recent_form+odds_trend
+    自行推导稳胆(法国主胜,赔率 1.28-1.30,情报+状态全支撑)。
+satisfied:
+- D09-T1-a1
+- D09-T1-a2
+blocking_gap:
+  type: context_gap
+  description: |
+    用户文案为方法论咨询("我给你发一个我的6.0系统模板 你帮我看看优化可以更好预测胜平负 进球数 比分等"),
+    未点名任何具体比赛/球队/赛事,导致 atomic 标注的 T1-a1(resolve_entity/match)无实体输入可消歧。
+    这是 scenario_compliance 层面的文案-分解错位,而非工具链能力缺失。
+    底层「稳胆推荐」数据路径经代表比赛(法国vs瑞典,2026-07-01 世界杯淘汰赛)验证完整可用。
+  failed_atomic: D09-T1-a1
+  secondary_gap:
+    type: data_gap
+    description: get_recommendations(心水推荐)对世界杯淘汰赛返回 DATA_MISSING,工具非 stub 但覆盖范围有限。
+      非阻断,可由模型基于 odds+intel+form 自推导。
+  workaround: |
+    LLM playbook 需增加澄清分支——引导用户提供具体比赛(或日期+球队)后再走
+    resolve_lottery_match(合成ID已分离,直接得 football_match_id)→ odds_snapshot+odds_trend+intel_tags+recent_form 路径;
+    若无心水推荐数据则由模型基于赔率与情报推导稳胆,并强制附加风险提示。
+route_complete: true
+data_quality_notes:
+- v3 合成 ID 分离使 lottery→football_match 链路直接可靠,不再依赖 home/away name+date 间接关联(v1 时 match_id=null)。
+- get_odds_trend 用真实 match_id 4459721 返回 2026 真实时序,排除 v2 类 F03 的撞历史伪命中风险。
+- 心水推荐 data_macao_recommend 覆盖 8583 行集中在部分赛事,世界杯淘汰赛无心水数据,需模型自推导。
+cross_sport_check:
+  sport: football
+  collision: false
+  note: 明日 tier=top 仅返回足球世界杯;法国(10234)/瑞典(10869)均为 football_team 国家队 ID,
+    resolve_lottery_match match_candidates 确认 sport=football。未触发 cross_sport_data_collision。
+prompt_layer_covered:
+  disclaimer: true
+  description: |
+    D09 涉及购彩建议(稳胆推荐),风险声明由 foretell-output-discipline SKILL.md「购彩安全护栏(强制)」保证:
+    涉及购彩建议的回复结尾必须包含 `⚠️ 彩票有风险，投注需谨慎`;场景 D(用户明确问给方案)生成方案并强制加风险提示;
+    数据诚实——不编造,信息不足时明确说明;同场同玩法单一主推,禁止矛盾双向推荐。
+    工具层无 disclaimer 专用工具,也无相关能力缺口——风险声明属 LLM 输出纪律层,由 skill 强制注入。
+known_gap_status:
+  previous: v2 ⚠️ context_gap(文案错位) + data_gap(心水推荐缺失),route_complete=true
+  current: v3 维持 ⚠️,主 gap(context_gap + 心水 data_gap)未变,但底层 lottery→odds→intel 链路因合成 ID 分离可靠性升档
+  resolution: 需 playbook 增加澄清分支与自推导兜底;心水推荐覆盖范围扩展属数据侧 P3

@@ -58,7 +58,8 @@ attempts:
     match_id: 4138216
   code: DATA_MISSING
   stub: false
-  note: 球会友谊 match_id=4138216，snapshot/trend/kelly/soh 均 OK 但 betfair=DATA_MISSING，证实单维度缺失时工具层降级为 DATA_MISSING 而非崩溃
+  note: 球会友谊 match_id=4138216，snapshot/trend/kelly/soh 均 OK 但 betfair=DATA_MISSING，证实单维度缺失时工具层降级为
+    DATA_MISSING 而非崩溃
 - round: 2
   atomic_id: B11-T1-b1
   tool: get_odds_snapshot
@@ -66,7 +67,8 @@ attempts:
     match_id: 99999999
   code: SKIP_MATCH
   stub: false
-  note: 不存在的 match_id 触发盘口不足路径；snapshot 返回 SKIP_MATCH + reason="欧赔与亚盘均缺失"，envelope.data={match_id, reason}，无 european/asian 字段
+  note: 不存在的 match_id 触发盘口不足路径；snapshot 返回 SKIP_MATCH + reason="欧赔与亚盘均缺失"，envelope.data={match_id,
+    reason}，无 european/asian 字段
 - round: 2
   atomic_id: B11-T1-b1
   tool: get_odds_trend
@@ -113,7 +115,10 @@ blocking_gap: null
 route_complete: true
 tendency: verified
 notes:
-- get_odds_snapshot 在 _odds_missing(snapshot is None OR 既无 european/moneyline 又无 asian/spread) 时返回 SKIP_MATCH，否则双全 OK、单维度 PARTIAL；本次实测未触发 PARTIAL（8 场真实比赛均双维度 OK）
-- get_odds_trend / get_same_odds_history 在结果为空时返回 DATA_MISSING + 空 points/entries；get_kelly / get_betfair 在 result is None 时返回 DATA_MISSING
-- LLM 可凭 SKIP_MATCH / DATA_MISSING envelope.code 与 reason 字段判定"盘口不足"并跳过该维度或整场，符合 B11 预期降级语义
+- get_odds_snapshot 在 _odds_missing(snapshot is None OR 既无 european/moneyline 又无 asian/spread)
+  时返回 SKIP_MATCH，否则双全 OK、单维度 PARTIAL；本次实测未触发 PARTIAL（8 场真实比赛均双维度 OK）
+- get_odds_trend / get_same_odds_history 在结果为空时返回 DATA_MISSING + 空 points/entries；get_kelly
+  / get_betfair 在 result is None 时返回 DATA_MISSING
+- LLM 可凭 SKIP_MATCH / DATA_MISSING envelope.code 与 reason 字段判定"盘口不足"并跳过该维度或整场，符合 B11
+  预期降级语义
 - 8 场皇马 vs 巴萨候选均双维度 OK，未发现误判 SKIP_MATCH；betfair 在 7/8 场 DATA_MISSING 属 DB 必发数据稀疏，工具层正确降级而非报错

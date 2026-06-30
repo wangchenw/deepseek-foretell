@@ -11,7 +11,8 @@ attempts:
   code: OK
   count: 2
   stub: false
-  note: tier=top 自动收敛到世界杯(league_id=1)；total_count=263、tier_count=2，返回墨西哥vs南非、韩国vs捷克，批量解析 match 实体成功
+  note: tier=top 自动收敛到世界杯(league_id=1)；total_count=263、tier_count=2，返回墨西哥vs南非、韩国vs捷克，批量解析
+    match 实体成功
 - round: 1
   atomic_id: E09-T1-a1
   tool: get_schedule_by_date
@@ -26,8 +27,8 @@ attempts:
   atomic_id: E09-T1-a1
   tool: sql
   params:
-    query: SELECT status_id,COUNT(*) FROM football_match WHERE competition_id=1
-      AND season_id=13776 GROUP BY status_id
+    query: SELECT status_id,COUNT(*) FROM football_match WHERE competition_id=1 AND
+      season_id=13776 GROUP BY status_id
   code: OK
   count: 2
   stub: false
@@ -67,9 +68,11 @@ blocking_gap:
 route_complete: true
 verdict: pass
 key_findings:
-- 世界杯 competition_id=1、season_id=13776(2026 美加墨，is_current=1)，DB 有 104 场(73 完赛+31 未开赛)，批量实体解析无缺口
+- 世界杯 competition_id=1、season_id=13776(2026 美加墨，is_current=1)，DB 有 104 场(73 完赛+31
+  未开赛)，批量实体解析无缺口
 - get_schedule_by_date(date, tier=top) 自动收敛到世界杯场次(历史日 2 场、明日 3 场)，是批量世界杯的入口路径，无需 resolve_league
-- 单场深度分析三件套(盘口走向 get_odds_trend / 即时盘 get_odds_snapshot / 资金流+庄家收割 get_betfair)对 WC 场次全部 OK，synthesize_answer 数据齐备
+- 单场深度分析三件套(盘口走向 get_odds_trend / 即时盘 get_odds_snapshot / 资金流+庄家收割 get_betfair)对 WC
+  场次全部 OK，synthesize_answer 数据齐备
 notes:
 - 用户后续 turn 提及"中国体彩赔率"(lottery_jczq_odds)，属后续 turn 范围，Phase 1 未单列 atomic；如需评估应补充 resolve_lottery_match/get_lottery_schedule
   对 WC 场次的覆盖(play_type=101 竞彩足球)

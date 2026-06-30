@@ -6,7 +6,6 @@ methodology:
   turn0: 首轮实质分析（同 G01 模式）—— resolve_team + resolve_match 定位用户列举的韩K2联与国际友谊赛场次。
   turn1: 短确认（"嗯/好/对/ok"）—— maintain_context + synthesize 确认回复，纯 agent 编排层语义处理，工具层无新调用（agent_layer_covered）。
 attempts:
-# ===== turn0：实质分析工具链（同 G01 模式，验证数据可解析）=====
 - round: 1
   turn: 0
   atomic_id: T1-g0
@@ -27,7 +26,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: match_status=ambiguous；top 候选 match_id=4539878（新加坡 vs 中国，2026-06-05 19:30，国际友谊 league_id=34），status=finished。用户文本称"今晚即将开赛"，DB 仅命中 2026-06-05 已完赛场次——时间错配但实体可解析。
+  note: match_status=ambiguous；top 候选 match_id=4539878（新加坡 vs 中国，2026-06-05 19:30，国际友谊
+    league_id=34），status=finished。用户文本称"今晚即将开赛"，DB 仅命中 2026-06-05 已完赛场次——时间错配但实体可解析。
 - round: 1
   turn: 0
   atomic_id: T1-a1
@@ -38,8 +38,8 @@ attempts:
   code: OK
   count: 9
   stub: false
-  note: match_status=ambiguous；top 候选 match_id=4481106（韩K2联 league_id=582，2026-06-05 18:30，round_num=15），开赛时间 18:30 与用户"韩国时间18:30开赛"吻合；status=finished（历史场次）。
-# ===== turn1：短确认，agent 编排层，无新工具调用 =====
+  note: match_status=ambiguous；top 候选 match_id=4481106（韩K2联 league_id=582，2026-06-05
+    18:30，round_num=15），开赛时间 18:30 与用户"韩国时间18:30开赛"吻合；status=finished（历史场次）。
 - round: 1
   turn: 1
   atomic_id: T1-a1
@@ -60,18 +60,22 @@ satisfied:
 - T1-g0
 - T1-a1
 - T1-a2
-satisfied_note: 三个 atomic 均为 maintain_context / synthesize_answer（agent 编排层），由 session 上下文保持 + LLM 确认语义覆盖；turn0 工具链已验证 15 场赛事数据可解析（无 data_gap）。
+satisfied_note: 三个 atomic 均为 maintain_context / synthesize_answer（agent 编排层），由 session
+  上下文保持 + LLM 确认语义覆盖；turn0 工具链已验证 15 场赛事数据可解析（无 data_gap）。
 blocking_gap:
   type: none
-  description: 无阻塞 gap。turn0 resolve_team/resolve_match 均 OK，数据可解析；turn1 短确认属 agent 编排层（agent_layer_covered），工具层无新调用需求。
+  description: 无阻塞 gap。turn0 resolve_team/resolve_match 均 OK，数据可解析；turn1 短确认属 agent
+    编排层（agent_layer_covered），工具层无新调用需求。
   failed_atomic: null
 observations:
 - 跨运动碰撞: 无。G19 全部为 football 场次（韩K2联 + 国际友谊），未触及 basketball_team 共享 ID 空间。
 - 时间错配（非阻塞）: 用户文本称赛事"今晚即将开赛"，但 DB 命中的新加坡vs中国（2026-06-05）、釜山vs忠南牙山（2026-06-05）均 status=finished；属数据时态与用户表述不一致，不影响"短确认"场景的上下文保持验证。
-- resolve_match 均返回 ambiguous（多历史交锋），需 LLM 结合 date/round_num 语义消歧到目标场次；turn0 已可定位，turn1 无需重新解析。
+- resolve_match 均返回 ambiguous（多历史交锋），需 LLM 结合 date/round_num 语义消歧到目标场次；turn0 已可定位，turn1
+  无需重新解析。
 route_complete: true
 verdict_lean: pass
 key_findings:
-- turn0 工具链（resolve_team + resolve_match）对 G19 列举的韩K2联与国际友谊赛场次均返回 OK，实体可解析，无 data_gap / implementation_gap。
+- turn0 工具链（resolve_team + resolve_match）对 G19 列举的韩K2联与国际友谊赛场次均返回 OK，实体可解析，无 data_gap
+  / implementation_gap。
 - G19 核心是 turn1 "短确认"——maintain_context + synthesize 属 agent 编排层，工具层无新调用，agent_layer_covered，route_complete=true。
 - 唯一观察项为时间错配（DB 命中 2026-06-05 已完赛 vs 用户"今晚即将开赛"），属非阻塞时态不一致，不影响短确认上下文保持验证。

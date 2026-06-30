@@ -1,0 +1,43 @@
+type_id: E06
+case_id: TC-E06-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ implementation_gap(PlayType 无 RJ,401 硬编码 sfc) + data_gap(足彩玩法赔率无表)"
+v3_verdict: "⚠️"
+verdict_tier: "⚠️"
+change_summary: "合成 ID 分离使 401 schedule 的 match_id 真实化(同 E05),任九可用 401 列出与 sfc 共享的 14 候选场次并链下游 football_match 赔率;但工具层 PlayType 仍无 RJ(401 硬编码 type='sfc'),工具不区分任九/十四场语义;足彩玩法赔率(lottery_zc_match 无 odds 字段、无 lottery_zc_odds 表)data_gap 残留。"
+attempts:
+  - round: 1
+    atomic_id: E06-T1-a1
+    tool: get_lottery_schedule
+    params: {play_type: "RJ", period: "26089"}
+    code: ValidationError
+    error: "Input should be '101','201','301','401','402','403' or '404' [literal_error, input_value='RJ']"
+    stub: false
+    note: "RJ 仍非合法 play_type,阶段3未新增任九专属 PlayType。"
+  - round: 2
+    atomic_id: E06-T1-a1
+    tool: sql
+    params: {query: "SELECT DISTINCT type,issue,result FROM lottery_zc_issue WHERE issue IN (26089,26088)"}
+    code: OK
+    key_fields:
+      rj_26089: {type: rj, issue: 26089, result: null}
+      sfc_26089: {type: sfc, issue: 26089, result: null}
+      rj_26088_result: "3,0,0,3,3,1,0,3,0,0,3,0,1,0"
+      sfc_26088_result: "3,0,0,3,3,1,0,3,0,0,3,0,1,0"
+    note: "rj 与 sfc 共享同一 issue 与 14 候选场次,result 完全一致 — 任九即从 14 场选 9 场,本质同 sfc 数据集。"
+  - round: 3
+    atomic_id: E06-T1-a1
+    tool: get_lottery_schedule
+    params: {play_type: "401", period: "26089"}
+    code: OK
+    count: 14
+    key_fields:
+      sample_entry_1: {lottery_official_id: 260891, football_match_id: 4459720, match_id: 4459720}
+    stub: false
+    note: "用 401(sfc)可列出任九同 14 场,且 match_id 真实化(阶段3修复),下游 get_odds_snapshot 可取单场欧赔/亚盘。但 type 字段标 sfc 而非 rj,语义不准。"
+satisfied: [E06-T1-a1]
+blocking_gap:
+  type: implementation_gap
+  description: "PlayType 枚举无 RJ,FOURTEEN_MATCHES 硬编码 lottery_zc_match.type='sfc';任九/十四场共享 14 候选场次可走 401 但工具不区分 rj/sfc 语义。叠加 data_gap:足彩玩法赔率 DB 无表(lottery_zc_match 无 odds 字段,无 lottery_zc_odds 表),任九单场赔率须走 football_match.id 下游工具(get_odds_snapshot),无法走 lottery_zc 专属赔率。"
+  failed_atomic: E06-T1-a2
+route_complete: false

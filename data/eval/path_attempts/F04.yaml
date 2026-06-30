@@ -6,8 +6,7 @@ entity_entry: match
 sport: any (凯利查询)
 turns:
 - turn_index: 1
-  text: 艾阿利(中) 巴林超 {DATE} 00:00 星期二 VS席特拉 —— 按格式写这场比赛的赛事前瞻（含凯利指数/隐含概率）。
-    格式参考模板：墨尔本城VS中央海岸（积分榜排名+近三场状态+攻防数据+综合推荐）。
+  text: 艾阿利(中) 巴林超 {DATE} 00:00 星期二 VS席特拉 —— 按格式写这场比赛的赛事前瞻（含凯利指数/隐含概率）。 格式参考模板：墨尔本城VS中央海岸（积分榜排名+近三场状态+攻防数据+综合推荐）。
 attempts:
 - round: 1
   atomic_id: F04-T1-a1
@@ -18,8 +17,8 @@ attempts:
   code: ENTITY_NOT_FOUND
   count: 0
   stub: false
-  note: 主队名"艾阿利"未命中实体解析索引。DB 中巴林超该球队标准名为"麦纳麦国民"(Al-Ahli
-    Manama)，"艾阿利"未注册为 alias，resolve_match 直接 ENTITY_NOT_FOUND。客队"席特拉"可解析。
+  note: 主队名"艾阿利"未命中实体解析索引。DB 中巴林超该球队标准名为"麦纳麦国民"(Al-Ahli Manama)，"艾阿利"未注册为 alias，resolve_match
+    直接 ENTITY_NOT_FOUND。客队"席特拉"可解析。
 - round: 1
   atomic_id: F04-T1-a1
   tool: resolve_team
@@ -46,8 +45,8 @@ attempts:
   code: OK
   count: 2
   stub: false
-  note: 命中 league_id=641 巴林超(Bahrain Premier League, football)；另有 3017 巴林超杯(Khalid bin Hamad
-    Cup)。用户文案"巴林超"指向 641 联赛。
+  note: 命中 league_id=641 巴林超(Bahrain Premier League, football)；另有 3017 巴林超杯(Khalid
+    bin Hamad Cup)。用户文案"巴林超"指向 641 联赛。
 - round: 2
   atomic_id: F04-T1-a1
   tool: sql
@@ -62,15 +61,15 @@ attempts:
   atomic_id: F04-T1-a1
   tool: sql
   params:
-    query: football_match WHERE competition_id=641 AND ((home=15263 AND away=22220) OR (home=22220
-      AND away=15263)) ORDER BY match_time DESC
+    query: football_match WHERE competition_id=641 AND ((home=15263 AND away=22220)
+      OR (home=22220 AND away=15263)) ORDER BY match_time DESC
   code: OK
   count: 19
   stub: false
-  note: SQL 交叉定位 麦纳麦国民(艾阿利) vs 席特拉 全部历史交锋 19 场。方向匹配用户文案"艾阿利主VS席特拉客"的最近一场
-    = match_id=4440177（2025-12-29 00:30, 麦纳麦国民主/席特拉客, status_id=8 完场）；最近一场任意方向
-    = match_id=4536558（2026-05-06 00:00, 席特拉主/麦纳麦国民客, status_id=8 完场）。DB freshness=2026-06-29，巴林超
-    2025-26 赛季最晚已至 2026-05-16 收官，无未开赛(状态1)的艾阿利vs席特拉未来交锋。
+  note: SQL 交叉定位 麦纳麦国民(艾阿利) vs 席特拉 全部历史交锋 19 场。方向匹配用户文案"艾阿利主VS席特拉客"的最近一场 = match_id=4440177（2025-12-29
+    00:30, 麦纳麦国民主/席特拉客, status_id=8 完场）；最近一场任意方向 = match_id=4536558（2026-05-06 00:00,
+    席特拉主/麦纳麦国民客, status_id=8 完场）。DB freshness=2026-06-29，巴林超 2025-26 赛季最晚已至 2026-05-16
+    收官，无未开赛(状态1)的艾阿利vs席特拉未来交锋。
 - round: 2
   atomic_id: F04-T1-a2
   tool: get_kelly
@@ -80,8 +79,8 @@ attempts:
   count: 5
   stub: false
   note: 凯利指数核心工具 OK。返回 5 家公司(威廉希尔9/onex20/BET365 2/立博5/18Bet17)的 odds(home_win/draw/away_win)
-    + implied_prob(隐含概率) + kelly(凯利值)。艾阿利主队方向：home_win 赔率 2.75~2.88，implied_prob
-    约 0.32，kelly 全为负值(-0.034~-0.062)，三向均无正凯利投注价值。数据由 football_odds_europe 反推得到。
+    + implied_prob(隐含概率) + kelly(凯利值)。艾阿利主队方向：home_win 赔率 2.75~2.88，implied_prob 约
+    0.32，kelly 全为负值(-0.034~-0.062)，三向均无正凯利投注价值。数据由 football_odds_europe 反推得到。
 - round: 2
   atomic_id: F04-T1-a2
   tool: get_kelly
@@ -101,7 +100,8 @@ attempts:
   count: 5
   stub: false
   note: 旁证欧赔快照 OK——5 家欧赔(含初盘/即时/最新+company_name+in_play/suspended)+5 家亚盘(利记/盈禾/易胜博/皇冠/Interwetten
-    含 handicap/home_line/away_line)。get_kelly 的 odds 字段与 get_odds_snapshot 的 current 一致(同源于 football_odds_europe)，凯利反推链路自洽。
+    含 handicap/home_line/away_line)。get_kelly 的 odds 字段与 get_odds_snapshot 的 current
+    一致(同源于 football_odds_europe)，凯利反推链路自洽。
 - round: 1
   atomic_id: F04-T1-a2
   tool: synthesize_answer
@@ -130,11 +130,11 @@ cross_sport_check:
 data_quality_notes:
 - resolve_match/resolve_team 未将"艾阿利"注册为 麦纳麦国民(15263) 的 alias，导致主队实体按用户原话音译名直接解析失败（routing_gap，非阻塞）。规避=SQL
   按 league_id(641) JOIN football_team name_en LIKE 'Al-Ahli%' 或交叉对手 team_id 定位 match_id。
-- DB freshness=2026-06-29，巴林超 2025-26 赛季已收官(最晚 2026-05-16)，无 status_id=1 的艾阿利vs席特拉未来交锋；用户文案 {DATE}/星期二
-  为模板占位，实际可解析为最近历史交锋 4440177(艾阿利主) 或 4536558(反向)，均有凯利数据。
+- DB freshness=2026-06-29，巴林超 2025-26 赛季已收官(最晚 2026-05-16)，无 status_id=1 的艾阿利vs席特拉未来交锋；用户文案
+  {DATE}/星期二 为模板占位，实际可解析为最近历史交锋 4440177(艾阿利主) 或 4536558(反向)，均有凯利数据。
 - get_kelly 三向凯利值全为负，符合已完场比赛盘口收敛特征；如需赛前凯利需匹配 status_id=1 的未来赛事(本场景 DB 内暂无)。
 verdict: pass
-verdict_reason: F04 凯利指数核心路径 get_kelly(match_id) 单轮 OK，返回 5 家公司的 odds/implied_prob/kelly 三元组，反推链路与
-  get_odds_snapshot 自洽。match 实体虽因"艾阿利"别名未注册致 resolve_match ENTITY_NOT_FOUND，但 SQL 交叉定位(league_id=641
-  + 对手席特拉 team_id=22220)成功定位 match_id(4440177/4536558)，两个 atomic(resolve_entity/synthesize_answer)均满足，route_complete=true，无
+verdict_reason: F04 凯利指数核心路径 get_kelly(match_id) 单轮 OK，返回 5 家公司的 odds/implied_prob/kelly
+  三元组，反推链路与 get_odds_snapshot 自洽。match 实体虽因"艾阿利"别名未注册致 resolve_match ENTITY_NOT_FOUND，但
+  SQL 交叉定位(league_id=641 + 对手席特拉 team_id=22220)成功定位 match_id(4440177/4536558)，两个 atomic(resolve_entity/synthesize_answer)均满足，route_complete=true，无
   blocking data_gap。唯一缺口为 resolve_team/resolve_match 的 alias 覆盖(routing_gap，SQL 可绕)，不阻塞路径。

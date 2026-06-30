@@ -10,17 +10,17 @@
         "play_type": "301"
       },
       "code": "OK",
-      "count": 19,
+      "count": 16,
       "stub": false
     },
     {
       "tool": "get_schedule_by_date",
       "params": {
-        "date": "2026-06-28",
+        "date": "2026-06-30",
         "tier": "top"
       },
       "code": "OK",
-      "count": 8,
+      "count": 3,
       "stub": false
     }
   ],

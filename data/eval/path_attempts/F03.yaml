@@ -1,7 +1,6 @@
 type_id: F03
 case_id: TC-F03-SYN
 explored_at: '2026-06-29'
-
 attempts:
 - round: 1
   atomic_id: F03-T1-a1
@@ -12,10 +11,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: >-
-    当日(2026-06-29 周一)tier=top 仅 1 场(南非 vs 加拿大,match_id=4459717,
-    世界杯, status=finished)。top 层级样本不足以做"变动最大排名"。
-
+  note: 当日(2026-06-29 周一)tier=top 仅 1 场(南非 vs 加拿大,match_id=4459717, 世界杯, status=finished)。top
+    层级样本不足以做"变动最大排名"。
 - round: 1
   atomic_id: F03-T1-a1
   tool: get_odds_trend
@@ -24,13 +21,10 @@ attempts:
   code: OK
   count: 50
   stub: false
-  note: >-
-    get_odds_trend(football match_id=4459717) 返回 data.points 时序数组(count=50
-    个变动点),每点含 company_id/company_name/odds{home_win,draw,away_win}/
-    in_play/suspended/changed_at。南非vs加拿大 home_win 4.8→5.6→5.4→5.2,
-    away_win 1.8→1.66→1.69→1.75,变动幅度可由 LLM 计算(max-min 或 |首-末|)。
-    ✅ 足球单场变动路径通。
-
+  note: get_odds_trend(football match_id=4459717) 返回 data.points 时序数组(count=50 个变动点),每点含
+    company_id/company_name/odds{home_win,draw,away_win}/ in_play/suspended/changed_at。南非vs加拿大
+    home_win 4.8→5.6→5.4→5.2, away_win 1.8→1.66→1.69→1.75,变动幅度可由 LLM 计算(max-min 或
+    |首-末|)。 ✅ 足球单场变动路径通。
 - round: 2
   atomic_id: F03-T1-a1
   tool: get_schedule_by_date
@@ -40,13 +34,10 @@ attempts:
   code: OK
   count: 100
   stub: false
-  note: >-
-    Fallback:tier=all 拉全量当日批次。返回 count=100(上限 100),含 match_id/
-    home_name/away_name/league_id/league_name/sport/date/status/match_time_beijing。
-    sport 字段混合:86 football + 14 basketball。⚠️ count=100 上限导致篮球欠采样——
-    当日实际篮球 51 场(见下方 sport=basketball 调用),tier=all 仅含 14 场篮球。
-    "变动最大"跨全运动排名需补一次 get_schedule_by_date(sport=basketball, tier=all)。
-
+  note: Fallback:tier=all 拉全量当日批次。返回 count=100(上限 100),含 match_id/ home_name/away_name/league_id/league_name/sport/date/status/match_time_beijing。
+    sport 字段混合:86 football + 14 basketball。⚠️ count=100 上限导致篮球欠采样—— 当日实际篮球 51 场(见下方
+    sport=basketball 调用),tier=all 仅含 14 场篮球。 "变动最大"跨全运动排名需补一次 get_schedule_by_date(sport=basketball,
+    tier=all)。
 - round: 2
   atomic_id: F03-T1-a1 (篮球独立批次)
   tool: get_schedule_by_date
@@ -57,11 +48,8 @@ attempts:
   code: OK
   count: 51
   stub: false
-  note: >-
-    sport=basketball 独立调用返回 51 场当日篮球。sport=any 的完整批次须由
-    football(tier=all,86 场)+ basketball(sport=basketball,51 场)两次调用合并,
-    不能只靠单次 tier=all(被 100 上限截断且篮球欠采样)。
-
+  note: sport=basketball 独立调用返回 51 场当日篮球。sport=any 的完整批次须由 football(tier=all,86 场)+
+    basketball(sport=basketball,51 场)两次调用合并, 不能只靠单次 tier=all(被 100 上限截断且篮球欠采样)。
 - round: 3
   atomic_id: F03-T1-a1 (跨运动 odds_trend)
   tool: get_odds_trend
@@ -70,80 +58,60 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: >-
-    对篮球 match_id=3921271(埃策拉 vs 阿兰提亚拉罗切特)调 get_odds_trend 返回
-    DATA_MISSING(points=[])。get_odds_trend 工具硬编码查询 football_odds_europe_change_*
-    分区表,仅支持足球,对篮球 match_id 一律空。⚠️ implementation_gap:工具层不支持篮球赔率走势。
-
+  note: 对篮球 match_id=3921271(埃策拉 vs 阿兰提亚拉罗切特)调 get_odds_trend 返回 DATA_MISSING(points=[])。get_odds_trend
+    工具硬编码查询 football_odds_europe_change_* 分区表,仅支持足球,对篮球 match_id 一律空。⚠️ implementation_gap:工具层不支持篮球赔率走势。
 - round: 3
   atomic_id: F03-T1-a1 (篮球赔率变动 SQL 直查)
   tool: sql
   params:
-    query: >-
-      basketball_odds_europe_change_2026 JOIN basketball_match
-      WHERE match_time_str LIKE '2026-06-29%' GROUP BY match_id
+    query: basketball_odds_europe_change_2026 JOIN basketball_match WHERE match_time_str
+      LIKE '2026-06-29%' GROUP BY match_id
   code: OK
   stub: false
   count: 10
-  note: >-
-    SQL 直查 basketball_odds_europe_change_2026 证实当日篮球欧赔变动数据充足:
-    match_id=3909024 有 2436 个变动点、3923373 有 2420、3908961 有 1823 ...
-    (列:match_id/company_id/odd1/odd2/odd3/is_zoudi/match_start_time)。
-    即 DB 有篮球赔率走势数据,仅 foretell 工具未暴露——SQL 直查可补全篮球"变动最大"。
-    同时查得当日低级别篮球(如 3921271)无赔率数据,属正常 data 稀疏(非全篮球 gap)。
-
+  note: 'SQL 直查 basketball_odds_europe_change_2026 证实当日篮球欧赔变动数据充足: match_id=3909024
+    有 2436 个变动点、3923373 有 2420、3908961 有 1823 ... (列:match_id/company_id/odd1/odd2/odd3/is_zoudi/match_start_time)。
+    即 DB 有篮球赔率走势数据,仅 foretell 工具未暴露——SQL 直查可补全篮球"变动最大"。 同时查得当日低级别篮球(如 3921271)无赔率数据,属正常
+    data 稀疏(非全篮球 gap)。'
 satisfied:
 - F03-T1-a1
-
 blocking_gap:
   type: implementation_gap
-  description: >-
-    F03 "变动最大"核心路径 = 按 date 拉当日批次 + 逐场拉赔率走势 + 计算变动幅度排序。
-    足球分支完全可用:get_schedule_by_date(date,tier=all) → 逐场 get_odds_trend(match_id)
-    → 返回 points 时序(含 odds+changed_at)→ LLM 算变动幅度 → 排序。已实测
-    match_id=4459717 返回 50 个变动点,home_win 4.8↔5.6 波动可量化。
-    篮球分支存在 implementation_gap:get_odds_trend 工具硬编码 football_odds_europe_change_*
-    分区表,对篮球 match_id 一律返回 DATA_MISSING;而 DB 实存 basketball_odds_europe_change_2026
-    等表且当日篮球有大量变动数据(match 3909024 = 2436 点)。即数据在库,工具未暴露篮球入口。
-    另:无批量 odds_trend 入口,须逐场调用(当日足球 86 + 篮球 51 ≈ 137 场),路径效率偏低;
-    tier=all 单次调用 count 上限 100 且篮球欠采样,须 football + basketball 两次合并。
+  description: F03 "变动最大"核心路径 = 按 date 拉当日批次 + 逐场拉赔率走势 + 计算变动幅度排序。 足球分支完全可用:get_schedule_by_date(date,tier=all)
+    → 逐场 get_odds_trend(match_id) → 返回 points 时序(含 odds+changed_at)→ LLM 算变动幅度 → 排序。已实测
+    match_id=4459717 返回 50 个变动点,home_win 4.8↔5.6 波动可量化。 篮球分支存在 implementation_gap:get_odds_trend
+    工具硬编码 football_odds_europe_change_* 分区表,对篮球 match_id 一律返回 DATA_MISSING;而 DB 实存
+    basketball_odds_europe_change_2026 等表且当日篮球有大量变动数据(match 3909024 = 2436 点)。即数据在库,工具未暴露篮球入口。
+    另:无批量 odds_trend 入口,须逐场调用(当日足球 86 + 篮球 51 ≈ 137 场),路径效率偏低; tier=all 单次调用 count
+    上限 100 且篮球欠采样,须 football + basketball 两次合并。
   failed_atomic: F03-T1-a1
-  workaround: >-
-    足球:逐场 get_odds_trend 取 points,按 |max(odd)-min(odd)| 或 |首-末| 计算主/和/客
-    变动幅度并排序。篮球:绕过 foretell 工具,SQL 直查 basketball_odds_europe_change_2026
-    (JOIN basketball_match 按 match_time_str 过滤当日)取 odd1/odd2/odd3 时序同样计算。
-    批次:get_schedule_by_date(tier=all) + get_schedule_by_date(sport=basketball,tier=all) 合并。
-
+  workaround: 足球:逐场 get_odds_trend 取 points,按 |max(odd)-min(odd)| 或 |首-末| 计算主/和/客
+    变动幅度并排序。篮球:绕过 foretell 工具,SQL 直查 basketball_odds_europe_change_2026 (JOIN basketball_match
+    按 match_time_str 过滤当日)取 odd1/odd2/odd3 时序同样计算。 批次:get_schedule_by_date(tier=all)
+    + get_schedule_by_date(sport=basketball,tier=all) 合并。
 route_complete: true
-
 caveats:
 - id: F03-T1-a1-batch
   category: fetch_odds_deep
-  note: >-
-    无批量赔率走势入口,get_odds_trend 逐场调用;当日 ~137 场需 ~137 次调用,
-    path_efficiency 偏低但非阻塞。可由上层 agent 限制 tier/top 联赛子集降低调用量。
+  note: 无批量赔率走势入口,get_odds_trend 逐场调用;当日 ~137 场需 ~137 次调用, path_efficiency 偏低但非阻塞。可由上层
+    agent 限制 tier/top 联赛子集降低调用量。
 - id: F03-T1-a1-rank
   category: synthesize_answer
-  note: >-
-    "变动最大"排名属答案合成层:需 LLM 从 points 时序计算每场变动幅度(主胜/和/客胜
-    三项的 swing)并跨场排序,无原生 rank 工具。数据齐备后由 LLM 完成。
+  note: '"变动最大"排名属答案合成层:需 LLM 从 points 时序计算每场变动幅度(主胜/和/客胜 三项的 swing)并跨场排序,无原生 rank
+    工具。数据齐备后由 LLM 完成。'
 - id: F03-T1-a1-sport-any
   category: maintain_context
-  note: >-
-    sport=any 须显式合并 football + basketball 两批次;tier=all 单次调用因 count=100
-    上限会篮球欠采样(实测 86 足球+14 篮球,而篮球实际 51 场)。跨运动 team_id/match_id
-    空间分离(football_match.id vs basketball_match.id 不碰撞),但 get_odds_trend
-    按 football 表查篮球 id 会空结果,须先按 sport 路由到对应工具/SQL 表。
-
+  note: sport=any 须显式合并 football + basketball 两批次;tier=all 单次调用因 count=100 上限会篮球欠采样(实测
+    86 足球+14 篮球,而篮球实际 51 场)。跨运动 team_id/match_id 空间分离(football_match.id vs basketball_match.id
+    不碰撞),但 get_odds_trend 按 football 表查篮球 id 会空结果,须先按 sport 路由到对应工具/SQL 表。
 verdict_lean: pass_with_caveat
 key_findings:
 - 足球"变动最大"路径已实测通畅:get_schedule_by_date(date,tier=all)→逐场 get_odds_trend(match_id)
-  返回 points 时序(count=50,含 odds{home_win,draw,away_win}+changed_at),LLM 可算变动幅度排序。
-  F03-T1-a1(fetch_schedule,date)数据层 satisfied。
+  返回 points 时序(count=50,含 odds{home_win,draw,away_win}+changed_at),LLM 可算变动幅度排序。 F03-T1-a1(fetch_schedule,date)数据层
+  satisfied。
 - 篮球分支 implementation_gap 实锤:get_odds_trend 硬编码 football_odds_europe_change_* 分区表,
-  对篮球 match_id 返回 DATA_MISSING;但 DB 实存 basketball_odds_europe_change_2026 且当日篮球
-  赔率变动数据充足(match 3909024=2436 点)。SQL 直查可补全,故 route_complete=true,
-  走 SQL workaround,与 E05 同属"工具层 gap + DB 有数据"型。
-- sport=any 路由注意:tier=all 单次调用 count 上限 100 且篮球欠采样(14/51),须
-  get_schedule_by_date(tier=all)+get_schedule_by_date(sport=basketball,tier=all) 两次合并;
-  无批量 odds_trend 入口,逐场调用 ~137 次,路径效率偏低由上层 agent 收敛子集缓解。
+  对篮球 match_id 返回 DATA_MISSING;但 DB 实存 basketball_odds_europe_change_2026 且当日篮球 赔率变动数据充足(match
+  3909024=2436 点)。SQL 直查可补全,故 route_complete=true, 走 SQL workaround,与 E05 同属"工具层 gap
+  + DB 有数据"型。
+- sport=any 路由注意:tier=all 单次调用 count 上限 100 且篮球欠采样(14/51),须 get_schedule_by_date(tier=all)+get_schedule_by_date(sport=basketball,tier=all)
+  两次合并; 无批量 odds_trend 入口,逐场调用 ~137 次,路径效率偏低由上层 agent 收敛子集缓解。

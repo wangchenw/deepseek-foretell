@@ -1,0 +1,775 @@
+# Foretell 字段语义权威表(对照纳米数据接口文档)
+#
+# 用途:工具层重写时必须对照此表,不得凭字段名假设。
+# 来源:纳米 OpenAPI 抓取(data/eval/nami_docs/)+ DB schema_map + eval path_attempts_v2 撞墙证据。
+# confirmed=true 表示已对照纳米文档/SQL 实跑实锤;false 表示推断。
+# collision_warning 字段标注同名不同义陷阱,是防止重写时再犯 E05 类 bug 的关键。
+
+sources:
+  nami_docs: https://www.nami.com/en/docs?id=2002
+  nami_openapi_local: data/eval/nami_docs/
+  status_codes_football: nami_docs/status_codes_2002.md
+  status_codes_basketball: nami_docs/status_codes_2003.md
+  db_schema_map: data/eval/db_schema_map.md
+  eval_evidence: data/eval/path_attempts_v2/
+  last_updated: "2026-06-30"
+  notes: |
+    本表是 nami_field_map.yaml(仅 3 条)的扩展版,覆盖所有 eval 撞墙表关键字段。
+    重写 foretell/tools/ 时,每个工具实现必须对照此表确认字段语义,不得凭字段名假设。
+
+mappings:
+
+  # ============================================================
+  # lottery 域(最高优先级,eval 撞墙最多: E05/E06/E07/D05/G01/B01/C04 等)
+  # ============================================================
+
+  - id: lottery_zc_match.match_id
+    table: lottery_zc_match
+    column: match_id
+    nami_field: 体彩官方比赛ID
+    description: |
+      合成彩票官方 ID,形如 issue*10+match_no(如 260891=期号26089第1场)。
+      字段名虽叫 match_id 但**不指向 football_match.id**。
+      与 lottery_match.lottery_match_id 是同一个值。
+    format: plain_integer
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: |
+      **高危同名陷阱**:此字段叫 match_id 但实为合成彩票官方 ID,
+      数值会与历史 football_match.id 碰撞(如 260891 命中 2009 法低级联赛)。
+      禁止当作 football_match.id 传给下游(get_odds_snapshot/get_recent_form 等)。
+      正确做法:JOIN lottery_match 取 lottery_match.match_id 作为真实 football_match.id。
+      证据:path_attempts_v2/E05.yaml
+
+  - id: lottery_match.match_id
+    table: lottery_match
+    column: match_id
+    nami_field: 比赛id
+    description: |
+      真实 football_match.id(足球)或 basketball_match.id(篮球),
+      是工具下游(get_odds_snapshot/get_recent_form/get_match_team_stats 等)应使用的 ID。
+      DB column_comment 为"比赛id"。
+    format: plain_integer
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: |
+      **关键正确字段**:与 lottery_zc_match.match_id(合成 ID)同名但语义完全不同。
+      重写 get_lottery_schedule 时必须 JOIN lottery_match 取此字段,
+      而非透传 lottery_zc_match.match_id。
+
+  - id: lottery_match.lottery_match_id
+    table: lottery_match
+    column: lottery_match_id
+    nami_field: 体彩官方比赛ID,彩种唯一
+    description: |
+      合成彩票官方 ID,= lottery_zc_match.match_id(issue*10+match_no)。
+      DB column_comment 为"体彩官方比赛ID,彩种唯一"。
+    format: plain_integer
+    used_by_tools:
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: 与 lottery_zc_match.match_id 同义,禁止当作 football_match.id 使用。
+
+  - id: lottery_match.lottery_type
+    table: lottery_match
+    column: lottery_type
+    nami_field: 彩种类型
+    description: 彩种编码,决定下游路由到哪张 lottery_*_odds 表
+    enum:
+      101: 竞彩足球
+      201: 竞彩篮球
+      301: 北单胜负过关
+      401: 传统足彩十四场(sfc)
+      402: 传统足彩半全场(bqc)
+      403: 传统足彩进球彩(jqc)
+      404: 北单让球胜平负
+      405: 任九(rj,待新增,目前与 401 sfc 共享 lottery_zc_match.type='rj')
+    format: plain_integer
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: 401 sfc 与任九 rj 共享 14 场,foretell 无 rj 专属 PlayType,易把 sfc 错认 rj(E06)。
+
+  - id: lottery_zc_match.type
+    table: lottery_zc_match
+    column: type
+    nami_field: 玩法类型
+    description: 传统足彩玩法类型字符串
+    enum:
+      sfc: 胜负彩十四场
+      bqc: 半全场
+      jqc: 进球彩
+      rj: 任九
+    format: string
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+
+  - id: lottery_jczq_odds.bf
+    table: lottery_jczq_odds
+    column: bf
+    nami_field: 比分赔率
+    description: |
+      竞彩足球比分赔率,**CSV 格式**,逗号分隔的 31 个数字,
+      按固定标签顺序排列(1:0/2:0/2:1/.../胜其他/0:0/.../负其他)。
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: |
+      **格式陷阱**:此字段是 CSV,与 lottery_bd_odds.bf(JSON)格式不同。
+      解析器必须按彩种分支:竞彩走 CSV split,北单走 json.loads。
+
+  - id: lottery_jczq_odds.spf
+    table: lottery_jczq_odds
+    column: spf
+    nami_field: 胜平负赔率
+    description: 竞彩足球胜平负赔率,CSV 格式,3 个数字(胜/平/负)
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+
+  - id: lottery_jczq_odds.rq
+    table: lottery_jczq_odds
+    column: rq
+    nami_field: 让球胜平负赔率
+    description: 竞彩足球让球胜平负,CSV 格式,4 个数字(让球数/胜/平/负)
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+
+  - id: lottery_jczq_odds.jq
+    table: lottery_jczq_odds
+    column: jq
+    nami_field: 进球数赔率
+    description: 竞彩足球进球数赔率,CSV 格式,8 个数字(0/1/2/3/4/5/6/7+)
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+
+  - id: lottery_jczq_odds.bqc
+    table: lottery_jczq_odds
+    column: bqc
+    nami_field: 半全场赔率
+    description: 竞彩足球半全场赔率,CSV 格式,9 个数字(胜胜/胜平/胜负/平胜/平平/平负/负胜/负平/负负)
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+
+  - id: lottery_jczq_odds.sell_status
+    table: lottery_jczq_odds
+    column: sell_status
+    nami_field: 销售状态
+    description: 逗号分隔串,按玩法顺序(spf/rq/bf/jq/bqc)各玩法的销售状态
+    enum:
+      0: 未开售
+      1: 仅过关
+      2: 单关和过关
+      3: 停售
+    format: csv
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+
+  - id: lottery_bd_odds.bf
+    table: lottery_bd_odds
+    column: bf
+    nami_field: 比分赔率
+    description: |
+      北单比分赔率,**JSON 格式**,键形如 s{home}{away}(如 s20=2:0、s11=1:1、s0_0=0:0),
+      共 25 个键值对。
+    format: json
+    used_by_tools:
+      - get_lottery_schedule
+      - resolve_lottery_match
+    confirmed: true
+    collision_warning: |
+      **高危格式陷阱**:此字段是 JSON,与 lottery_jczq_odds.bf(CSV)格式不同。
+      现有 _parse_lottery_play 统一按 CSV 切导致 JSON 被切碎、标签错位、数据丢失(D05/E07/G07)。
+      解析器必须按彩种分支:北单 play_type=301/404 走 json.loads,竞彩 101 走 CSV split。
+      证据:path_attempts_v2/E07.yaml
+
+  - id: lottery_bd_odds.spf
+    table: lottery_bd_odds
+    column: spf
+    nami_field: 胜平负赔率
+    description: |
+      北单胜平负赔率,JSON 格式,含让球数 goal 与 sf0/sf1/sf3 键。
+      键映射(经 v3 验证实跑 DB JSON + v2 E07 证据确认):
+      sf3=主胜(win) / sf1=平(draw) / sf0=客负(loss) / goal=让球数。
+      注意键索引不连续(0/1/3 跳过 2),勿按 sf1/sf2/sf3 顺序映射。
+    format: json
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+    collision_warning: |
+      同 bf,JSON 格式,禁止按 CSV 切。
+      键映射易错:曾误用 win=sf1/draw=sf2/loss=sf3(胜负互换),正确为 win=sf3/draw=sf1/loss=sf0。
+
+  - id: lottery_bd_result.bf
+    table: lottery_bd_result
+    column: bf
+    nami_field: 比分开奖结果
+    description: 北单比分开奖结果,JSON 格式,含 s{home}{away} 键与对应赔率
+    format: json
+    used_by_tools: []
+    confirmed: true
+    collision_warning: 工具层未暴露此表,需新增工具或在 get_match_result 中集成。
+
+  - id: lottery_zc_issue.type
+    table: lottery_zc_issue
+    column: type
+    nami_field: 玩法类型
+    description: 传统足彩期次玩法类型,同 lottery_zc_match.type
+    enum:
+      sfc: 胜负彩十四场
+      bqc: 半全场
+      jqc: 进球彩
+      rj: 任九
+    format: string
+    used_by_tools:
+      - get_lottery_schedule
+    confirmed: true
+
+  # ============================================================
+  # football_match 域
+  # ============================================================
+
+  - id: football_match.status_id
+    table: football_match
+    column: status_id
+    nami_field: 比赛状态
+    description: 足球比赛状态码,纳米状态码文档权威
+    enum:
+      0: 比赛异常(腰斩/取消等,建议隐藏)
+      1: 未开赛
+      2: 上半场
+      3: 中场
+      4: 下半场
+      5: 加时赛
+      6: 加时赛(弃用)
+      7: 点球决战
+      8: 完场
+      9: 推迟
+      10: 中断
+      11: 腰斩
+      12: 取消
+      13: 待定
+    format: plain_integer
+    used_by_tools:
+      - resolve_match
+      - get_schedule_by_date
+      - get_team_schedule
+      - get_match_result
+    confirmed: true
+
+  - id: football_match.match_time
+    table: football_match
+    column: match_time
+    nami_field: 开赛时间
+    description: Unix 时间戳(秒),北京时间需 +8*3600 转换
+    format: unix_timestamp
+    used_by_tools:
+      - get_schedule_by_date
+      - get_team_schedule
+      - resolve_match
+    confirmed: true
+
+  - id: football_match.home_scores
+    table: football_match
+    column: home_scores
+    nami_field: 主队比分数组
+    description: |
+      JSON 数组,顺序为 [全场, 半场, 黄牌, 角球, 红牌] 等(具体顺序需对照纳米 openapi)。
+      例:[2,1,0,6,5] = 全场2球/半场1球/黄牌0/角球6/红牌5
+    format: json_array
+    used_by_tools:
+      - get_match_result
+    confirmed: true
+
+  - id: football_match.away_scores
+    table: football_match
+    column: away_scores
+    nami_field: 客队比分数组
+    description: 同 home_scores,客队维度
+    format: json_array
+    used_by_tools:
+      - get_match_result
+    confirmed: true
+
+  # ============================================================
+  # basketball_match 域(注意 status_id 枚举与足球不同)
+  # ============================================================
+
+  - id: basketball_match.status_id
+    table: basketball_match
+    column: status_id
+    nami_field: 比赛状态
+    description: 篮球比赛状态码,与足球不同
+    enum:
+      0: 比赛异常
+      1: 未开赛
+      2: 第一节
+      3: 第一节完
+      4: 第二节
+      5: 第二节完
+      6: 第三节
+      7: 第三节完
+      8: 第四节
+      9: 加时赛
+      10: 完场
+      11: 中断
+      12: 取消
+      13: 延期
+      14: 腰斩
+      15: 待定
+    format: plain_integer
+    used_by_tools:
+      - resolve_basketball_match
+      - get_schedule_by_date
+    confirmed: true
+    collision_warning: 篮球 status_id=8 是第四节(非完场!),完场=10;与足球 status_id=8=完场 不同。
+
+  - id: basketball_match.kind
+    table: basketball_match
+    column: kind
+    nami_field: 比赛类型
+    description: 篮球比赛类型,用于区分常规赛/季后赛/季前赛
+    enum:
+      0: 无
+      1: 常规赛
+      2: 季后赛
+      3: 季前赛
+      4: 全明星
+      5: 杯赛
+      6: 附加赛
+    format: plain_integer
+    used_by_tools:
+      - get_schedule_by_date
+      - get_basketball_standings
+    confirmed: true
+
+  # ============================================================
+  # football_points_table 域(B10/H06 撞墙:赛制感知缺失)
+  # ============================================================
+
+  - id: football_points_table_team.promotion_id
+    table: football_points_table_team
+    column: promotion_id
+    nami_field: 升降级/欧战资格ID
+    description: |
+      关联 football_promotions 表,编码该位置对应的欧战/升降级资格。
+      英超示例:205=欧冠资格(1-5名)/206=欧联资格(6-7名)/172=欧协联资格(8名)。
+      H06 场景发现此字段已编码欧战规则,但工具未暴露。
+    format: plain_integer
+    used_by_tools:
+      - get_standings
+    confirmed: true
+    collision_warning: |
+      现有 get_standings 丢弃此字段,导致欧战资格场景(H06)需 SQL workaround。
+      重写时必须保留并 JOIN football_promotions 输出赛区名称。
+
+  - id: basketball_points_table.scope
+    table: basketball_points_table
+    column: scope
+    nami_field: 赛事范围
+    description: 篮球积分榜的赛事范围,用于过滤季前赛/常规赛/杯赛
+    enum:
+      5: 常规赛
+    format: plain_integer
+    used_by_tools:
+      - get_basketball_standings
+    confirmed: true
+    collision_warning: |
+      H03 发现 get_basketball_standings 未按 scope 过滤,混排季前赛/常规赛/杯赛。
+      重写时必须 WHERE p.scope=5 兜底(常规赛)。
+
+  - id: football_competition.type
+    table: football_competition
+    column: type
+    nami_field: 赛事类型
+    description: 赛事类型,决定积分榜输出 schema
+    enum:
+      1: 联赛(单表积分榜)
+      2: 杯赛(多组+淘汰赛,排名不适用淘汰赛阶段)
+      3: 友谊赛
+    format: plain_integer
+    used_by_tools:
+      - get_standings
+      - resolve_league
+    confirmed: true
+    collision_warning: |
+      B10 撞墙根因:get_standings 未按 competition.type 分支,
+      把杯赛多组积分榜压平为联赛单表,导致 12 个 position=1 并列不可比、漏报已淘汰队。
+      重写时 standings 输出必须按 type 分支:联赛→单表,杯赛→{groups:[...], third_place_ranking:[...]}。
+
+  # ============================================================
+  # football_odds 域
+  # ============================================================
+
+  - id: football_odds_europe.odd1
+    table: football_odds_europe
+    column: odd1
+    nami_field: 主胜赔率
+    description: 欧赔主胜即时赔率;另有 first_odd1(初盘)/real_odd1(最新)
+    format: float
+    used_by_tools:
+      - get_odds_snapshot
+      - get_odds_trend
+    confirmed: true
+
+  - id: football_odds_europe.odd2
+    table: football_odds_europe
+    column: odd2
+    nami_field: 平局赔率
+    description: 欧赔平局即时赔率
+    format: float
+    used_by_tools:
+      - get_odds_snapshot
+    confirmed: true
+
+  - id: football_odds_europe.odd3
+    table: football_odds_europe
+    column: odd3
+    nami_field: 客胜赔率
+    description: 欧赔客胜即时赔率
+    format: float
+    used_by_tools:
+      - get_odds_snapshot
+    confirmed: true
+
+  - id: football_odds_europe.is_zoudi
+    table: football_odds_europe
+    column: is_zoudi
+    nami_field: 是否走地
+    description: 1=走地(进行中),0=非走地
+    format: boolean_integer
+    used_by_tools:
+      - get_odds_snapshot
+    confirmed: true
+
+  - id: football_odds_europe.is_entertained
+    table: football_odds_europe
+    column: is_entertained
+    nami_field: 是否已结算
+    description: 1=已结算,0=未结算
+    format: boolean_integer
+    used_by_tools:
+      - get_odds_snapshot
+    confirmed: true
+
+  - id: football_odds_europe.company_id
+    table: football_odds_europe
+    column: company_id
+    nami_field: 指数公司ID
+    description: 指数公司编码,见纳米状态码文档
+    enum:
+      2: BET365
+      3: 皇冠
+      5: 立博
+      7: 澳彩
+      9: 威廉希尔
+      10: 易胜博
+      11: 韦德
+      15: 利记
+      16: 盈禾
+      19: 竞彩官方
+      22: 平博
+      136: 马会
+    format: plain_integer
+    used_by_tools:
+      - get_odds_snapshot
+      - get_odds_trend
+    confirmed: true
+
+  - id: football_odds_asian.handicap
+    table: football_odds_asian
+    column: handicap
+    nami_field: 让球数
+    description: 亚盘让球数,正数主队让球,负数客队让球
+    format: float
+    used_by_tools:
+      - get_odds_snapshot
+    confirmed: true
+
+  - id: football_odds_europe_change_605.partition
+    table: football_odds_europe_change_605
+    column: match_start_time
+    nami_field: 比赛开赛时间(分区键)
+    description: |
+      欧赔变动表按月分区(如 _605=6月),按 match_start_time 路由到对应分区表,
+      无匹配分区时 fallback 到基础表 football_odds_europe。
+    format: unix_timestamp
+    used_by_tools:
+      - get_odds_trend
+    confirmed: true
+    collision_warning: |
+      F03 发现 get_odds_trend 硬编码 football_match.id,无篮球路径,
+      对与 football_match.id 数值碰撞的篮球 id 静默返回足球赔率(伪命中)。
+      重写时必须按 sport 路由 + 分区表选择。
+
+  # ============================================================
+  # football_team 域
+  # ============================================================
+
+  - id: football_team.national
+    table: football_team
+    column: national
+    nami_field: 是否国家队
+    description: 1=国家队,0=俱乐部;用于实体消歧(葡萄牙男足 vs 俱乐部)
+    format: boolean_integer
+    used_by_tools:
+      - resolve_team
+      - resolve_match
+    confirmed: false
+    collision_warning: |
+      B04/E10 发现 resolve_team 无国家队成年组过滤,首候选可能是 U17/U20/U23/女足。
+      重写 resolve_team/resolve_match 时应支持 national=1 + gender/age 过滤。
+
+  - id: football_team.name_zh
+    table: football_team
+    column: name_zh
+    nami_field: 球队中文名
+    description: 球队中文标准名,可能与彩票别名不同
+    format: string
+    used_by_tools:
+      - resolve_team
+      - resolve_match
+    confirmed: true
+    collision_warning: |
+      E07 撞墙:北单别名"赫尔辛基预备队"在 football_team.name_zh 实为"克鲁比04",
+      按别名查 football_team 假阴性。正确路径是 lottery_match.match_id 直链。
+
+  # ============================================================
+  # 伤停/事件/技术统计 域
+  # ============================================================
+
+  - id: football_team_injury.type
+    table: football_team_injury
+    column: type
+    nami_field: 伤停类型
+    description: 球队伤停类型
+    enum:
+      0: 未知
+      1: 受伤
+      2: 停赛
+      3: 出战成疑
+    format: plain_integer
+    used_by_tools:
+      - get_injury_report
+    confirmed: true
+
+  - id: football_match_incidents.type
+    table: football_match_incidents
+    column: type
+    nami_field: 技术统计类型
+    description: 比赛事件/技术统计类型码,纳米状态码文档权威
+    enum:
+      1: 进球
+      2: 角球
+      3: 黄牌
+      4: 红牌
+      5: 越位
+      6: 任意球
+      7: 球门球
+      8: 点球
+      9: 换人
+      10: 比赛开始
+      11: 中场
+      12: 结束
+      13: 半场比分
+      15: 两黄变红
+      16: 点球未进
+      17: 乌龙球
+      18: 助攻
+      19: 伤停补时
+      21: 射正
+      22: 射偏
+      23: 进攻
+      24: 危险进攻
+      25: 控球率
+      26: 加时赛结束
+      27: 点球大战结束
+      28: VAR(视频助理裁判)
+      29: 点球(点球大战)
+      30: 点球未进(点球大战)
+      37: 射门被阻挡
+      38: 补水
+    format: plain_integer
+    used_by_tools:
+      - get_match_incidents
+    confirmed: true
+
+  - id: football_match_incidents.reason_type
+    table: football_match_incidents
+    column: reason_type
+    nami_field: 事件原因
+    description: 事件原因码,纳米状态码文档权威
+    enum:
+      0: 未知
+      1: 犯规
+      2: 个人犯规
+      3: 侵犯对手(罚牌)/受伤换人(换人)
+      4: 战术犯规(罚牌)/战术换人(换人)
+      5: 进攻犯规
+      6: 无球犯规
+      7: 持续犯规
+      8: 持续侵犯
+      9: 暴力行为
+      10: 危险动作
+      11: 手球犯规
+      12: 严重犯规
+      13: 故意犯规(防守球员为最后一名防守人)
+      14: 阻挡进球机会
+      15: 拖延时间
+      16: 视频回看裁定
+      17: 判罚取消
+      18: 争论
+      19: 对判罚表达异议
+      20: 犯规和攻击言语
+      21: 过度庆祝
+      22: 没回退到要求距离
+      23: 打架
+      24: 辅助判罚
+      25: 替补席
+      26: 赛后行为
+      27: 其他原因
+      28: 未被允许进入场地
+      29: 进入比赛场地
+      30: 离开比赛赛场
+      31: 非体育道德行为
+      32: 非主观意愿恶意犯规
+      33: 假摔
+      34: 干预var复审
+      35: 进入裁判评审区
+      36: 吐口水
+      37: 病毒
+    format: plain_integer
+    used_by_tools:
+      - get_match_incidents
+    confirmed: true
+
+  # ============================================================
+  # 系列赛 域(B09 撞墙:match_ids 字符串切片)
+  # ============================================================
+
+  - id: bracket_match_up.type_id
+    table: football_bracket_match_up
+    column: type_id
+    nami_field: 系列赛赛制
+    description: 系列赛赛制类型
+    enum:
+      1: 单场决胜
+      8: 三局两胜
+      9: 五局三胜
+      10: 七局四胜(G7 = type_id=10 且 home_score+away_score=6)
+    format: plain_integer
+    used_by_tools:
+      - get_series_matchup
+    confirmed: true
+
+  - id: bracket_match_up.state_id
+    table: football_bracket_match_up
+    column: state_id
+    nami_field: 系列赛状态
+    description: 系列赛对阵状态
+    enum:
+      1: 未开赛
+      2: 等待对手
+      6: 进行中
+      7: 主场胜
+      8: 客场胜
+      9: 取消
+      10: 轮空
+      11: 等待抽签
+    format: plain_integer
+    used_by_tools:
+      - get_series_matchup
+    confirmed: true
+
+  - id: bracket_match_up.match_ids
+    table: football_bracket_match_up
+    column: match_ids
+    nami_field: 关联比赛ID列表
+    description: |
+      系列赛关联的多场比赛 ID,**字符串格式**(逗号或分隔符分隔),
+      需完整解析为列表,不得截断。
+    format: string_list
+    used_by_tools:
+      - get_series_matchup
+    confirmed: true
+    collision_warning: |
+      B09 撞墙:现有 get_series_matchup 对 match_ids 字符串切片错误,漏 G1/G7。
+      重写时必须完整 split 并转 int 列表。
+
+  # ============================================================
+  # 篮球系列赛(NBA 季后赛 G7)
+  # ============================================================
+
+  - id: basketball_bracket_match_up.type_id
+    table: basketball_bracket_match_up
+    column: type_id
+    nami_field: 系列赛赛制
+    description: 同足球 bracket_match_up.type_id,NBA 季后赛 type_id=10
+    enum:
+      1: 单场决胜
+      8: 三局两胜
+      9: 五局三胜
+      10: 七局四胜
+    format: plain_integer
+    used_by_tools:
+      - get_series_matchup
+    confirmed: true
+
+  # ============================================================
+  # 跨运动 ID 碰撞警示(全局最高优先级 P0)
+  # ============================================================
+
+  - id: cross_sport_id_collision
+    table: football_team / basketball_team
+    column: id
+    nami_field: 球队ID
+    description: |
+      football_team.id 与 basketball_team.id 共享同一整数空间,
+      数值可碰撞(如 10155 既是篮球卡塔尔又是足球索菲亚火车头)。
+      同理 football_match.id 与 basketball_match.id 可碰撞。
+    format: plain_integer
+    used_by_tools:
+      - 所有 deep/stats/odds 工具
+    confirmed: true
+    collision_warning: |
+      **P0 安全隐患**:B08/C07/G08/F03/D07 撞墙根因。
+      篮球 team_id/match_id 传入无 sport 参数的足球 deep 工具静默返回足球数据,
+      构成 false positive(比 DATA_MISSING 更危险)。
+      **重写强制要求**:所有 deep/stats/odds 工具加 sport 参数,
+      不匹配时 fail-closed 返回 DATA_MISSING,禁止静默命中。
+
+# ============================================================
+# 重写时的强制规则(对照此表)
+# ============================================================
+
+rewrite_rules:
+  - rule: 所有工具实现必须对照本表 confirmed=true 的字段语义,不得凭字段名假设
+    reason: E05/D05/E07 等 bug 根因都是凭字段名假设
+  - rule: lottery 域工具返回的 ID 必须显式区分 football_match_id / lottery_official_id / lottery_entry_id
+    reason: match_id 一词三义,透传会误导下游
+  - rule: 解析 lottery 赔率串必须按彩种分支:101/201 走 CSV,301/404 走 json.loads
+    reason: 北单 JSON 被竞彩 CSV 解析器切碎(D05/E07/G07)
+  - rule: 所有 deep/stats/odds 工具必须支持 sport 参数,不匹配 fail-closed
+    reason: 跨运动 ID 碰撞静默 false positive(B08/C07/G08)
+  - rule: get_standings 输出必须按 competition.type 分支:联赛单表 vs 杯赛多组+promotion_id
+    reason: 杯赛多组积分榜被压平为联赛单表(B10/H06/F07)
+  - rule: basketball status_id 枚举与足球不同(完场=10 非 8),工具不得共用一套状态码
+    reason: 篮球 status_id=8 是第四节,误判为完场会出错

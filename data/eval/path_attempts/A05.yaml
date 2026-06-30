@@ -3,15 +3,15 @@ case_id: TC-A05-001
 explored_at: '2026-06-29'
 phase2_regression: true
 source: direct_tool_invoke
-scenario_note: >
-  原 A05 scenario (5/16 浦和红钻 vs 东京FC) 数据已过期。按用户指示改用近期完场足球比赛
-  验证 Phase 2 工具层重构后 5 个原 stub 工具的可用性。
-  选定 match_id=4498869 (大连英博海发 vs 上海申花, 2026-06-28 19:00, 中超第16轮,
-  status_id=8 完场, coverage_lineup=1, coverage_intelligence=1)。
-  该比赛同时具备阵容与情报覆盖，是验证 5 个 stub + incidents/tlive 的理想样本。
+scenario_note: '原 A05 scenario (5/16 浦和红钻 vs 东京FC) 数据已过期。按用户指示改用近期完场足球比赛 验证 Phase
+  2 工具层重构后 5 个原 stub 工具的可用性。 选定 match_id=4498869 (大连英博海发 vs 上海申花, 2026-06-28 19:00,
+  中超第16轮, status_id=8 完场, coverage_lineup=1, coverage_intelligence=1)。 该比赛同时具备阵容与情报覆盖，是验证
+  5 个 stub + incidents/tlive 的理想样本。
+
+  '
 previous_gap:
-  description: 5 个 stub 工具恒返回空（get_match_lineup / get_injury_report /
-    get_intel_tags / get_match_team_stats / get_odds_trend）
+  description: 5 个 stub 工具恒返回空（get_match_lineup / get_injury_report / get_intel_tags
+    / get_match_team_stats / get_odds_trend）
   phase1_status: warning
 attempts:
 - round: 1
@@ -24,8 +24,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: candidates[0].match_id=4498869, league=中超, status=finished,
-    home_position=3, away_position=13
+  note: candidates[0].match_id=4498869, league=中超, status=finished, home_position=3,
+    away_position=13
 - round: 1
   atomic_id: T1-a2
   tool: get_match_lineup
@@ -34,9 +34,9 @@ attempts:
   code: OK
   count: 22
   stub: false
-  note: confirmed=true, home_formation=4-3-3, away_formation=4-2-3-1,
-    home/away 各 11 首发 + 替补；球员含 player_id/shirt_number/position(G/D/M/F)/
-    is_starter/is_captain/x/y。原 stub 现已按 football_match_lineup + _detail 实装。
+  note: confirmed=true, home_formation=4-3-3, away_formation=4-2-3-1, home/away 各
+    11 首发 + 替补；球员含 player_id/shirt_number/position(G/D/M/F)/ is_starter/is_captain/x/y。原
+    stub 现已按 football_match_lineup + _detail 实装。
 - round: 1
   atomic_id: T1-a2
   tool: get_injury_report
@@ -45,8 +45,7 @@ attempts:
   code: OK
   count: 4
   stub: false
-  note: home=[], away=4 人；type 映射正确（injured/suspended），
-    含 蒋圣龙(患病)/米内罗(停赛)/特谢拉(受伤,缺阵7场)/刘诚宇(停赛)。
+  note: home=[], away=4 人；type 映射正确（injured/suspended）， 含 蒋圣龙(患病)/米内罗(停赛)/特谢拉(受伤,缺阵7场)/刘诚宇(停赛)。
     原 stub 现已按 football_team_injury 实装。
 - round: 1
   atomic_id: T1-a2
@@ -56,9 +55,8 @@ attempts:
   code: OK
   count: 5
   stub: false
-  note: tags 含 side(home/away)+sentiment(positive/negative)+content；
-    内容覆盖主场胜率/伤病危机/近期状态/历史交锋等。原 stub 已按
-    football_intelligence 实装。
+  note: tags 含 side(home/away)+sentiment(positive/negative)+content； 内容覆盖主场胜率/伤病危机/近期状态/历史交锋等。原
+    stub 已按 football_intelligence 实装。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_team_stats
@@ -67,10 +65,9 @@ attempts:
   code: OK
   count: 2
   stub: false
-  note: stats 含两队完整统计（goals/penalty/assists/shots/shots_on_target/
-    dribble/clearances/interceptions/tackles/passes/crosses/long_balls/
-    duels/fouls/corner_kicks/ball_possession 等）。原 stub 已按
-    football_match_team_stats 实装。
+  note: stats 含两队完整统计（goals/penalty/assists/shots/shots_on_target/ dribble/clearances/interceptions/tackles/passes/crosses/long_balls/
+    duels/fouls/corner_kicks/ball_possession 等）。原 stub 已按 football_match_team_stats
+    实装。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_player_stats
@@ -79,10 +76,11 @@ attempts:
     limit: 30
   code: ERROR
   stub: false
-  error: "OperationalError: (1054, \"Unknown column 's.position' in 'field list'\")"
-  note: >
-    Phase 2 新增工具。SQL 引用 s.position，但 football_match_player_stats 表
-    无 position 列（有 first/minutes_played/rating 等）。实现 bug，非数据缺失。
+  error: 'OperationalError: (1054, "Unknown column ''s.position'' in ''field list''")'
+  note: 'Phase 2 新增工具。SQL 引用 s.position，但 football_match_player_stats 表 无 position
+    列（有 first/minutes_played/rating 等）。实现 bug，非数据缺失。
+
+    '
 - round: 1
   atomic_id: T1-a2
   tool: get_odds_trend
@@ -100,11 +98,11 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: >
-    fallback 用 KS莫摩斯 vs 基辅迪纳摩 (2026-06-28, football_odds_europe 有 2 条欧赔)
-    仍 DATA_MISSING。根因定位：工具 SQL 仅查基表 football_odds_europe_change，
-    该基表对此 match_id 为 0 行；真实数据在月分区表 football_odds_europe_change_202605
+  note: 'fallback 用 KS莫摩斯 vs 基辅迪纳摩 (2026-06-28, football_odds_europe 有 2 条欧赔) 仍 DATA_MISSING。根因定位：工具
+    SQL 仅查基表 football_odds_europe_change， 该基表对此 match_id 为 0 行；真实数据在月分区表 football_odds_europe_change_202605
     （313 行）。工具未路由到月分区表 → implementation_gap。
+
+    '
 - round: 1
   atomic_id: T1-a2
   tool: get_match_incidents
@@ -113,9 +111,8 @@ attempts:
   code: OK
   count: 21
   stub: false
-  note: incidents 含 type_code+type(语义映射 yellow_card/goal/substitution/
-    red_card 等)+side+minute+player+reason_code+reason(foul 等)+home_score/
-    away_score+assist1。Phase 2 新增工具可用。
+  note: incidents 含 type_code+type(语义映射 yellow_card/goal/substitution/ red_card 等)+side+minute+player+reason_code+reason(foul
+    等)+home_score/ away_score+assist1。Phase 2 新增工具可用。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_tlive
@@ -125,8 +122,8 @@ attempts:
   code: OK
   count: 33
   stub: false
-  note: events 含 is_key_event+type+side+minute+content（文字直播）；
-    覆盖开场/角球/进球/黄牌等。Phase 2 新增工具可用。
+  note: events 含 is_key_event+type+side+minute+content（文字直播）； 覆盖开场/角球/进球/黄牌等。Phase
+    2 新增工具可用。
 stub_verification_summary:
   original_5_stubs:
   - tool: get_match_lineup
@@ -163,23 +160,21 @@ satisfied:
 - T1-a2-core
 blocking_gap:
   type: implementation_gap
-  description: >
-    Phase 2 修复了原 5 个 stub 中的 4 个（lineup/injury/intel/team_stats 均 OK），
-    但仍存在 2 个 implementation_gap：
-    (1) get_odds_trend 的 SQL 仅查基表 football_odds_europe_change（对 2026 比赛
-    为空），未路由到月分区表 football_odds_europe_change_YYYYMM（实测 202605 分区
-    有 313 行）；导致对所有近期比赛恒返回 DATA_MISSING。
-    (2) get_match_player_stats 的 SQL 引用不存在的列 s.position
-    （football_match_player_stats 表无 position 列），调用即抛 OperationalError 1054。
+  description: 'Phase 2 修复了原 5 个 stub 中的 4 个（lineup/injury/intel/team_stats 均 OK），
+    但仍存在 2 个 implementation_gap： (1) get_odds_trend 的 SQL 仅查基表 football_odds_europe_change（对
+    2026 比赛 为空），未路由到月分区表 football_odds_europe_change_YYYYMM（实测 202605 分区 有 313 行）；导致对所有近期比赛恒返回
+    DATA_MISSING。 (2) get_match_player_stats 的 SQL 引用不存在的列 s.position （football_match_player_stats
+    表无 position 列），调用即抛 OperationalError 1054。
+
+    '
   failed_atomic: T1-a2-odds_and_player_stats
   affected_tools:
   - get_odds_trend
   - get_match_player_stats
 route_complete: false
 grade_change: warning_to_warning_improved
-grade_note: >
-  原评级 ⚠️（5 stub 恒空）。Phase 2 后 4/5 原 stub 已 OK，incidents/tlive 亦 OK，
-  核心深度剖析路径（阵容/伤停/情报/球队统计/比赛进程/文字直播）可用；
-  但 odds_trend（市场热度维度）与 player_stats（球员对位维度）仍因实现 bug 不可用，
-  不满足"全部 8 个分析视角"的完整路径，故维持 ⚠️（improved），未升 ✅。
-  修复上述 2 个 implementation_gap 后即可升 ✅。
+grade_note: '原评级 ⚠️（5 stub 恒空）。Phase 2 后 4/5 原 stub 已 OK，incidents/tlive 亦 OK， 核心深度剖析路径（阵容/伤停/情报/球队统计/比赛进程/文字直播）可用；
+  但 odds_trend（市场热度维度）与 player_stats（球员对位维度）仍因实现 bug 不可用， 不满足"全部 8 个分析视角"的完整路径，故维持
+  ⚠️（improved），未升 ✅。 修复上述 2 个 implementation_gap 后即可升 ✅。
+
+  '

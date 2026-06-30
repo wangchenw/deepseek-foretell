@@ -1,0 +1,90 @@
+type_id: C02
+case_id: TC-C02-001
+explored_at: '2026-06-30'
+v2_verdict: '⚠️ data_gap (上周无曼城vs利物浦比赛,复盘 toolchain 在历史场次上验证 OK;v2 未探索篮球复盘路径)'
+v3_verdict: '✅ pass (篮球复盘路径 sport=basketball 全打通;足球路径 v2 已验证)'
+verdict_tier: pass
+change_summary: >-
+  阶段3重写验证:C02 上周比赛复盘的篮球路径。get_recent_form/get_h2h/get_team_schedule
+  加 sport=basketball 后走 basketball_match 表,数据真实可用。以 NBA 掘金(10148)vs马刺
+  (10137) 为篮球复盘样本,5 场交锋 + 5 场近期赛程 + 5 场战绩全部 OK。足球路径 v2 已在
+  曼城vs利物浦(4512595)上验证 result/team_stats/incidents 全 OK,本次不重复。
+attempts:
+- round: 1
+  atomic_id: C02-T1-a1
+  tool: resolve_basketball_team
+  params: {name: 掘金}
+  code: OK
+  count: 3
+  stub: false
+  evidence: '首选 team_id=10148(Denver Nuggets, NBA competition_id=1)'
+- round: 1
+  atomic_id: C02-T1-a1
+  tool: resolve_basketball_team
+  params: {name: 马刺}
+  code: OK
+  count: 10
+  stub: false
+  evidence: '首选 team_id=10137(San Antonio Spurs, NBA)— 来自 get_basketball_standings(1) 行内 team_id'
+- round: 2
+  atomic_id: C02-T1-a2
+  tool: get_h2h
+  params: {team_a: 10148, team_b: 10137, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: >-
+    5 场篮球交锋(2025-04-03 ~ 2026-04-13),含 2026-04-13 马刺(主)vs掘金(客) match_id=3869016。
+    字段语义错位(full_time=半场 34-37、half_time=全场 22-33、red/yellow_card=各节得分),
+    数据是篮球 ✅
+- round: 2
+  atomic_id: C02-T1-a2
+  tool: get_team_schedule
+  params: {team_id: 10148, sport: basketball, direction: recent, limit: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: >-
+    掘金最近 5 场 NBA 篮球(2026-04-21~05-01,vs森林狼 10156)。
+    ⚠ sport 字段透传 "football"(元数据 bug)、status="interrupted"(篮球完场映射失真)。
+    match_id/teams/date/league_name=NBA 数据正确 ✅
+- round: 2
+  atomic_id: C02-T1-a3
+  tool: get_recent_form
+  params: {team_id: 10148, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: '掘金最近 5 场篮球战绩,goals_for/against 实为得分,数据来自 basketball_match ✅'
+satisfied:
+- C02-T1-a1
+- C02-T1-a2
+- C02-T1-a3
+blocking_gap: null
+route_complete: true
+route_path: >-
+  篮球复盘:resolve_basketball_team(主/客名) → get_h2h(a,b, sport=basketball) 取交锋
+  + get_team_schedule(team_id, sport=basketball, direction=recent) 取近期赛程
+  + get_recent_form(team_id, sport=basketball) 取战绩。
+  足球复盘(v2 已验证):resolve_team + resolve_match(date) + get_match_result
+  + get_match_team_stats + get_match_incidents。
+caveats:
+- id: C02-football-premise-mismatch
+  category: data_gap
+  note: >-
+    v2 已确认:用户以"上周比赛复盘"前提提问曼城vs利物浦,但 DB last-week 窗口(2026-06-22~28)
+    内无该对阵(英超休赛期),最近一场已完赛为 2026-04-04 英足总杯。此为用户前提与 DB 现实不符的
+    data_gap,工具层无解,LLM 应主动澄清并提示历史/未来场次。非 v3 修复范围。
+- id: C02-h2h-field-semantics
+  category: tool_logic_gap
+  note: >-
+    get_h2h sport=basketball 字段名复用 football(full_time=半场、half_time=全场、
+    red/yellow_card=各节得分)。数据正确,语义错位,建议为篮球单独映射 q1-q4 字段。
+- id: C02-schedule-sport-metadata
+  category: tool_logic_gap
+  note: >-
+    get_team_schedule sport=basketball 返回行内 sport 字段透传 "football"(元数据 bug),
+    status="interrupted"(篮球完场 status_id=10 映射失真)。数据本身是篮球,元数据未跟随 sport 参数。
+notes:
+  sample_basketball: 'NBA 掘金(10148) vs 马刺(10137), 5 场 h2h + 5 场 recent schedule 均含 2026-04 真实篮球赛事'
+  sample_football_v2: '曼城(10181) vs 利物浦(10249), match_id=4512595 (2026-04-04 英足总杯 4-0), v2 已验证 result/team_stats/incidents OK'

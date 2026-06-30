@@ -1,0 +1,74 @@
+type_id: D01
+case_id: TC-D01-001
+explored_at: '2026-06-30'
+v2_verdict: '⚠️ data_gap (用户"四场"与实际 3 场世界杯正赛不符;resolve_lottery_match code=074 ENTITY_NOT_FOUND routing_gap;lottery match_id=null)'
+v3_verdict: '✅ pass (resolve_lottery_match code=074 命中+match_id 已填充+match_candidates 含环境数据;数量/语义偏差仍为 LLM 澄清范畴)'
+verdict_tier: pass
+change_summary: >-
+  阶段3重写验证:resolve_lottery_match 与 get_lottery_schedule for play_type=101(竞彩足球)
+  现已 LEFT JOIN lottery_match/football_match 回填真实 match_id,v2 的 match_id=null 与
+  code=074 ENTITY_NOT_FOUND 均修复。明天(2026-06-30)3 场世界杯竞彩完整 spf/rq/bf/jq/bqc
+  赔率直接覆盖四个预测维度。用户"四场"与实际 3 场的数量偏差属 LLM 澄清范畴,非工具层 gap。
+attempts:
+- round: 1
+  atomic_id: D01-T1-a1
+  tool: get_lottery_schedule
+  params: {play_type: '101', date: '2026-06-30'}
+  code: OK
+  count: 3
+  stub: false
+  evidence: >-
+    3 场世界杯竞彩,match_id 已填充:
+    4459720(巴西vs日本,周一074)、4459718(德国vs巴拉圭,周一075)、4459719(荷兰vs摩洛哥,周一076)。
+    完整 spf/rq/bf(31 项)/jq(8 档)/bqc(9 项),sell_status 全 suspended(已停售,因今日已开赛)。
+    v2 的 match_id=null 已修复。
+- round: 1
+  atomic_id: D01-T1-a1
+  tool: resolve_lottery_match
+  params: {play_type: '101', code: '周一074', date: '2026-06-30'}
+  code: OK
+  count: 1
+  stub: false
+  evidence: >-
+    返回 lottery_id=2040337,match_id=4459720(巴西vs日本,世界杯),
+    完整 spf(1.52/3.72/4.95)/rq(-1,2.89/3.04/2.20)/bf(31 项)/jq(8 档)/bqc(9 项)。
+    v2 routing_gap(ENTITY_NOT_FOUND)已修复 ✅。
+    额外:match_candidates 含 football_match 详情(巴西队 10477 vs 日本 14529,
+    status=finished, neutral=true, home_position=5/away_position=17,
+    environment: 温度 34°C/湿度 56%/风速 6.4m/s/气压 762mmHg)— 环境数据为深度分析增值。
+- round: 2
+  atomic_id: D01-T1-a2
+  tool: get_lottery_schedule
+  params: {play_type: '101', date: '2026-06-30'}
+  code: OK
+  count: 3
+  stub: false
+  evidence: >-
+    3 场赔率齐全,直接覆盖用户四个预测维度:spf=胜平负、bf=比分(31 项)、jq=总进球数(0~7+)、
+    bqc=半全场(9 项 胜胜/胜平/.../负负)。sell_status spf/bf/jq/bqc 均 singles_and_parlay 可单关。
+    无需调用 deep 工具即可合成"怎么买"建议。
+satisfied:
+- D01-T1-a1
+- D01-T1-a2
+blocking_gap: null
+route_complete: true
+route_path: >-
+  get_lottery_schedule(101, date=tomorrow) 拉 3 场世界杯竞彩批次(match_id 已填)
+  → resolve_lottery_match(101, code, date) 精确定位单场+完整盘口+match_candidates(含环境)
+  → 竞彩赔率(spf/rq/bf/jq/bqc)直接覆盖胜平负/比分/总进球/半全场四维度
+  → 如需深度分析:resolve_match(home/away, date) 取 football_match.id → deep 工具 sport=football
+caveats:
+- id: D01-count-mismatch
+  category: data_gap
+  note: >-
+    用户文案"四场世界杯预选赛"与 DB 实际 3 场世界杯正赛(competition_id=1)不符;
+    "预选赛"与"正赛"语义不符(世亚预 3 场未进入竞彩 101 售彩列表)。
+    此为用户前提与 DB 现实不符的 data_gap,LLM 应澄清"仅 3 场世界杯正赛可投",
+    非工具层 bug。
+- id: D01-sell-status-suspended
+  category: timing
+  note: >-
+    今日(2026-06-30)查询时 3 场 sell_status 全 suspended(已开赛/停售)。
+    生产环境应在赛前查询获可投注赔率。本次验证的是路径打通,非实时可投性。
+notes:
+  v3_improvement: 'resolve_lottery_match 新增 match_candidates 字段(含 football_match 详情+环境数据),为深度分析提供 home/away team_id/position/environment,无需额外 resolve_match 调用'

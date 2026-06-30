@@ -2,7 +2,6 @@ type_id: F08
 case_id: TC-F08-001
 explored_at: '2026-06-29'
 source: live_probe
-
 attempts:
 - round: 1
   atomic_id: F08-T1-a1
@@ -14,11 +13,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: >-
-    今天(2026-06-29)顶级足球赛程返回 1 场:世界杯 南非vs加拿大,
-    match_id=4459717, match_time_beijing=2026-06-29 03:00, status=finished。
-    用于模拟 follow_up 前序上下文锁定 match_id。
-
+  note: 今天(2026-06-29)顶级足球赛程返回 1 场:世界杯 南非vs加拿大, match_id=4459717, match_time_beijing=2026-06-29
+    03:00, status=finished。 用于模拟 follow_up 前序上下文锁定 match_id。
 - round: 1
   atomic_id: F08-T1-a1
   tool: resolve_match
@@ -29,12 +25,9 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: >-
-    resolve_match(主+客+date) 唯一命中 match_id=4459717, league=世界杯,
-    status=finished, neutral=true, 含主客 FIFA 排名(54/32)与比赛环境
-    (温度/湿度/风速/气压)。follow_up 场景下 match_id 应来自前序会话
+  note: resolve_match(主+客+date) 唯一命中 match_id=4459717, league=世界杯, status=finished,
+    neutral=true, 含主客 FIFA 排名(54/32)与比赛环境 (温度/湿度/风速/气压)。follow_up 场景下 match_id 应来自前序会话
     上下文,此处用 resolve_match 模拟该锁定过程,工具层只接受 match_id 入参。
-
 - round: 1
   atomic_id: F08-T1-a1 (即时盘)
   tool: get_odds_snapshot
@@ -43,14 +36,11 @@ attempts:
   code: OK
   stub: false
   count: null
-  note: >-
-    get_odds_snapshot 返回结构化欧赔(european)+亚盘(asian),每家含
-    initial/current/latest 三层 + in_play/suspended 布尔。样本(亚盘):
-    initial {handicap 0.75, home_line 0.98, away_line 0.88} →
-    current {handicap 0.5, ...} → latest {handicap 0.25, away_line 2.6},
-    in_play=true。Phase 2 修复后盘口快照已结构化,直接满足"现在盘口/
-    水位变化"追问。SQL 直查 football_odds_europe/asian match_id=4459717 亦可。
-
+  note: 'get_odds_snapshot 返回结构化欧赔(european)+亚盘(asian),每家含 initial/current/latest
+    三层 + in_play/suspended 布尔。样本(亚盘): initial {handicap 0.75, home_line 0.98, away_line
+    0.88} → current {handicap 0.5, ...} → latest {handicap 0.25, away_line 2.6}, in_play=true。Phase
+    2 修复后盘口快照已结构化,直接满足"现在盘口/ 水位变化"追问。SQL 直查 football_odds_europe/asian match_id=4459717
+    亦可。'
 - round: 1
   atomic_id: F08-T1-a1 (大小球盘口)
   tool: get_over_under_odds
@@ -59,13 +49,10 @@ attempts:
   code: OK
   stub: false
   count: null
-  note: >-
-    get_over_under_odds 返回 over_under 结构,含 initial/current/latest 三层,
-    语义 over/total/under。样本:initial {over 0.93, total 2.25, under 0.85} →
-    current {over 1.03, total 2.25, under 0.82} → latest {over 6.71, total 1.25,
-    under 0.12}, in_play=true。直接回答 user 文案中"大小球盘口数据变化"诉求。
+  note: get_over_under_odds 返回 over_under 结构,含 initial/current/latest 三层, 语义 over/total/under。样本:initial
+    {over 0.93, total 2.25, under 0.85} → current {over 1.03, total 2.25, under 0.82}
+    → latest {over 6.71, total 1.25, under 0.12}, in_play=true。直接回答 user 文案中"大小球盘口数据变化"诉求。
     对应表 football_odds_over_down。
-
 - round: 1
   atomic_id: F08-T1-a1 (初盘→即时走势)
   tool: get_odds_trend
@@ -74,45 +61,30 @@ attempts:
   code: OK
   stub: false
   count: 50
-  note: >-
-    get_odds_trend 返回 50 个时序点(points),覆盖初盘到即时盘的赔率变动曲线,
-    直接支撑"初盘数据变化水位"分析。对应 football_odds_europe_change_* 历史分区表。
-
+  note: get_odds_trend 返回 50 个时序点(points),覆盖初盘到即时盘的赔率变动曲线, 直接支撑"初盘数据变化水位"分析。对应 football_odds_europe_change_*
+    历史分区表。
 satisfied:
 - F08-T1-a1
-
 blocking_gap: null
-
 route_complete: true
-
 caveats:
 - id: F08-T1-a2
   category: synthesize_answer
-  note: >-
-    综合"5场比赛大小球方向+比分预测+盘口水位分析"属答案合成层,依赖 a1 拿到的
-    match_id 及 odds_snapshot/over_under/trend 数据;数据路径已通,合成质量与
-    数据诚实度(不臆测)由 LLM 决定,不在 foretell MySQL 工具链探路范围。
-- follow_up_context: >-
-    F08 为 follow_up 追问,match_id 锁定依赖前序会话上下文(maintain_context 能力)。
-    该能力由 session/agent 层保证,非 foretell 工具层职责——工具层仅接受 match_id
-    入参并返回盘口。探索时以 get_schedule_by_date+resolve_match 模拟上下文锁定,
-    实测可拿到真实 match_id。context_handling 维度评估时应归因到 agent 层而非工具层。
-- 跨运动碰撞: >-
-    entity_entry=match 且 sport=any。本例命中足球世界杯,resolve_match 默认查
-    football_match,未触发篮球 ID 碰撞;若前序上下文为篮球比赛,需走
-    resolve_basketball_team/resolve_basketball_league 并使用 basketball_* 赔率表,
-    foretell 当前 get_odds_snapshot/get_over_under_odds 仅覆盖足球盘口(football_odds_*)。
-
+  note: 综合"5场比赛大小球方向+比分预测+盘口水位分析"属答案合成层,依赖 a1 拿到的 match_id 及 odds_snapshot/over_under/trend
+    数据;数据路径已通,合成质量与 数据诚实度(不臆测)由 LLM 决定,不在 foretell MySQL 工具链探路范围。
+- follow_up_context: F08 为 follow_up 追问,match_id 锁定依赖前序会话上下文(maintain_context 能力)。
+    该能力由 session/agent 层保证,非 foretell 工具层职责——工具层仅接受 match_id 入参并返回盘口。探索时以 get_schedule_by_date+resolve_match
+    模拟上下文锁定, 实测可拿到真实 match_id。context_handling 维度评估时应归因到 agent 层而非工具层。
+- 跨运动碰撞: entity_entry=match 且 sport=any。本例命中足球世界杯,resolve_match 默认查 football_match,未触发篮球
+    ID 碰撞;若前序上下文为篮球比赛,需走 resolve_basketball_team/resolve_basketball_league 并使用 basketball_*
+    赔率表, foretell 当前 get_odds_snapshot/get_over_under_odds 仅覆盖足球盘口(football_odds_*)。
 verdict_lean: pass
 key_findings:
-- 现在盘口即时数据路径全通:resolve_match(主+客+date)→match_id(4459717)→
-  get_odds_snapshot(欧赔+亚盘 initial/current/latest 三层,in_play/suspended)OK +
-  get_over_under_odds(大小球 over/total/under 三层)OK + get_odds_trend(50 个时序点)OK。
-  Phase 2 盘口结构化修复后,get_odds_snapshot 已能直接回答"现在盘口/水位变化",
+- 现在盘口即时数据路径全通:resolve_match(主+客+date)→match_id(4459717)→ get_odds_snapshot(欧赔+亚盘
+  initial/current/latest 三层,in_play/suspended)OK + get_over_under_odds(大小球 over/total/under
+  三层)OK + get_odds_trend(50 个时序点)OK。 Phase 2 盘口结构化修复后,get_odds_snapshot 已能直接回答"现在盘口/水位变化",
   大小球由 get_over_under_odds 单独覆盖,user 文案中"大小球盘口数据变化"诉求完全满足。
-- follow_up 的 maintain_context 非工具层职责:工具层只接受 match_id 入参,
-  match_id 锁定由前序会话上下文(session/agent 层)保证。context_handling 维度
-  应归因到 agent 编排层;数据层只要拿到 match_id 即可全量返回即时盘,route_complete=true。
-- 跨运动注意:当前盘口工具(get_odds_snapshot/get_over_under_odds/get_odds_trend)
-  仅覆盖足球 football_odds_* 表;若 follow_up 上下文为篮球,需用 basketball 赔率表
-  与 resolve_basketball_*,sport=any 的实际覆盖在工具层仍偏足球。
+- follow_up 的 maintain_context 非工具层职责:工具层只接受 match_id 入参, match_id 锁定由前序会话上下文(session/agent
+  层)保证。context_handling 维度 应归因到 agent 编排层;数据层只要拿到 match_id 即可全量返回即时盘,route_complete=true。
+- 跨运动注意:当前盘口工具(get_odds_snapshot/get_over_under_odds/get_odds_trend) 仅覆盖足球 football_odds_*
+  表;若 follow_up 上下文为篮球,需用 basketball 赔率表 与 resolve_basketball_*,sport=any 的实际覆盖在工具层仍偏足球。

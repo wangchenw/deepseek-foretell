@@ -1,0 +1,35 @@
+type_id: B04
+case_id: TC-B04-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ implementation_gap(resolve_match/resolve_team 缺 national=1 AND gender=1 男子国家队成年组过滤,被 U17/U20/U23/女足淹没)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: "resolve_match 新增 national(bool,过滤国家队)与 exclude_youth(默认 True,排除 U15-U24/青年/女足/沙滩/室内/futsal)参数。resolve_match(中国,库拉索,national=true) 返回唯一候选 match_id=4480951(FIFA系列赛 2026-03-27 14:00 中立地悉尼),U17/U20/U23/女足/沙滩全排除,与 probe_case 用户问句完全一致。"
+attempts:
+  - round: 1
+    atomic_id: B04-T1-a1
+    tool: resolve_match
+    params: {home: 中国, away: 库拉索, national: true}
+    code: OK
+    count: 1
+    match_status: finished
+    key_fields:
+      sole_candidate:
+        match_id: 4480951
+        home_team_id: 11087
+        away_team_id: 33203
+        home_name: 中国
+        away_name: 库拉索
+        date: 2026-03-27
+        match_time_beijing: 2026-03-27 14:00:00
+        league_id: 7484
+        league_name: FIFA系列赛
+        neutral: true
+        home_position: 93
+        away_position: 81
+        environment: {temperature: 14°C, humidity: 85%, wind: 7.1m/s, pressure: 754mmHg}
+    stub: false
+    note: "count=1 单候选,非 ambiguous;national=true 过滤生效,U17/U20/U23/女足/沙滩/室内/futsal 全排除;首选即男子国家队 A 级 FIFA 系列赛(中立地悉尼,与用户问句'场地澳大利亚悉尼'完全吻合)。"
+satisfied: [B04-T1-a1, B04-T1-b1, B04-T1-a2, B04-T1-b2]
+blocking_gap: null
+route_complete: true

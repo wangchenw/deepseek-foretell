@@ -17,14 +17,36 @@ def _default_meta(client) -> dict:
     return {"source": _META_SOURCE, "freshness": client.freshness}
 
 
+def _basketball_unavailable(client, dimension: str, match_id, table_name: str) -> str:
+    """篮球该维度暂未采集时返回明确的 DATA_MISSING(非含糊空结果)。
+
+    依据 scripts/probe_basketball_deep_tables.py 探查:12 个篮球 deep 表不存在,
+    sport=basketball 时短路返回,方便后续排查。
+    """
+    return make_envelope(
+        StatusCode.DATA_MISSING,
+        dimension,
+        {
+            "match_id": match_id,
+            "sport": "basketball",
+            "reason": f"该维度篮球暂未采集({table_name} 表不存在)",
+        },
+        match_id=match_id,
+        meta=_default_meta(client),
+    )
+
+
 @tool
-def get_match_lineup(match_id: int | str) -> str:
+def get_match_lineup(match_id: int | str, sport: str = "football") -> str:
     """查询比赛预计首发阵容。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_lineup", match_id, "basketball_match_lineup")
     result = client.get_match_lineup(match_id)
 
     if result is None:
@@ -46,14 +68,15 @@ def get_match_lineup(match_id: int | str) -> str:
 
 
 @tool
-def get_injury_report(match_id: int | str) -> str:
+def get_injury_report(match_id: int | str, sport: str = "football") -> str:
     """查询比赛伤停与停赛报告。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球走 basketball_team_injury(48队有数据)。
     """
     client = get_crazy_sports_client()
-    result = client.get_injury_report(match_id)
+    result = client.get_injury_report(match_id, sport=sport)
 
     if result is None:
         return make_envelope(
@@ -74,14 +97,15 @@ def get_injury_report(match_id: int | str) -> str:
 
 
 @tool
-def get_intel_tags(match_id: int | str) -> str:
+def get_intel_tags(match_id: int | str, sport: str = "football") -> str:
     """查询比赛情报标签（主场优势、核心复出、体能隐忧等）。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球走 basketball_intelligence(字段名 intel_content_*)。
     """
     client = get_crazy_sports_client()
-    results = client.get_intel_tags(match_id)
+    results = client.get_intel_tags(match_id, sport=sport)
 
     if not results:
         return make_envelope(
@@ -213,14 +237,17 @@ def get_basketball_standings(league_id: int | str) -> str:
 
 
 @tool
-def get_match_tlive(match_id: int | str, limit: int = 100) -> str:
+def get_match_tlive(match_id: int | str, limit: int = 100, sport: str = "football") -> str:
     """查询比赛实时文字直播事件流（按时间排序）。
 
     Args:
-        match_id: MySQL football_match.id，须先通过实体定位获取。
+        match_id: MySQL football_match.id 或 basketball_match.id。
         limit: 返回事件数，默认 100。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_tlive", match_id, "basketball_match_tlive")
     results = client.get_match_tlive(match_id, limit=limit)
 
     if not results:
@@ -242,13 +269,16 @@ def get_match_tlive(match_id: int | str, limit: int = 100) -> str:
 
 
 @tool
-def get_match_incidents(match_id: int | str) -> str:
+def get_match_incidents(match_id: int | str, sport: str = "football") -> str:
     """查询比赛关键事件（进球/红黄牌/换人/VAR，按时间排序）。
 
     Args:
-        match_id: MySQL football_match.id，须先通过实体定位获取。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_incidents", match_id, "basketball_match_incidents")
     results = client.get_match_incidents(match_id)
 
     if not results:
@@ -270,13 +300,16 @@ def get_match_incidents(match_id: int | str) -> str:
 
 
 @tool
-def get_match_team_stats(match_id: int | str) -> str:
+def get_match_team_stats(match_id: int | str, sport: str = "football") -> str:
     """查询比赛球队技术统计（射门/传球/控球率/角球等，主客两队）。
 
     Args:
-        match_id: MySQL football_match.id，须先通过实体定位获取。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_team_stats", match_id, "basketball_match_team_stats")
     results = client.get_match_team_stats(match_id)
 
     if not results:
@@ -298,14 +331,17 @@ def get_match_team_stats(match_id: int | str) -> str:
 
 
 @tool
-def get_match_player_stats(match_id: int | str, limit: int = 30) -> str:
+def get_match_player_stats(match_id: int | str, limit: int = 30, sport: str = "football") -> str:
     """查询比赛球员技术统计（含评分，按评分倒序）。
 
     Args:
-        match_id: MySQL football_match.id，须先通过实体定位获取。
+        match_id: MySQL football_match.id 或 basketball_match.id。
         limit: 返回球员数，默认 30。
+        sport: "football"(默认)或 "basketball"。篮球该维度暂未采集,返回 DATA_MISSING。
     """
     client = get_crazy_sports_client()
+    if sport == "basketball":
+        return _basketball_unavailable(client, "match_player_stats", match_id, "basketball_match_player_stats")
     results = client.get_match_player_stats(match_id, limit=limit)
 
     if not results:

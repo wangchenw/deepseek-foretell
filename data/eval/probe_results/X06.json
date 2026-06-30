@@ -1,6 +1,8 @@
 {
   "type_id": "X06",
   "case_id": "TC-X06-REG-009",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_match",
@@ -9,8 +11,9 @@
         "away": "挪威"
       },
       "code": "OK",
-      "count": 10,
+      "count": 1,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

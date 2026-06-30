@@ -2,9 +2,10 @@ type_id: X09
 type_name: 冷门赛事
 case_id: TC-X09-001
 explored_at: '2026-06-29'
-scenario_context: '八维度足球预测框架 v2.0；冷门赛事场景。production turn 提到「4/24赛前数据麦克阿瑟和惠灵顿」+「扩大样本池，日职沙职杯赛澳超」。entity_entry=team。atomic 分解仅 3 项：T1-a1 resolve_entity(team) / T1-a2 fetch_schedule(team_id) / T1-x1 apply_guardrails。'
-probe_focus: '验证冷门联赛/球队（澳超麦克阿瑟FC、惠灵顿凤凰；日职横滨水手）在 foretell 工具链的数据可用性，区分 data_gap(DB 无采集) vs routing_gap(工具找不到)。'
-
+scenario_context: 八维度足球预测框架 v2.0；冷门赛事场景。production turn 提到「4/24赛前数据麦克阿瑟和惠灵顿」+「扩大样本池，日职沙职杯赛澳超」。entity_entry=team。atomic
+  分解仅 3 项：T1-a1 resolve_entity(team) / T1-a2 fetch_schedule(team_id) / T1-x1 apply_guardrails。
+probe_focus: 验证冷门联赛/球队（澳超麦克阿瑟FC、惠灵顿凤凰；日职横滨水手）在 foretell 工具链的数据可用性，区分 data_gap(DB 无采集)
+  vs routing_gap(工具找不到)。
 attempts:
 - round: 1
   atomic_id: X09-T1-a1
@@ -15,7 +16,8 @@ attempts:
   code: OK
   stub: false
   count: 2
-  result_summary: '候选 2 个：59450 麦克阿瑟FC(Macarthur FC, 澳超)、85316 麦克阿瑟女足后备队。national=0。首选 team_id=59450（一线队）。'
+  result_summary: 候选 2 个：59450 麦克阿瑟FC(Macarthur FC, 澳超)、85316 麦克阿瑟女足后备队。national=0。首选
+    team_id=59450（一线队）。
   verdict: OK
 - round: 1
   atomic_id: X09-T1-a1
@@ -26,11 +28,12 @@ attempts:
   code: OK
   stub: false
   count: 10
-  result_summary: '候选 10 个，含 14753 惠灵顿凤凰(Wellington Phoenix, 澳超一线)、14812 后备队、17860 Team Wellington、35503 联队、35510 奥林匹克、38819 U20 等。首选 team_id=14753。'
+  result_summary: 候选 10 个，含 14753 惠灵顿凤凰(Wellington Phoenix, 澳超一线)、14812 后备队、17860
+    Team Wellington、35503 联队、35510 奥林匹克、38819 U20 等。首选 team_id=14753。
   verdict: OK
   notes:
-    - '冷门球队 resolve 命中：DB 已采集澳超全部 12 队 + 新西兰低级别球队，entity 解析无 data_gap。'
-    - '歧义可控：惠灵顿返回 10 候选但一线队(惠灵顿凤凰)排首位且 name_zh 精确匹配，按「adult/senior 优先」可定位。'
+  - 冷门球队 resolve 命中：DB 已采集澳超全部 12 队 + 新西兰低级别球队，entity 解析无 data_gap。
+  - 歧义可控：惠灵顿返回 10 候选但一线队(惠灵顿凤凰)排首位且 name_zh 精确匹配，按「adult/senior 优先」可定位。
 - round: 1
   atomic_id: X09-T1-a1
   category: resolve_entity
@@ -40,11 +43,11 @@ attempts:
   code: OK
   stub: false
   count: 4
-  result_summary: '候选 4 个：10336 横滨水手(Yokohama F. Marinos, 日职一线)、18772 青年队、21467 后备队、26833 U18。首选 team_id=10336。'
+  result_summary: 候选 4 个：10336 横滨水手(Yokohama F. Marinos, 日职一线)、18772 青年队、21467 后备队、26833
+    U18。首选 team_id=10336。
   verdict: OK
   notes:
-    - '日职（J-League）冷门样本同样命中，证明 cold-league 覆盖非个例。'
-
+  - 日职（J-League）冷门样本同样命中，证明 cold-league 覆盖非个例。
 - round: 1
   atomic_id: X09-T1-a2
   category: fetch_schedule
@@ -56,11 +59,13 @@ attempts:
   code: OK
   stub: false
   count: 10
-  result_summary: '返回 10 场 DESC，全部 finished；最近 4426744 麦克阿瑟FC vs 惠灵顿凤凰 2026-04-24 澳超、4426743 阿德莱德联 vs 麦克阿瑟 04-19、4426735 珀斯光荣 vs 麦克阿瑟 04-12 ... 4471577 麦克阿瑟 vs 曼谷联 02-19 亚冠二级。'
+  result_summary: 返回 10 场 DESC，全部 finished；最近 4426744 麦克阿瑟FC vs 惠灵顿凤凰 2026-04-24 澳超、4426743
+    阿德莱德联 vs 麦克阿瑟 04-19、4426735 珀斯光荣 vs 麦克阿瑟 04-12 ... 4471577 麦克阿瑟 vs 曼谷联 02-19 亚冠二级。
   verdict: OK
   notes:
-    - 'direction=all 必选：X05 已确认 upcoming/recent 因 WHERE 子句 home_team_id=X OR away_team_id=X 未加括号的 SQL 优先级 bug 返回错位数据。'
-    - '冷门球队赛程完整：澳超常规赛 + 亚冠二级跨赛事全采。'
+  - direction=all 必选：X05 已确认 upcoming/recent 因 WHERE 子句 home_team_id=X OR away_team_id=X
+    未加括号的 SQL 优先级 bug 返回错位数据。
+  - 冷门球队赛程完整：澳超常规赛 + 亚冠二级跨赛事全采。
 - round: 1
   atomic_id: X09-T1-a2
   category: fetch_schedule
@@ -72,11 +77,11 @@ attempts:
   code: OK
   stub: false
   count: 10
-  result_summary: '返回 10 场 DESC 全 finished，澳超联赛；最近 4426744（客 vs 麦克阿瑟 04-24）、4426738 vs 西悉尼流浪者 04-18、4426734 vs 墨尔本城 04-12 ... 4426665 vs 西悉尼流浪者 02-13。'
+  result_summary: 返回 10 场 DESC 全 finished，澳超联赛；最近 4426744（客 vs 麦克阿瑟 04-24）、4426738
+    vs 西悉尼流浪者 04-18、4426734 vs 墨尔本城 04-12 ... 4426665 vs 西悉尼流浪者 02-13。
   verdict: OK
   notes:
-    - '两队 schedule 交叉命中同一场 4426744（麦克阿瑟主 vs 惠灵顿客 2026-04-24），数据一致。'
-
+  - 两队 schedule 交叉命中同一场 4426744（麦克阿瑟主 vs 惠灵顿客 2026-04-24），数据一致。
 - round: 1
   atomic_id: X09-T1-a1-aux
   category: fetch_stats
@@ -86,7 +91,7 @@ attempts:
   code: OK
   stub: false
   count: 2
-  result_summary: '候选：590 澳超(Australia A-League)、1848 西澳超U20。首选 league_id=590。'
+  result_summary: 候选：590 澳超(Australia A-League)、1848 西澳超U20。首选 league_id=590。
   verdict: OK
 - round: 1
   atomic_id: X09-T1-a1-aux
@@ -97,11 +102,12 @@ attempts:
   code: OK
   stub: false
   count: 12
-  result_summary: '澳超 12 队积分榜全有：纽卡斯尔喷气机 1(48pts)、阿德莱德联 2(43)、奥克兰FC 3(42)、墨尔本胜利 4(40)、悉尼FC 5(39)、墨尔本城 6(38)、麦克阿瑟FC 7(34)、惠灵顿凤凰 8(33)、中央海岸水手 9(32)、珀斯光荣 10(31)、布里斯班狮吼 11(26)、西悉尼流浪者 12(21)。含 home/away 分项。'
+  result_summary: 澳超 12 队积分榜全有：纽卡斯尔喷气机 1(48pts)、阿德莱德联 2(43)、奥克兰FC 3(42)、墨尔本胜利 4(40)、悉尼FC
+    5(39)、墨尔本城 6(38)、麦克阿瑟FC 7(34)、惠灵顿凤凰 8(33)、中央海岸水手 9(32)、珀斯光荣 10(31)、布里斯班狮吼 11(26)、西悉尼流浪者
+    12(21)。含 home/away 分项。
   verdict: OK
   notes:
-    - '冷门联赛积分榜 100% 覆盖，支撑八维度之「积分战意」「排名位置」。'
-
+  - 冷门联赛积分榜 100% 覆盖，支撑八维度之「积分战意」「排名位置」。
 - round: 1
   atomic_id: X09-T1-a1-aux
   category: fetch_odds_snapshot
@@ -111,58 +117,61 @@ attempts:
   code: OK
   stub: false
   count: null
-  result_summary: '麦克阿瑟vs惠灵顿 match 4426744 欧赔 5 家（Interwetten/立博/威廉希尔/onex + company_id=0 均值）、亚盘 5 家（Interwetten/SB皇冠/盈禾/明陞 + 均值）。initial 主胜 1.94-2.10 / current 已 suspended（赛中）。'
+  result_summary: 麦克阿瑟vs惠灵顿 match 4426744 欧赔 5 家（Interwetten/立博/威廉希尔/onex + company_id=0
+    均值）、亚盘 5 家（Interwetten/SB皇冠/盈禾/明陞 + 均值）。initial 主胜 1.94-2.10 / current 已 suspended（赛中）。
   verdict: OK
   notes:
-    - '冷门比赛赔率快照覆盖完整（欧亚盘各 5 家），支撑八维度之「大热识别」「赔率背离」「资金流向」。'
-
+  - 冷门比赛赔率快照覆盖完整（欧亚盘各 5 家），支撑八维度之「大热识别」「赔率背离」「资金流向」。
 - round: 1
   atomic_id: X09-T1-x1
   category: apply_guardrails
   status: satisfied
-  note: 'atomic T1-x1 为护栏/输出纪律，依赖 prompt + output-discipline skill；非工具可探。X09 hard_constraint「不输出中间态」由 synthesize_answer 层把控。工具层无 blocking_gap。'
-
+  note: atomic T1-x1 为护栏/输出纪律，依赖 prompt + output-discipline skill；非工具可探。X09 hard_constraint「不输出中间态」由
+    synthesize_answer 层把控。工具层无 blocking_gap。
 - round: 1
   atomic_id: X09-T1-aux-skip
   category: discover_via_search
   status: skipped
-  note: 'Eval 约束：不调用 Tavily/internet_search'
-
+  note: Eval 约束：不调用 Tavily/internet_search
 framework_coverage_assessment:
   eight_dimensions:
-    近期状态_近5场: '✅ get_team_schedule(direction=all) 可反推近 5 场胜负（需 LLM 自行从 schedule 聚合，无现成 get_team_form 工具）'
-    积分战意_排名: '✅ get_standings 返回 position/points/played，冷门联赛全覆盖'
-    历史交锋: '⚠️ 无 get_head_to_head 工具；需 LLM 用 get_team_schedule 双向交集自行匹配（如 4426744 同时出现在两队 schedule）'
-    进攻效率_场均进球失球: '✅ get_standings 含 goals/goals_against/played，可算场均'
-    战术匹配_阵型: '❌ 无战术/阵型工具（implementation_gap，非冷门联赛特有）'
-    大热识别_赔率背离: '✅ get_odds_snapshot 欧亚盘多家，可算凯利/资金背离'
-    心理因素_绝平逆转: '⚠️ 无现成工具；需 LLM 从 schedule 比分推断'
-    伤停影响: '❌ 无 get_team_injuries 工具（implementation_gap，全局性）'
-  conclusion: '冷门赛事（澳超/日职）在 entity/schedule/standings/odds 四条主路径上数据完整可用，与五大联赛无差异。八维度框架中战术/伤停两项的工具缺口是全局 implementation_gap，并非冷门场景独有；历史交锋/心理可由 schedule 聚合兜底。'
-
+    近期状态_近5场: ✅ get_team_schedule(direction=all) 可反推近 5 场胜负（需 LLM 自行从 schedule 聚合，无现成
+      get_team_form 工具）
+    积分战意_排名: ✅ get_standings 返回 position/points/played，冷门联赛全覆盖
+    历史交锋: ⚠️ 无 get_head_to_head 工具；需 LLM 用 get_team_schedule 双向交集自行匹配（如 4426744 同时出现在两队
+      schedule）
+    进攻效率_场均进球失球: ✅ get_standings 含 goals/goals_against/played，可算场均
+    战术匹配_阵型: ❌ 无战术/阵型工具（implementation_gap，非冷门联赛特有）
+    大热识别_赔率背离: ✅ get_odds_snapshot 欧亚盘多家，可算凯利/资金背离
+    心理因素_绝平逆转: ⚠️ 无现成工具；需 LLM 从 schedule 比分推断
+    伤停影响: ❌ 无 get_team_injuries 工具（implementation_gap，全局性）
+  conclusion: 冷门赛事（澳超/日职）在 entity/schedule/standings/odds 四条主路径上数据完整可用，与五大联赛无差异。八维度框架中战术/伤停两项的工具缺口是全局
+    implementation_gap，并非冷门场景独有；历史交锋/心理可由 schedule 聚合兜底。
 satisfied:
 - X09-T1-a1
 - X09-T1-a2
 - X09-T1-x1
-
 blocking_gap:
   type: implementation_gap
-  description: |
-    X09 冷门赛事本身无 data_gap 也无 routing_gap：澳超/日职球队 resolve_team、get_team_schedule(direction=all)、
+  description: 'X09 冷门赛事本身无 data_gap 也无 routing_gap：澳超/日职球队 resolve_team、get_team_schedule(direction=all)、
+
     resolve_league+get_standings、get_odds_snapshot 全链 OK。真正的 gap 是八维度框架要求的「战术匹配」「伤停影响」
+
     两类工具全局缺失（无 get_team_tactics / get_team_injuries / get_head_to_head / get_team_form），
+
     属 implementation_gap，对冷门与热门场景同等影响，不阻断 X09 路由。
+
     另：get_team_schedule 的 direction=upcoming/recent 仍有 X05 已记录的 SQL 优先级 bug，
+
     X09 必须用 direction=all 才能拿到正确冷门球队赛程。
+
+    '
   failed_atomic: null
   blocking_route: false
-
 route_complete: true
-verdict_tier: '⚠️'
-verdict_summary: |
-  X09 冷门赛事路由可完成（route_complete=true），3/3 atomic satisfied。
-  冷门联赛（澳超麦克阿瑟FC、惠灵顿凤凰；日职横滨水手）在 resolve_team / get_team_schedule(all) /
-  resolve_league+get_standings / get_odds_snapshot 四条路径上与五大联赛同等覆盖，无 data_gap。
-  倾向 ⚠️（带条件通过）：底层有两处全局 implementation_gap 必须留意——
-    (1) get_team_schedule 的 upcoming/recent SQL 优先级 bug，X09 必须强制 direction=all；
-    (2) 八维度框架的战术/伤停/H2H/form 工具缺失，需 LLM 用 schedule 聚合兜底，冷门场景与热门场景同等待遇。
+verdict_tier: ⚠️
+verdict_summary: "X09 冷门赛事路由可完成（route_complete=true），3/3 atomic satisfied。\n冷门联赛（澳超麦克阿瑟FC、惠灵顿凤凰；日职横滨水手）在\
+  \ resolve_team / get_team_schedule(all) /\nresolve_league+get_standings / get_odds_snapshot\
+  \ 四条路径上与五大联赛同等覆盖，无 data_gap。\n倾向 ⚠️（带条件通过）：底层有两处全局 implementation_gap 必须留意——\n \
+  \ (1) get_team_schedule 的 upcoming/recent SQL 优先级 bug，X09 必须强制 direction=all；\n\
+  \  (2) 八维度框架的战术/伤停/H2H/form 工具缺失，需 LLM 用 schedule 聚合兜底，冷门场景与热门场景同等待遇。\n"

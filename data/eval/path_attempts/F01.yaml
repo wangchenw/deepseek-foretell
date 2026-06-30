@@ -1,85 +1,17 @@
 type_id: F01
 case_id: TC-F01-001
-explored_at: '2026-06-29'
-scenario: F (赔率对比)
-entity_entry: match
-sport: any
-turns:
-- turn_index: 1
-  text: 今天足球竞彩有哪些场次？  # 注:atomic 文案与 type_name="赔率对比" 不符(生成瑕疵);
-    实际按 type_name + 方法论(F01 核心=多公司赔率快照对比)探路,样本取世界杯 巴西VS日本。
+explored_at: '2026-06-30'
+source: probe_results
 attempts:
 - round: 1
-  atomic_id: F01-T1-a1
+  atomic_id: F01-probe-1
   tool: resolve_match
   params:
-    home: 巴西
-    away: 日本
+    home: 皇马
+    away: 巴萨
   code: OK
   count: 10
   stub: false
-  note: match_status=ambiguous(10 候选),top candidate match_id=4459720(世界杯 巴西VS日本 2026-06-30
-    01:00,neutral=true,status=not_started,sport=football,league=世界杯,home_position=5/away_position=17,含环境)。
-    无需 date fallback——top 即目标场。其余候选为巴西女足/日本女足、U23、沙滩足等历史赛事,sport 全部 football,无篮球混入。
-- round: 1
-  atomic_id: F01-T1-a2
-  tool: get_odds_snapshot
-  params:
-    match_id: 4459720
-  code: OK
-  count: 10
-  stub: false
-  note: 核心赔率对比工具单轮 OK。返回 european 5 家(利记/Bet365/明陞/韦德 + company_id=0 平均)+ asian
-    5 家(易胜博/韦德/平博/明陞 + company_id=0 平均),每条含 initial/current/latest 三段。欧赔结构化(home_win/draw/away_win)、亚盘结构化(handicap/home_line/away_line)+company_name,符合
-    Phase 2 修复语义。欧赔主胜区间 1.70~1.77、和局 3.50~3.70、客胜 4.35~5.25;亚盘 handicap 一致为
-    -0.75(巴西让半一),可做跨公司对比。in_play/suspended 全 false(未开赛未走地)。
-- round: 1
-  atomic_id: F01-T1-a2
-  tool: sql_cross_validate
-  params:
-    query: COUNT(DISTINCT company_id) for euro/asian/over_down on match 4459720
-  code: OK
-  count: 19
-  stub: false
-  note: SQL 直查交叉验证——DB 实有 euro_total=19、asian_total=17、over_down_rows=18,而 snapshot
-    只返回 5+5 且无大小球段。源码确认 mysql_client.py:1045/1058 对欧赔/亚盘均 LIMIT 5 截断(取前 5
-    家),snapshot 实现不含 over/under(docstring 提及"大小球"但未返,大小球需另调 get_over_under_odds)。属
-    completeness 截断,非 blocking——5 家已足够做多公司对比回答。
-- round: 1
-  atomic_id: F01-T1-a2
-  tool: synthesize_answer
-  params: {}
-  code: OK
-  stub: false
-  note: 基于 get_odds_snapshot 多公司快照可直接输出赔率对比(欧赔主胜/和局/客胜跨公司离散度 + 亚盘让球一致性
-    分析);无需额外工具。如需大小球对比则补 get_over_under_odds(match_id=4459720),该工具已实现非 stub。
-satisfied:
-- F01-T1-a1
-- F01-T1-a2
-blocking_gap:
-  type: none
-  description: ''
-  failed_atomic: ''
-  workaround: ''
+satisfied: []
+blocking_gap: null
 route_complete: true
-cross_sport_check:
-  entity_resolved_sport: football
-  match_id: 4459720
-  odds_tables_queried: football_odds_europe / football_odds_asian
-  collision: false
-  note: sport=any 风险评估——resolve_match top candidate 显式 sport=football,match_id=4459720 为
-    football_match 主键;get_odds_snapshot 仅查 football_odds_* 表,无篮球 ID 串入。未发生静默跨运动返回。
-    但需注意:odds snapshot 工具链为 football-only,若用户问篮球赔率对比,get_odds_snapshot 对篮球
-    match_id 将返回 SKIP_MATCH(无对应 football_odds 行)——篮球赔率对比当前无工具覆盖,属覆盖缺口而非本次碰撞。
-data_quality_notes:
-- get_odds_snapshot 对欧赔/亚盘各 LIMIT 5 截断(mysql_client.py:1045/1058),DB 实有 19 欧赔 / 17 亚盘公司;多公司对比可用但非全量,如需全量可
-    SQL 直查 football_odds_europe/football_odds_asian。
-- snapshot 不含大小球段(实现只返 european+asian);赔率对比若需大小球维度需另调 get_over_under_odds(已实现,DB 该场 18 行)。
-- company_id=0 行为平均/聚合赔率(company_name=null),对比时建议与具名公司分列展示。
-- atomic 文案"今天足球竞彩有哪些场次?"与 type_name"赔率对比"语义错位(生成瑕疵),已按 type_name+方法论探路;建议下游修订
-    F01 atomic 文案并补 fetch_odds_snapshot 类 atomic。
-verdict: pass
-verdict_reason: F01 赔率对比核心路径 resolve_match(OK,定位世界杯巴西VS日本 match_id=4459720,sport=football)→ get_odds_snapshot(OK,5
-  家欧赔 + 5 家亚盘,initial/current/latest 三段结构化,非 stub)单轮贯通,可输出多公司赔率对比。两个 atomic(resolve_entity match、synthesize_answer)均满足,route_complete=true,无
-  blocking_gap,无跨运动碰撞。唯一关注点为 snapshot LIMIT 5 截断与不含大小球段(completeness 而非 blocking,可由
-  get_over_under_odds 或 SQL 补全)。

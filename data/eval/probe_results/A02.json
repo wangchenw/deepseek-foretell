@@ -1,16 +1,19 @@
 {
   "type_id": "A02",
   "case_id": "TC-A02-001",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "get_schedule_by_date",
       "params": {
-        "date": "2026-06-28",
+        "date": "2026-06-30",
         "tier": "top"
       },
       "code": "OK",
-      "count": 8,
+      "count": 3,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

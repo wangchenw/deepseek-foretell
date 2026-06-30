@@ -1,0 +1,19 @@
+{
+  "type_id": "X10",
+  "case_id": "TC-X10-001",
+  "probe_status": "ready",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "resolve_match",
+      "params": {
+        "home": "利物浦",
+        "away": "热刺"
+      },
+      "code": "OK",
+      "count": 10,
+      "stub": false
+    }
+  ],
+  "error": null
+}

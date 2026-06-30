@@ -293,12 +293,12 @@ satisfied:
 blocking_gap:
   type: routing_gap
   description: resolve_lottery_match(play_type=101, code=012, date=2026-04-25) 返回
-    ENTITY_NOT_FOUND，无法直接定位竞彩条目（与 B01/G01 同源 routing_gap）。fallback 到
-    get_lottery_schedule 按 date 拉列表后客户端匹配 lottery_code 即可定位。lottery entries
-    的 match_id 字段为 None，需 resolve_match 通过队名+date 二次定位 match_id（已验证 OK）。
+    ENTITY_NOT_FOUND，无法直接定位竞彩条目（与 B01/G01 同源 routing_gap）。fallback 到 get_lottery_schedule
+    按 date 拉列表后客户端匹配 lottery_code 即可定位。lottery entries 的 match_id 字段为 None，需 resolve_match
+    通过队名+date 二次定位 match_id（已验证 OK）。
   failed_atomic: C04-T1-a1
-  workaround: get_lottery_schedule(play_type=101, date=YYYY-MM-DD) + 客户端 lottery_code 字符串匹配
-    + resolve_match(home, away, date) 二次定位
+  workaround: get_lottery_schedule(play_type=101, date=YYYY-MM-DD) + 客户端 lottery_code
+    字符串匹配 + resolve_match(home, away, date) 二次定位
 route_complete: true
 data_quality_notes:
 - lottery_schedule entries 的 match_id 字段统一为 None，依赖 resolve_match 二次定位（非 bug，字段未填充）

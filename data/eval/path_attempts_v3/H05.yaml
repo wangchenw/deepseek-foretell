@@ -1,0 +1,24 @@
+type_id: H05
+case_id: TC-H05-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ implementation_gap(promotion_id 已编码但工具未暴露)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: |
+  get_standings(82 英超) 返 r0pts=85 r0played=38 prom_id=205 prom_name=欧冠正赛。
+  v3 修复三处:
+  1. season 空壳过滤(played=38 非 0,命中 2025-26 真实赛季,非 2026-27 空壳)
+  2. promotion_id 暴露(205=欧冠正赛)
+  3. promotion_name 填充(JOIN football_promotions.name_zh,v3_verification 时为 null,现已修)
+  v2 撞墙全部解决,升档 ✅。
+attempts:
+  - round: 1
+    atomic_id: H05-T0-a1
+    tool: get_standings
+    params: {league_id: 82}
+    code: OK
+    key_fields: {r0_points: 85, r0_played: 38, promotion_id: 205, promotion_name: 欧冠正赛}
+    stub: false
+satisfied: [H05-T0-a1]
+blocking_gap: null
+route_complete: true

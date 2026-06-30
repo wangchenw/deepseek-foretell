@@ -1,0 +1,48 @@
+type_id: F03
+case_id: TC-F03-SYN
+explored_at: '2026-06-30'
+v2_verdict: '⚠️ pass_with_caveat (implementation_gap 主 + tool_logic_gap 次:篮球 id 3911714 碰撞 football_match.id 静默伪命中 2023 足球 1X2)'
+v3_verdict: '✅ pass (篮球 2-way 真实命中,无足球伪命中)'
+verdict_tier: pass
+change_summary: >-
+  阶段3重写 get_odds_trend 增加 sport 参数:sport=basketball 走 basketball_odds_europe_change_2026
+  年分区表,返 2-way 赔率(draw=0.0)。v2 撞墙点(硬编码 football_match.id → 对碰撞篮球 id
+  静默返回 2023 足球 1X2)已修复,工具层不再伪命中。
+attempts:
+- round: 1
+  atomic_id: F03-T1-a1
+  tool: get_odds_trend
+  params: {match_id: 3911714, sport: basketball}
+  code: OK
+  count: 50
+  stub: false
+  evidence: >-
+    50 点 2-way 篮球赔率,draw=0.0(无和局),home_win 1.800→2.000→2.530→3.080,
+    away_win 1.910→1.730→1.460→1.330,changed_at 1782613516(=2026-06-28)起至 1782648879
+    (2026-06-29),公司 12bet/沙巴、立博、onex、平博、易胜博、Bet365。
+    与 v2 SQL 基准(basketball_odds_europe_change_2026,2026-06-28~29,2-way 1.80/1.91)
+    完全一致;不再返回 v2 的 2023 足球 1X2(1.59/3.42/5.27,changed_at=1691104382)。
+satisfied:
+- F03-T1-a1
+blocking_gap: null
+route_complete: true
+route_path: >-
+  篮球:get_schedule_by_date(date, sport=basketball, tier=all) 拉批次
+  → 逐场 get_odds_trend(match_id, sport=basketball) 取 2-way points 时序
+  → LLM 算 swing 排序(主胜/客胜 |MAX-MIN|)。
+  足球:get_schedule_by_date(date, tier=all) → get_odds_trend(match_id) 默认 football 路径不变。
+  批次合并:football(tier=all) + basketball(sport=basketball, tier=all) 两次合并(v2 caveat 仍存)。
+caveats:
+- id: F03-T1-a1-batch
+  category: fetch_schedule
+  note: >-
+    get_schedule_by_date(tier=all) 单次 count 上限 100,v2 实测 86 足球+14 篮球,篮球欠采样。
+    sport=any 须 football(tier=all) + basketball(sport=basketball, tier=all) 两次合并。
+    此为 schedule 层 caveat,非 odds_trend 修复范围。
+- id: F03-T1-a1-rank
+  category: synthesize_answer
+  note: >-
+    "变动最大"排名属答案合成层,无原生 rank 工具;须 LLM 从 points 时序计算每场 swing
+    并跨场排序。SQL 已证数据齐备可算(v2 基准)。
+notes:
+  v3_verification_3domains_ref: 'F03 在 v3_verification_3domains.md 已 spot-check 为 ✅,本次复验维持'

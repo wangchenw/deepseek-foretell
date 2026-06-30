@@ -1,0 +1,170 @@
+type_id: D10
+case_id: TC-D10-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ (data_gap 明日世界杯仅 3 场,4串11 需恰好 4 场无法构成,route_complete=false)"
+v3_verdict: "⚠️_improved (维持 data_gap 主 gap,但 v3 合成 ID 分离使降级路径 3串系列工具链可靠;护栏层强制风险提示+数据诚实)"
+verdict_tier: ⚠️
+change_summary: |
+  v3 阶段3「lottery 合成 ID 分离」对 D10 底层工具链可靠性有实质升档,但主 gap(场次不足 data_gap)未变:
+  1. get_lottery_schedule(play_type=101, date=2026-07-01) 返回分离字段:
+     football_match_id(真实 4459722/4459721/4459723)+ lottery_official_id(合成 2040345/2040346/2040351),
+     match_id 向后兼容指真实 id。bf 31项/场齐全、sell_status.bf=singles_and_parlay 支持过关。
+  2. resolve_lottery_match(code=周二078, date=2026-07-01) 返回分离字段 + match_candidates + environment。
+  3. 下游赔率/情报链路用真实 match_id 4459721 全部 OK(v3 不撞历史):
+     get_odds_snapshot(5欧赔+5亚盘)+ get_odds_trend(50点 2026真实时序)+ get_intel_tags(5类情报)+ get_recent_form。
+  主 gap 保留(数据现实,非工具 bug):
+  - 用户要求「明日世界杯的四场比赛」组成竞彩比分 4串11,但明日(2026-07-01)世界杯仅 3 场:
+    get_schedule_by_date(tier=top) + football_match 直查 + get_lottery_schedule(play_type=101) 三路一致确认。
+  - 4串11 = C(4,4)+C(4,3)+C(4,2) = 1+4+6 = 11 注,需恰好 4 场,3 场无法构成该结构 → data_gap,route_complete=false。
+  v3 升档价值:降级路径(3串系列:3串1/3串3/3串4)的工具链因合成 ID 分离而可靠,
+    lottery→football_match→odds/intel 链路不再撞历史,可放心组串并附风险提示。
+  护栏层(foretell-output-discipline SKILL)强制:结尾必须 `⚠️ 彩票有风险，投注需谨慎`;
+    数据诚实——不得编造第 4 场或挪用非世界杯场次冒充;禁止矛盾双向推荐。
+attempts:
+- round: 1
+  atomic_id: T1-a1
+  tool: get_schedule_by_date
+  params: {date: '2026-07-01', tier: top, sport: football}
+  code: OK
+  count: 3
+  stub: false
+  note: 明日(2026-07-01)tier=top 命中 3 场世界杯未开赛(not_started):
+    科特迪瓦(11141)vs挪威(13820) match_id=4459722 01:00、
+    法国(10234)vs瑞典(10869) match_id=4459721 05:00、
+    墨西哥(11764)vs厄瓜多尔(11082) match_id=4459723 09:00。
+    league_id=1 世界杯,sport=football;total_count=181、tier_count=3、truncated=false。
+    用户要求「四场」,但明日世界杯实际仅 3 场。
+- round: 1
+  atomic_id: T1-a1
+  tool: sql
+  params:
+    query: SELECT id,home_team_id,away_team_id,match_time_str,status_id FROM football_match WHERE competition_id=1 AND match_time_str LIKE '2026-07-01%' ORDER BY match_time_str LIMIT 20
+  code: OK
+  count: 3
+  stub: false
+  note: 直查 football_match 确认 competition_id=1(世界杯)在 2026-07-01 全天仅 3 行,status_id=1(未开赛),
+    与 schedule 一致;无第 4 场世界杯。三路(schedule/SQL/lottery)一致证伪「四场」前提。
+- round: 1
+  atomic_id: T1-a1
+  tool: get_lottery_schedule
+  params: {play_type: '101', date: '2026-07-01'}
+  code: OK
+  count: 3
+  stub: false
+  note: 竞彩足球 issue=260630 当期 3 条世界杯——周二077科特迪瓦vs挪威(lottery_id=2040345)、
+    周二078法国vs瑞典(lottery_id=2040346)、周二079墨西哥vs厄瓜多尔(lottery_id=2040351)。
+    v3 关键升档:entry 含分离字段 football_match_id(真实 4459722/4459721/4459723)+ 
+    lottery_official_id(合成,=lottery_id);match_id 向后兼容指真实 id(非 v1 的 null)。
+    odds.bf 比分赔率各 31 项(1:0~5:2 + 胜其他/平其他/负其他)齐全,
+    odds.spf/rq/jq/bqc 齐全;sell_status.bf=singles_and_parlay(支持单关+过关)。
+    sell_status_raw="2,1,2,2,2"(spf=单关+过关、rq=仅过关、bf/jq/bqc=单关+过关)。
+    无第 4 条世界杯竞彩条目。
+- round: 1
+  atomic_id: T1-a1
+  tool: resolve_lottery_match
+  params: {play_type: '101', code: '周二078', date: '2026-07-01'}
+  code: OK
+  count: 1
+  stub: false
+  note: v3 合成 ID 分离验证通过——football_match_id=4459721(真实)、lottery_official_id=2040346(合成)、
+    match_id=4459721(向后兼容指真实)。match_candidates 含 1 候选:法国vs瑞典,
+    neutral=true、environment{temp:33°C,humidity:38%,wind:4.5m/s,pressure:763mmHg}。
+    odds 完整(bf 31项/spf/rq/jq/bqc)。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_snapshot
+  params: {match_id: 4459721}
+  code: OK
+  count: 10
+  stub: false
+  note: 代表场次法国vs瑞典下游链路验证(用真实 football_match_id):
+    5 欧赔(匿名/18Bet/明陞/盈禾/平博)+5 亚盘(18Bet/平博/ＳＢ皇冠/盈禾/12bet沙巴),
+    含 initial/current/latest 三档。法国热门:欧赔主胜 1.28-1.30、客胜 9.35-11.0;
+    亚盘 handicap -1.25→-1.5。in_play=false(未开赛)。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_odds_trend
+  params: {match_id: 4459721}
+  code: OK
+  count: 50
+  stub: false
+  note: 50 点欧赔时序,changed_at 1782528060~1782532492(2026-06-25~06-30 真实时序),
+    13 家公司。v3 升档验证:用真实 match_id 4459721 调 odds_trend 无 v2 类 F03 撞历史伪命中,
+    全部为 2026 当期数据。主胜 1.43→1.39,客胜 7.5→9.0+。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_intel_tags
+  params: {match_id: 4459721}
+  code: OK
+  count: 5
+  stub: false
+  note: 5 类情报,风险维度素材充足:
+    法国登贝莱帽子戏法/德尚重返/萨利巴复出/迪涅+巴尔科拉首发;特奥状态低迷被替换、图拉姆+坎特小伤;
+    瑞典1-5惨败荷兰、林德洛夫伤存隐患、希恩告别世界杯;23次交锋法国12胜5平6负;
+    双方身价14.7亿vs4.28亿、裁判马克列(场均4.5黄)。支撑风险提示与爆冷可能性分析。
+- round: 1
+  atomic_id: T1-a2
+  tool: get_recent_form
+  params: {team_id: 10234, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  note: 法国近5场 4W1L,场均进2.8球(4-1挪威/3-0伊拉克/3-1塞内加尔等),状态极佳。
+- round: 1
+  atomic_id: T1-a2
+  tool: none
+  params: {}
+  code: SKIPPED
+  stub: false
+  note: 4串11 竞彩比分玩法结构 = C(4,4)+C(4,3)+C(4,2) = 1(4串1)+4(3串1)+6(2串1) = 11 注,需恰好 4 场比赛。
+    DB 现实明日世界杯仅 3 场,无法构成 4串11(只能组 3 串系列:3串1/3串3/3串4)。
+    bf 赔率数据层齐备(31项/场 × 3场)、sell_status.bf=singles_and_parlay 允许过关;
+    阻碍在「场次数量不足」而非工具/赔率。v3 合成 ID 分离使降级 3 串路径工具链可靠。
+    风险声明由 skill 层强制保证(见 prompt_layer_covered),非工具层职责。
+satisfied:
+- T1-a1
+blocking_gap:
+  type: data_gap
+  description: |
+    用户前提「明日世界杯的四场比赛」与 DB 现实不符:2026-07-01 世界杯仅 3 场
+    (科特迪瓦vs挪威/法国vs瑞典/墨西哥vs厄瓜多尔),
+    get_schedule_by_date(tier=top)、football_match 直查、get_lottery_schedule(play_type=101) 三路一致确认均只有 3 场。
+    4串11 比分玩法需恰好 4 场(C(4,4)+C(4,3)+C(4,2)=11 注),3 场无法构成该结构。
+    工具层与赔率层均 OK(get_lottery_schedule bf 31项/场齐全、sell_status.bf=singles_and_parlay,
+    v3 合成 ID 分离使下游 odds/intel 链路可靠),阻碍为数据现实层面的场次不足,非 routing/implementation gap。
+  failed_atomic: T1-a2
+  workaround: |
+    向用户说明明日世界杯实际仅 3 场,提供两种降级路径:
+    (a) 改组 3 场世界杯比分 3 串系列(3串1/3串3=3个2串1+1个3串1/3串4);
+    (b) 维持 4串11 则需引入第 4 场非世界杯竞彩场次(同期其他联赛)或延展到 2026-07-02 世界杯场次(但非「明日」)。
+    无论何种路径,结尾强制附加 `⚠️ 彩票有风险，投注需谨慎`(foretell-output-discipline SKILL 强制)。
+    不得编造第 4 场或挪用非世界杯场次冒充(数据诚实约束)。
+route_complete: false
+prompt_layer_covered:
+  disclaimer: true
+  description: |
+    D10 带 disclaimer tag,风险声明由 prompt/skill 层强制保证,非工具层职责:
+    - foretell-output-discipline SKILL.md「购彩安全护栏(强制)」:涉及购彩建议的回复**结尾必须**包含
+      `⚠️ 彩票有风险，投注需谨慎`;场景 D(用户明确问给方案)生成方案并强制加风险提示。
+    - 数据诚实:结论基于可查证赛事数据,区分事实与推断,标注不确定性;信息不足时明确说明,不编造
+      (对应「不得编造第 4 场世界杯」)。
+    - 同场同玩法单一主推,禁止矛盾双向推荐。
+    - 语气规范:用户坚持有赛时先复查 DB 路径,不得反复否认用户(对应「四场」前提不符时的告知方式)。
+    工具层无 disclaimer 专用工具,也无相关能力缺口——风险声明属 LLM 输出纪律层,由 skill 强制注入。
+data_quality_notes:
+- 明日世界杯场次不足是数据现实而非工具 bug;foretell 工具链(get_schedule_by_date + get_lottery_schedule + football_match 直查)
+  返回正确且一致。LLM 应据实告知用户「明日世界杯仅 3 场」,不应强行编造第 4 场或挪用非世界杯场次冒充。
+- v3 合成 ID 分离:get_lottery_schedule/resolve_lottery_match 现返回 football_match_id(真实)+ lottery_official_id(合成),
+  match_id 向后兼容指真实 id(非 v1 的 null),下游 odds/intel 链路用真实 match_id 不撞历史。
+- 4串11 = 1个4串1 + 4个3串1 + 6个2串1,共 11 注,是竞彩比分玩法标准组合结构;
+  若用户接受 3 场,可降级为 3 串系列(3串1/3串3=3个2串1+1个3串1/3串4)。
+cross_sport_check:
+  sport: football
+  collision: false
+  note: 明日 tier=top 仅返回足球世界杯;3 场的 home/away_team_id 均为 football_team 国家队 ID,
+    resolve_lottery_match match_candidates 确认 sport=football。未触发 cross_sport_data_collision。
+known_gap_status:
+  previous: v2 ⚠️ data_gap(明日世界杯仅 3 场,4串11 需 4 场),route_complete=false
+  current: v3 维持 ⚠️ data_gap(场次不足属数据现实,v3 合成 ID 分离无法消除),但降级 3 串路径工具链可靠性升档
+  resolution: 主 gap 非工具层可解(数据现实),需 playbook 据实告知+降级方案+强制风险提示;
+    v3 合成 ID 分离已使降级路径下游链路可靠

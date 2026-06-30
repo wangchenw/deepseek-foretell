@@ -1,6 +1,8 @@
 {
   "type_id": "H05",
   "case_id": "TC-H05-001",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_league",
@@ -16,8 +18,9 @@
         "league_id": 82
       },
       "code": "OK",
-      "count": 30,
+      "count": 20,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

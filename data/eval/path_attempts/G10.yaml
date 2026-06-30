@@ -32,24 +32,24 @@ context:
     status_id: 8
     note: 已完赛世界杯比赛，交叉验证战术对位/数据变量类工具实现完整性
 attempts:
-# ===== turn1 / T1-g0, T1-a1 : maintain_context（编排层，无对应 foretell 工具）=====
 - turn: 1
   atomic_id: T1-g0
   category: maintain_context
   status: orchestration_layer
-  note: entity_entry=context，两场 match_id 由 checkpointer 上下文承载；maintain_context 属 agent 编排层，工具探针不评
+  note: entity_entry=context，两场 match_id 由 checkpointer 上下文承载；maintain_context 属 agent
+    编排层，工具探针不评
 - turn: 1
   atomic_id: T1-a1
   category: maintain_context
   status: orchestration_layer
   note: maintain_context 属 agent 编排层（同 G01 结论），依赖 checkpointer 未在工具路径验证
-# ===== turn1 / T1-a2 : synthesize_answer —— 七大维度深度工具链（M1 巴西vs日本 4459720）=====
 - turn: 1
   atomic_id: T1-a2
   round: 1
   dimension: 基本面
   tool: get_standings
-  params: {league_id: 1}
+  params:
+    league_id: 1
   code: OK
   count: 30
   stub: false
@@ -58,7 +58,9 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_fifa_ranking
-  params: {gender: 1, limit: 30}
+  params:
+    gender: 1
+    limit: 30
   code: OK
   count: 30
   stub: false
@@ -67,7 +69,8 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_team_squad
-  params: {team_id: 10477}
+  params:
+    team_id: 10477
   note: 巴西大名单
   code: OK
   count: 26
@@ -77,7 +80,8 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_team_squad
-  params: {team_id: 14529}
+  params:
+    team_id: 14529
   note: 日本大名单
   code: OK
   count: 26
@@ -87,7 +91,8 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_team_season_stats
-  params: {team_id: 10477}
+  params:
+    team_id: 10477
   code: OK
   stub: false
 - turn: 1
@@ -95,7 +100,10 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_h2h
-  params: {team_a: 10477, team_b: 14529, n: 5}
+  params:
+    team_a: 10477
+    team_b: 14529
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -104,7 +112,9 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_recent_form
-  params: {team_id: 10477, n: 5}
+  params:
+    team_id: 10477
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -113,7 +123,9 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_recent_form
-  params: {team_id: 14529, n: 5}
+  params:
+    team_id: 14529
+    n: 5
   code: OK
   count: 5
   stub: false
@@ -122,7 +134,9 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_team_honors
-  params: {team_id: 10477, sport: football}
+  params:
+    team_id: 10477
+    sport: football
   code: OK
   count: 20
   stub: false
@@ -131,7 +145,9 @@ attempts:
   round: 1
   dimension: 基本面
   tool: get_top_scorers
-  params: {competition_id: 1, limit: 20}
+  params:
+    competition_id: 1
+    limit: 20
   code: DATA_MISSING
   stub: false
   note: 世界杯射手榜尚未填充，非七大维度必需
@@ -140,7 +156,8 @@ attempts:
   round: 1
   dimension: 伤停战意
   tool: get_injury_report
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -148,7 +165,8 @@ attempts:
   round: 1
   dimension: 伤停战意
   tool: get_intel_tags
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   count: 5
   stub: false
@@ -157,7 +175,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_odds_snapshot
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -165,7 +184,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_odds_trend
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   count: 50
   stub: false
@@ -174,7 +194,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_kelly
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -182,7 +203,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_over_under_odds
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -190,7 +212,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_half_odds
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -198,7 +221,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_corner_odds
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
 - turn: 1
@@ -206,7 +230,8 @@ attempts:
   round: 1
   dimension: 数据指数
   tool: get_official_handicap_odds
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   count: 1
   stub: false
@@ -215,7 +240,8 @@ attempts:
   round: 1
   dimension: 战术对位
   tool: get_match_lineup
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
   note: 返回 confirmed/formation/coach，未开赛阵容可能未最终确认
@@ -224,7 +250,8 @@ attempts:
   round: 1
   dimension: 战术对位
   tool: get_match_team_stats
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: DATA_MISSING
   stub: false
   note: 未开赛尚无比赛统计（物理时序），M3 已完赛验证工具实现 OK
@@ -233,7 +260,9 @@ attempts:
   round: 1
   dimension: 战术对位
   tool: get_match_player_stats
-  params: {match_id: 4459720, limit: 30}
+  params:
+    match_id: 4459720
+    limit: 30
   code: DATA_MISSING
   stub: false
   note: 未开赛尚无球员比赛统计，M3 验证实现 OK
@@ -242,7 +271,8 @@ attempts:
   round: 1
   dimension: 数据变量
   tool: get_goals_lost_rate
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   count: 7
   stub: false
@@ -251,7 +281,9 @@ attempts:
   round: 1
   dimension: 数据变量
   tool: get_match_half_stats
-  params: {match_id: 4459720, scope: ft}
+  params:
+    match_id: 4459720
+    scope: ft
   code: DATA_MISSING
   stub: false
   note: 未开赛尚无半全场统计，M3 验证实现 OK
@@ -260,7 +292,8 @@ attempts:
   round: 1
   dimension: 数据变量
   tool: get_match_incidents
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: DATA_MISSING
   stub: false
   note: 未开赛尚无比赛事件，M3 验证实现 OK
@@ -269,7 +302,8 @@ attempts:
   round: 1
   dimension: 历史盘口
   tool: get_same_odds_history
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   count: 10
   stub: false
@@ -278,7 +312,8 @@ attempts:
   round: 1
   dimension: 历史盘口
   tool: get_match_result
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: NOT_APPLICABLE
   stub: false
   note: 未开赛无赛果（物理时序），M3 已完赛返回 OK
@@ -287,24 +322,26 @@ attempts:
   round: 1
   dimension: 市场资金
   tool: get_betfair
-  params: {match_id: 4459720}
+  params:
+    match_id: 4459720
   code: OK
   stub: false
   note: 返回 trade_index/trade_ratio/trade_amount/live_price/profit_index/hot_cold_index/listing_ratio
-# ===== M2 德国vs巴拉圭 4459718：与 M1 同为世界杯未开赛，工具链同构 =====
 - turn: 1
   atomic_id: T1-a2
   round: 2
   match_id: 4459718
-  note: 同 M1 七大维度全套，结果同构；唯一差异 get_h2h count=1（德国 vs 巴拉圭历史交锋少），其余 standings=30/squad=26/recent_form=5/team_honors=20/odds_snapshot/trend=50/kelly/over_under/half_odds/corner_odds/official_handicap=1/injury/intel_tags=5/goals_lost_rate=7/same_odds_history=10/betfair 全 OK；team_stats/player_stats/half_stats/incidents DATA_MISSING、match_result NOT_APPLICABLE（未开赛时序），top_scorers DATA_MISSING
-# ===== M3 南非vs加拿大 4459717（已完赛）：交叉验证战术/变量/历史工具实现完整性 =====
+  note: 同 M1 七大维度全套，结果同构；唯一差异 get_h2h count=1（德国 vs 巴拉圭历史交锋少），其余 standings=30/squad=26/recent_form=5/team_honors=20/odds_snapshot/trend=50/kelly/over_under/half_odds/corner_odds/official_handicap=1/injury/intel_tags=5/goals_lost_rate=7/same_odds_history=10/betfair
+    全 OK；team_stats/player_stats/half_stats/incidents DATA_MISSING、match_result NOT_APPLICABLE（未开赛时序），top_scorers
+    DATA_MISSING
 - turn: 1
   atomic_id: T1-a2
   round: 3
   match_id: 4459717
   dimension: 战术对位
   tool: get_match_team_stats
-  params: {match_id: 4459717}
+  params:
+    match_id: 4459717
   code: OK
   count: 2
   stub: false
@@ -314,7 +351,9 @@ attempts:
   match_id: 4459717
   dimension: 战术对位
   tool: get_match_player_stats
-  params: {match_id: 4459717, limit: 30}
+  params:
+    match_id: 4459717
+    limit: 30
   code: OK
   count: 30
   stub: false
@@ -324,7 +363,9 @@ attempts:
   match_id: 4459717
   dimension: 数据变量
   tool: get_match_half_stats
-  params: {match_id: 4459717, scope: ft}
+  params:
+    match_id: 4459717
+    scope: ft
   code: OK
   stub: false
 - turn: 1
@@ -333,7 +374,8 @@ attempts:
   match_id: 4459717
   dimension: 数据变量
   tool: get_match_incidents
-  params: {match_id: 4459717}
+  params:
+    match_id: 4459717
   code: OK
   count: 19
   stub: false
@@ -343,19 +385,27 @@ attempts:
   match_id: 4459717
   dimension: 历史盘口
   tool: get_match_result
-  params: {match_id: 4459717}
+  params:
+    match_id: 4459717
   code: OK
   stub: false
 satisfied:
 - T1-a2
-satisfied_note: T1-g0/T1-a1（maintain_context）属 agent 编排层，工具路径不评，由 context_handling 维度在 LLM eval 阶段评定
+satisfied_note: T1-g0/T1-a1（maintain_context）属 agent 编排层，工具路径不评，由 context_handling
+  维度在 LLM eval 阶段评定
 blocking_gap:
   type: none
-  description: 七大维度深度工具链完整可得（27 工具 stub=false，实现完整）；未开赛比赛的 team_stats/player_stats/half_stats/incidents/match_result DATA_MISSING/NOT_APPLICABLE 系物理时序约束（M3 已完赛交叉验证工具实现 OK），top_scorers 世界杯射手榜未填充非七大维度必需；maintain_context 属编排层。无 routing/implementation/data 阻塞 gap。
+  description: 七大维度深度工具链完整可得（27 工具 stub=false，实现完整）；未开赛比赛的 team_stats/player_stats/half_stats/incidents/match_result
+    DATA_MISSING/NOT_APPLICABLE 系物理时序约束（M3 已完赛交叉验证工具实现 OK），top_scorers 世界杯射手榜未填充非七大维度必需；maintain_context
+    属编排层。无 routing/implementation/data 阻塞 gap。
   failed_atomic: null
 route_complete: true
 verdict: verified
 key_findings:
-- 七大维度（基本面/伤停战意/数据指数/战术对位/数据变量/历史盘口/市场资金）对应 27 个 foretell 工具全部 stub=false 且实现完整；M3 已完赛交叉验证 team_stats(OK 2)/player_stats(OK 30)/half_stats(OK)/incidents(OK 19)/match_result(OK) 实现完整，证明未开赛 DATA_MISSING 是数据时序物理约束而非 implementation_gap。
-- 世界杯 competition_id=1 / season_id=13776 当前进行中，standings(30)/fifa_ranking(30)/squad(26)/h2h/recent_form(5)/team_honors(20)/全套赔率(欧亚大小/半场/角球/官方让球)/odds_trend(50)/intel_tags(5)/injury/lineup/goals_lost_rate(7)/same_odds_history(10)/betfair 全部 OK，重新深度分析所需赛前数据齐全。
-- top_scorers 世界杯射手榜 DATA_MISSING（数据未填充），但非七大维度必需项；T1-g0/T1-a1 maintain_context 属 agent 编排层（checkpointer），工具路径不评，计入 context_handling 维度。
+- 七大维度（基本面/伤停战意/数据指数/战术对位/数据变量/历史盘口/市场资金）对应 27 个 foretell 工具全部 stub=false 且实现完整；M3
+  已完赛交叉验证 team_stats(OK 2)/player_stats(OK 30)/half_stats(OK)/incidents(OK 19)/match_result(OK)
+  实现完整，证明未开赛 DATA_MISSING 是数据时序物理约束而非 implementation_gap。
+- 世界杯 competition_id=1 / season_id=13776 当前进行中，standings(30)/fifa_ranking(30)/squad(26)/h2h/recent_form(5)/team_honors(20)/全套赔率(欧亚大小/半场/角球/官方让球)/odds_trend(50)/intel_tags(5)/injury/lineup/goals_lost_rate(7)/same_odds_history(10)/betfair
+  全部 OK，重新深度分析所需赛前数据齐全。
+- top_scorers 世界杯射手榜 DATA_MISSING（数据未填充），但非七大维度必需项；T1-g0/T1-a1 maintain_context 属
+  agent 编排层（checkpointer），工具路径不评，计入 context_handling 维度。

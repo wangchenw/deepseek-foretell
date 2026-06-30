@@ -18,7 +18,6 @@ turns:
   - id: T1-a2
     category: synthesize_answer
 attempts:
-# ===== turn0 前序上下文建立:定位"今天竞彩001" =====
 - round: 1
   turn: 0
   atomic_id: T1-g0
@@ -57,13 +56,13 @@ attempts:
   fallback: sql_direct
   tool: sql
   params:
-    query: SELECT issue,issue_num,comp,home,away,match_time_str,sell_status FROM lottery_jczq_odds WHERE issue LIKE '260629%'
+    query: SELECT issue,issue_num,comp,home,away,match_time_str,sell_status FROM lottery_jczq_odds
+      WHERE issue LIKE '260629%'
   code: OK
   count: 3
   stub: false
-  note: issue=260629 仅 issue_num 1074/1075/1076(周一074/075/076),match_time_str 均为 2026-06-30,sell_status=3 停售;无001编码、无已完赛比赛
-# ===== turn1 "继续" 补充维度工具验证(解释"为什么赢/赢2球") =====
-# 用最近已完赛 football_match id=4564893(2026-06-29 20:00 完赛,常规5:0)作 proxy
+  note: issue=260629 仅 issue_num 1074/1075/1076(周一074/075/076),match_time_str 均为 2026-06-30,sell_status=3
+    停售;无001编码、无已完赛比赛
 - round: 3
   turn: 1
   atomic_id: T1-a2
@@ -106,34 +105,33 @@ satisfied:
 - T1-a1
 - T1-a2
 satisfied_notes:
-  T1-g0: maintain_context — agent 编排层(agent_layer_covered),工具层不验证;但前序实体(今天竞彩001)在 DB 不存在,见 blocking_gap
-  T1-a1: maintain_context — agent 编排层(agent_layer_covered),依赖 checkpointer/session,同 G01 未测
-  T1-a2: synthesize_answer — agent 编排层;补充维度工具(team_stats/incidents/intel/lineup)implementation OK 非 stub 可调,proxy 数据未填充
+  T1-g0: maintain_context — agent 编排层(agent_layer_covered),工具层不验证;但前序实体(今天竞彩001)在
+    DB 不存在,见 blocking_gap
+  T1-a1: maintain_context — agent 编排层(agent_layer_covered),依赖 checkpointer/session,同
+    G01 未测
+  T1-a2: synthesize_answer — agent 编排层;补充维度工具(team_stats/incidents/intel/lineup)implementation
+    OK 非 stub 可调,proxy 数据未填充
 agent_layer_covered: true
 blocking_gap:
   type: data_gap
-  description: >-
-    今天(2026-06-29 周一)竞彩足球无 001 编码比赛:resolve_lottery_match(play_type=101,
+  description: 今天(2026-06-29 周一)竞彩足球无 001 编码比赛:resolve_lottery_match(play_type=101,
     code=001, date=2026-06-29 及无 date)均 ENTITY_NOT_FOUND;SQL 直查 lottery_jczq_odds
-    issue=260629 仅 3 场(issue_num 1074-076 = 周一074/075/076),开赛日 2026-06-30、
-    sell_status=3 停售,均未开赛。"继续"所延续的前序分析对象(竞彩001赢球赢2球)在当前 DB
-    不存在,follow_up 前提数据缺失。maintain_context/synthesize(T1-g0/T1-a1/T1-a2)属
-    agent 编排层(agent_layer_covered=true),不阻塞工具层;补充维度工具
-    get_match_team_stats/get_match_incidents/get_intel_tags/get_match_lineup 均非 stub
-    (返回 DATA_MISSING 结构化 envelope)可被"继续"轮补充调用,但 proxy 比赛维度数据未填充。
+    issue=260629 仅 3 场(issue_num 1074-076 = 周一074/075/076),开赛日 2026-06-30、 sell_status=3
+    停售,均未开赛。"继续"所延续的前序分析对象(竞彩001赢球赢2球)在当前 DB 不存在,follow_up 前提数据缺失。maintain_context/synthesize(T1-g0/T1-a1/T1-a2)属
+    agent 编排层(agent_layer_covered=true),不阻塞工具层;补充维度工具 get_match_team_stats/get_match_incidents/get_intel_tags/get_match_lineup
+    均非 stub (返回 DATA_MISSING 结构化 envelope)可被"继续"轮补充调用,但 proxy 比赛维度数据未填充。
   failed_atomic: T1-g0
 route_complete: false
 verdict_lean: conditional_pass
-verdict_reason: >-
-  agent 层 maintain_context/session 能力可延续(agent_layer_covered,核心验证目标达成),
-  工具层补充维度可调且非 stub;但 follow_up 前序上下文对象(今天竞彩001)在 DB 不存在,
-  端到端数据前提缺失,需上一轮真实存在已完赛比赛才能完整验证 continue 链路。
+verdict_reason: agent 层 maintain_context/session 能力可延续(agent_layer_covered,核心验证目标达成),
+  工具层补充维度可调且非 stub;但 follow_up 前序上下文对象(今天竞彩001)在 DB 不存在, 端到端数据前提缺失,需上一轮真实存在已完赛比赛才能完整验证
+  continue 链路。
 key_findings:
-- 今天(2026-06-29 周一)竞彩足球 issue=260629 仅有 074-076 三场且均 2026-06-30 开赛/停售,
-  无 001 编码、无已完赛比赛——「今天竞彩001赢球赢2球」前提数据不成立(resolve_lottery_match
+- 今天(2026-06-29 周一)竞彩足球 issue=260629 仅有 074-076 三场且均 2026-06-30 开赛/停售, 无 001 编码、无已完赛比赛——「今天竞彩001赢球赢2球」前提数据不成立(resolve_lottery_match
   001 ENTITY_NOT_FOUND,SQL 直查佐证)。
-- G05 三个 atomic 全为 maintain_context/synthesize(agent 编排层),工具层无 atomic;
-  agent_layer_covered=true(假设 checkpointer,同 G01 未测),核心验证目标达成。
-- 「继续」可补充的解释维度工具(get_match_team_stats/incidents/intel_tags/lineup)均
-  implementation OK 非 stub,可调用(虽 proxy 比赛 4564893 返回 DATA_MISSING)。
-cross_sport_collision: none — entity_entry=context 已锁定前序为竞彩足球001,sport=any 不引入跨运动歧义;今天篮球 jclq 另算,未触发 ID 碰撞。
+- G05 三个 atomic 全为 maintain_context/synthesize(agent 编排层),工具层无 atomic; agent_layer_covered=true(假设
+  checkpointer,同 G01 未测),核心验证目标达成。
+- 「继续」可补充的解释维度工具(get_match_team_stats/incidents/intel_tags/lineup)均 implementation
+  OK 非 stub,可调用(虽 proxy 比赛 4564893 返回 DATA_MISSING)。
+cross_sport_collision: none — entity_entry=context 已锁定前序为竞彩足球001,sport=any 不引入跨运动歧义;今天篮球
+  jclq 另算,未触发 ID 碰撞。

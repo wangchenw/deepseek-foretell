@@ -2,91 +2,129 @@ type_id: B08
 case_id: TC-B08-001
 explored_at: '2026-06-29'
 source: path_explorer_agent
-scenario_summary: |
-  篮球五段分析（play_type=201 大小分）。场景：4月8号周三 303-309 共 7 场 NBA 美职篮
+scenario_summary: '篮球五段分析（play_type=201 大小分）。场景：4月8号周三 303-309 共 7 场 NBA 美职篮
+
   大小分盘口 237.5/229.5/222.5/245.5/230.5/231.5/226.5。多轮后续含让分串关与资金分配。
+
   atomic: T1-a1 resolve_entity(match) / T1-a2 synthesize / T1-b1 delegate(fundamentals,odds,intel)
+
   / T1-b2 synthesize(six_segment)。entity_entry=match。
+
+  '
 attempts:
-# ===== T1-a1: resolve_entity (lottery match 303-309) =====
 - round: 1
   atomic_id: T1-a1
   tool: get_lottery_schedule
-  params: {play_type: '201'}
+  params:
+    play_type: '201'
   code: OK
   count: 2
   stub: false
-  note: |
-    默认期（2026-06-29 期）返回 2 条世预男篮（周一301 卡塔尔vs沙特 / 周一302 伊拉克vs约旦），
+  note: '默认期（2026-06-29 期）返回 2 条世预男篮（周一301 卡塔尔vs沙特 / 周一302 伊拉克vs约旦），
+
     无 NBA 条目（NBA 6 月休赛期）。无法满足 4月8号 303-309 场景。
+
+    '
 - round: 1
   atomic_id: T1-a1
   tool: get_lottery_schedule
-  params: {play_type: '201', date: '2026-04-08'}
+  params:
+    play_type: '201'
+    date: '2026-04-08'
   code: OK
   count: 15
   stub: false
-  note: |
-    带 date=2026-04-08 返回 15 条：周二301-305 欧篮联（贝红星/奥林匹亚/博洛尼亚/巴伦西亚/巴萨）
+  note: '带 date=2026-04-08 返回 15 条：周二301-305 欧篮联（贝红星/奥林匹亚/博洛尼亚/巴伦西亚/巴萨）
+
     + 周二306-315 美职篮（步行者/奇才/篮网/猛龙/鹈鹕/凯尔特人/勇士/湖人/快船/太阳）。
+
     ⚠️ DB 用「周二」前缀（lottery issue 周二），而场景用户写「周三」前缀。
+
     ⚠️ 303-309 中仅 306-309（4 场）是 NBA，303-305 为欧篮联——与场景「7 场 NBA」描述不符
+
     （场景可能基于不同 issue/period，DB 该期 303-305 不是 NBA）。
+
+    '
 - round: 1
   atomic_id: T1-a1
   tool: resolve_lottery_match
-  params: {play_type: '201', code: '周三303', date: '2026-04-08'}
+  params:
+    play_type: '201'
+    code: 周三303
+    date: '2026-04-08'
   code: ENTITY_NOT_FOUND
   stub: false
-  note: |
-    routing_gap — 用户「周三」前缀 + date 过滤在 4月8号 issue 中无匹配（DB 用「周二」前缀）。
+  note: 'routing_gap — 用户「周三」前缀 + date 过滤在 4月8号 issue 中无匹配（DB 用「周二」前缀）。
+
     fallback：去 date 用默认期映射，或改用「周二」前缀。
+
+    '
 - round: 2
   atomic_id: T1-a1
   tool: resolve_lottery_match
-  params: {play_type: '201', code: '周二303', date: '2026-04-08'}
+  params:
+    play_type: '201'
+    code: 周二303
+    date: '2026-04-08'
   code: OK
   stub: false
   note: 返回 博洛尼亚 vs 拜仁（欧篮联），非 NBA。303-305 在该期均非美职篮。
 - round: 2
   atomic_id: T1-a1
   tool: resolve_lottery_match
-  params: {play_type: '201', code: '周二309', date: '2026-04-08'}
+  params:
+    play_type: '201'
+    code: 周二309
+    date: '2026-04-08'
   code: OK
   stub: false
-  note: |
-    返回 猛龙 vs 热火（美职篮），odds 结构完整：sf(home_win 1.55/away_win 1.87) +
+  note: '返回 猛龙 vs 热火（美职篮），odds 结构完整：sf(home_win 1.55/away_win 1.87) +
+
     rf(handicap -1.5, 1.65/1.75) + dxf(total=240.5, over 1.62/under 1.78) +
+
     sfc(12 档分差赔率)。match_id=null（lottery 未链接到 basketball_match）。
+
     ⚠️ dxf.total=240.5 与场景盘口 226.5（309）不一致，但 dxf 字段结构满足大小分分析需求。
+
+    '
 - round: 2
   atomic_id: T1-a1
   tool: resolve_lottery_match
-  params: {play_type: '201', code: '周三309'}
+  params:
+    play_type: '201'
+    code: 周三309
   code: OK
   stub: false
-  note: |
-    去 date 用默认期：周三309 → 快船 vs 雷霆（美职篮）。说明「周三」前缀在默认期可解，
+  note: '去 date 用默认期：周三309 → 快船 vs 雷霆（美职篮）。说明「周三」前缀在默认期可解，
+
     但 4月8号 date 需「周二」前缀——前缀↔issue 映射不一致，是 routing 易错点。
-# ===== T1-a1 fallback: cross-reference real basketball_match via schedule_by_date =====
+
+    '
 - round: 2
   atomic_id: T1-a1
   tool: get_schedule_by_date
-  params: {date: '2026-04-08', sport: basketball}
+  params:
+    date: '2026-04-08'
+    sport: basketball
   code: OK
   count: 100
   stub: false
-  note: |
-    返回 100 场篮球比赛，含 10 场 NBA 真实 match_id（步行者vs森林狼 3867308 /
+  note: '返回 100 场篮球比赛，含 10 场 NBA 真实 match_id（步行者vs森林狼 3867308 /
+
     奇才vs公牛 3868967 / 猛龙vs热火 3869174 / 篮网vs雄鹿 3892962 / 凯尔特人vs黄蜂 3868765 /
+
     鹈鹕vs爵士 3869138 / 勇士vs国王 3867718 / 快船vs独行侠 3867514 / 湖人vs雷霆 3868531 /
+
     太阳vs火箭 3868337）。可与 lottery 周二306-315 交叉对齐获取真实 match_id，
+
     但 lottery.match_id=null 未自动链接，需 agent 手工 cross-reference。
-# ===== T1-b1: delegate_subagent (fundamentals) =====
+
+    '
 - round: 1
   atomic_id: T1-b1-fundamentals
   tool: resolve_basketball_league
-  params: {name: 'NBA'}
+  params:
+    name: NBA
   code: OK
   count: 10
   stub: false
@@ -94,7 +132,8 @@ attempts:
 - round: 1
   atomic_id: T1-b1-fundamentals
   tool: resolve_basketball_team
-  params: {name: '猛龙'}
+  params:
+    name: 猛龙
   code: OK
   count: 10
   stub: false
@@ -102,125 +141,161 @@ attempts:
 - round: 1
   atomic_id: T1-b1-fundamentals
   tool: get_basketball_standings
-  params: {league_id: 1}
+  params:
+    league_id: 1
   code: OK
   count: 30
   stub: false
-  note: |
-    返回 30 行 NBA 积分榜，含 won/lost/win_rate/points_per_game/points_against_per_game/
+  note: '返回 30 行 NBA 积分榜，含 won/lost/win_rate/points_per_game/points_against_per_game/
+
     diff_per_game/streak/home_record/away_record/last_10 等完整字段。
+
     顶部 尼克斯(10115) 3-1 / win_rate 0.75 / ppg 128.0 / papg 119.3。
+
+    '
 - round: 1
   atomic_id: T1-b1-fundamentals
   tool: get_team_schedule
-  params: {team_id: 10115, direction: all, limit: 5}
+  params:
+    team_id: 10115
+    direction: all
+    limit: 5
   code: OK
   count: 5
   stub: false
-  note: |
-    implementation_gap — 工具查 football_match/football_team 表，传篮球 team_id=10115（尼克斯 NBA）
+  note: 'implementation_gap — 工具查 football_match/football_team 表，传篮球 team_id=10115（尼克斯
+    NBA）
+
     返回的是 利物浦 vs 伯恩茅斯（英超）。跨运动 ID 碰撞，无篮球版 team_schedule 工具
+
     （与 B02 同源 gap）。fallback：get_schedule_by_date(sport=basketball) 间接查赛程，无法按球队过滤。
+
+    '
 - round: 1
   atomic_id: T1-b1-fundamentals
   tool: get_schedule_by_date
-  params: {date: '2026-04-08', sport: basketball}
+  params:
+    date: '2026-04-08'
+    sport: basketball
   code: OK
   count: 100
   stub: false
   note: 同 T1-a1 fallback，10 场 NBA 含真实 match_id，可作 fundamentals 赛程数据源。
-# ===== T1-b1: delegate_subagent (odds - 大小分 dxf) =====
 - round: 1
   atomic_id: T1-b1-odds
   tool: resolve_lottery_match
-  params: {play_type: '201', code: '周二309', date: '2026-04-08'}
+  params:
+    play_type: '201'
+    code: 周二309
+    date: '2026-04-08'
   code: OK
   stub: false
-  note: |
-    dxf（大小分）赔率结构可用：total=240.5, over 1.62 / under 1.78。
+  note: 'dxf（大小分）赔率结构可用：total=240.5, over 1.62 / under 1.78。
+
     场景要求的「大小分盘口」对应 dxf.total 字段，结构吻合（4 场 NBA 306-309 均可解析）。
+
     ⚠️ lottery 201 仅 sf/rf/dxf/sfc 四档赔率，无亚盘/欧赔/角球等足球类深度赔率；
+
     篮球大小分深度赔率（盘口趋势/同盘历史）需 get_odds_snapshot/get_odds_trend，
+
     但这些工具按 match_id 查询，lottery match_id=null → 阻断。
-# ===== T1-b1: delegate_subagent (intel) =====
+
+    '
 - round: 1
   atomic_id: T1-b1-intel
   tool: get_intel_tags
-  params: {match_id: 3869174}
+  params:
+    match_id: 3869174
   code: DATA_MISSING
   count: 0
   stub: false
-  note: |
-    用 schedule_by_date 取得的 NBA 真实 match_id（猛龙vs热火 3869174）查询，
+  note: '用 schedule_by_date 取得的 NBA 真实 match_id（猛龙vs热火 3869174）查询，
+
     返回 tags=[] 无情报标签。该 NBA 比赛无 intel 数据。
+
+    '
 - round: 1
   atomic_id: T1-b1-intel
   tool: get_injury_report
-  params: {match_id: 3869174}
+  params:
+    match_id: 3869174
   code: OK
   stub: false
-  note: |
-    ⚠️ implementation_gap（跨运动数据串台）— 工具返回「高桥耕平 半月板受伤 / 谷冈昌 未知伤病」
+  note: '⚠️ implementation_gap（跨运动数据串台）— 工具返回「高桥耕平 半月板受伤 / 谷冈昌 未知伤病」
+
     等日本足球球员伤病，与猛龙vs热火（NBA）完全不符。deep 工具层存在跨运动 match_id 碰撞，
+
     传篮球 match_id 返回足球伤病数据，会污染五段分析。
+
+    '
 - round: 1
   atomic_id: T1-b1-intel
   tool: get_match_team_stats
-  params: {match_id: 3869174}
+  params:
+    match_id: 3869174
   code: OK
   count: 2
   stub: false
-  note: |
-    ⚠️ implementation_gap（跨运动数据串台）— 返回 team_name=爱媛FC（日本足球）的 stats
+  note: '⚠️ implementation_gap（跨运动数据串台）— 返回 team_name=爱媛FC（日本足球）的 stats
+
     （goals/penalty/assists/red_cards/yellow_cards/shots/...），全是足球字段，
+
     与 NBA 猛龙vs热火不符。同源 deep 工具跨运动碰撞。
+
+    '
 - round: 1
   atomic_id: T1-b1-intel
   tool: get_match_lineup
-  params: {match_id: 3869174}
+  params:
+    match_id: 3869174
   code: DATA_MISSING
   count: 0
   stub: false
   note: 该 NBA 比赛无 lineup 数据。
-# ===== T1-b2: synthesize_answer (six_segment) =====
 - round: 1
   atomic_id: T1-b2
   tool: synthesize_answer
-  params: {format: six_segment}
+  params:
+    format: six_segment
   code: NOT_INVOKED
   stub: false
-  note: |
-    非工具步骤；依赖 b1 数据完整性。b1 中 intel 子段被 deep 工具跨运动碰撞污染
+  note: '非工具步骤；依赖 b1 数据完整性。b1 中 intel 子段被 deep 工具跨运动碰撞污染
+
     （get_injury_report/get_match_team_stats 返回足球数据），fundamentals 的 team_schedule
+
     跨运动碰撞，six_segment 合成会基于错误数据 → 阻断。
+
+    '
 satisfied:
 - T1-a1
 blocking_gap:
   type: implementation_gap
-  description: |
-    主要 gap（implementation_gap，跨运动 ID 碰撞，比 B02 更严重）：
-    (1) get_team_schedule 传篮球 team_id 返回足球比赛（与 B02 同源）；
-    (2) **deep 工具层跨运动 match_id 碰撞** — get_injury_report/get_match_team_stats 用 NBA 真实
-        match_id（3869174 猛龙vs热火，来自 get_schedule_by_date sport=basketball）查询，返回的却是
-        日本足球（爱媛FC / 高桥耕平 / 谷冈昌）的伤病与统计，会直接污染五段分析的 intel/fundamentals 段，
-        导致合成错误结论。这是 B02 未覆盖的新 gap（B02 因 lottery match_id=null 未触达 deep 工具）。
-    (3) lottery 201 条目 match_id=null，未自动链接到 basketball_match，需 agent 手工 cross-reference
-        （get_schedule_by_date 取真实 match_id）；get_odds_snapshot/get_odds_trend 等深度赔率工具
-        按 match_id 查询，lottery match_id=null 阻断深度赔率路径。
-    次要 gap（routing_gap）：用户「周三303-309」前缀在 4月8号 issue 中 ENTITY_NOT_FOUND，
-    DB 该期用「周二306-315」前缀；且 303-305 在该期为欧篮联非 NBA，与场景「7 场 NBA」描述不符
-    （场景可能对应不同 issue/period，DB 该期仅 306-309 共 4 场 NBA）。
+  description: "主要 gap（implementation_gap，跨运动 ID 碰撞，比 B02 更严重）：\n(1) get_team_schedule\
+    \ 传篮球 team_id 返回足球比赛（与 B02 同源）；\n(2) **deep 工具层跨运动 match_id 碰撞** — get_injury_report/get_match_team_stats\
+    \ 用 NBA 真实\n    match_id（3869174 猛龙vs热火，来自 get_schedule_by_date sport=basketball）查询，返回的却是\n\
+    \    日本足球（爱媛FC / 高桥耕平 / 谷冈昌）的伤病与统计，会直接污染五段分析的 intel/fundamentals 段，\n    导致合成错误结论。这是\
+    \ B02 未覆盖的新 gap（B02 因 lottery match_id=null 未触达 deep 工具）。\n(3) lottery 201 条目\
+    \ match_id=null，未自动链接到 basketball_match，需 agent 手工 cross-reference\n    （get_schedule_by_date\
+    \ 取真实 match_id）；get_odds_snapshot/get_odds_trend 等深度赔率工具\n    按 match_id 查询，lottery\
+    \ match_id=null 阻断深度赔率路径。\n次要 gap（routing_gap）：用户「周三303-309」前缀在 4月8号 issue 中 ENTITY_NOT_FOUND，\n\
+    DB 该期用「周二306-315」前缀；且 303-305 在该期为欧篮联非 NBA，与场景「7 场 NBA」描述不符\n（场景可能对应不同 issue/period，DB\
+    \ 该期仅 306-309 共 4 场 NBA）。\n"
   failed_atomic: T1-b1
   secondary_gaps:
   - type: data_gap
-    description: |
-      lottery 201 NBA 条目 match_id=null 未链接 basketball_match；
+    description: 'lottery 201 NBA 条目 match_id=null 未链接 basketball_match；
+
       4月8号 issue 303-305 为欧篮联非 NBA（仅 306-309 共 4 场 NBA，缺 3 场）；
+
       get_intel_tags/get_match_lineup 对 NBA match_id 返回 DATA_MISSING。
+
+      '
   - type: routing_gap
-    description: |
-      「周三30X」前缀 + date=2026-04-08 ENTITY_NOT_FOUND，需改用「周二30X」前缀；
+    description: '「周三30X」前缀 + date=2026-04-08 ENTITY_NOT_FOUND，需改用「周二30X」前缀；
+
       lottery 前缀↔issue 映射随期变化（默认期周三30X 可解，4月8号需周二30X）。
+
+      '
 route_complete: false
 tendency: critical
 verified_tools:
@@ -229,7 +304,8 @@ verified_tools:
 - resolve_basketball_team (猛龙/骑士/魔术/热火 → NBA team_id OK)
 - resolve_basketball_league (NBA → league_id=1 OK)
 - get_basketball_standings (league_id=1 → 30 行 OK 含 ppg/papg/diff)
-- get_schedule_by_date (date=2026-04-08 sport=basketball → 100 场含 10 NBA 真实 match_id OK)
+- get_schedule_by_date (date=2026-04-08 sport=basketball → 100 场含 10 NBA 真实 match_id
+  OK)
 - get_team_schedule (篮球 team_id=10115 → 返回英超 利物浦vs伯恩茅斯 implementation_gap)
 - get_intel_tags (NBA match_id=3869174 → DATA_MISSING)
 - get_injury_report (NBA match_id=3869174 → 返回日本足球球员 ❌ 跨运动串台)

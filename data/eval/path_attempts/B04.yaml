@@ -5,12 +5,17 @@ explored_at: '2026-06-29'
 scenario: B
 entity_entry: match_pair
 priority: P2
-context: |
-  B04 场景为 FIFA 官方管辖、FIFA 指定国际比赛日周期内举办的男子国家队国际 A 级赛事,
+context: 'B04 场景为 FIFA 官方管辖、FIFA 指定国际比赛日周期内举办的男子国家队国际 A 级赛事,
+
   禁止引入世界杯决赛圈正赛会赛制逻辑,禁止俱乐部赛事。
+
   atomic T1-a1 要求 resolve_entity(match) —— 无 date 输入,仅靠主客对阵名称定位。
+
   T1-b1 委派 fundamentals/odds/intel 子智能体,T1-a2/T1-b2 合成六段式回答,
+
   均依赖 T1-a1 给出的唯一 match_id 才能启动后续工具链。
+
+  '
 attempts:
 - round: 1
   atomic_id: B04-T1-a1
@@ -24,12 +29,16 @@ attempts:
   count: 10
   match_status: ambiguous
   match_id: null
-  candidates_summary: |
-    10 条候选全部为女足/U17/U19/U21/室内足球(女欧U17、国际友谊、欧女国联、
+  candidates_summary: '10 条候选全部为女足/U17/U19/U21/室内足球(女欧U17、国际友谊、欧女国联、
+
     女欧U19、欧青U19、欧U21、世室欧预),无任何男子国家队国际 A 级赛。
-  note: |
-    ORDER BY match_time DESC LIMIT 10 导致近期青年/女足赛事占满窗口,
+
+    '
+  note: 'ORDER BY match_time DESC LIMIT 10 导致近期青年/女足赛事占满窗口,
+
     男子国家队 A 级赛(若存在)被截断在 LIMIT 之外。工具层无法给出唯一 match_id。
+
+    '
 - round: 2
   atomic_id: B04-T1-a1
   fallback: swap_to_distinct_mens_national_pair
@@ -43,13 +52,18 @@ attempts:
   count: 10
   match_status: ambiguous
   match_id: null
-  candidates_summary: |
-    10 条候选中仅 1 条男子国家队 A 级赛(match_id 4007940 阿根廷 vs 巴西
+  candidates_summary: '10 条候选中仅 1 条男子国家队 A 级赛(match_id 4007940 阿根廷 vs 巴西
+
     2025-03-26 世南美预),其余 9 条为 U17/U20/女足/沙南美预(空主客名)。
-  note: |
-    虽含 1 条男子 A 级,但被青年/女足赛事淹没且非置顶,match_status=ambiguous、
+
+    '
+  note: '虽含 1 条男子 A 级,但被青年/女足赛事淹没且非置顶,match_status=ambiguous、
+
     match_id=null。LLM 即便靠 league_name + 主客全名消歧,工具层亦未输出唯一 match_id
+
     供后续工具链调用。
+
+    '
 - round: 3
   atomic_id: B04-T1-a1
   fallback: swap_to_asian_mens_national_pair
@@ -63,37 +77,57 @@ attempts:
   count: 10
   match_status: ambiguous
   match_id: null
-  candidates_summary: |
-    10 条候选中仅末位 1 条男子国家队 A 级赛(match_id 4146376 中国 vs 日本
+  candidates_summary: '10 条候选中仅末位 1 条男子国家队 A 级赛(match_id 4146376 中国 vs 日本
+
     2024-11-19 世亚预),前 9 条为 U17/U20女足/U23/U15/U18/U16 各级青年/女足赛事。
-  note: |
-    男子 A 级排第 10 位触及 LIMIT 边缘,任何更冷门对阵将被完全截断。
+
+    '
+  note: '男子 A 级排第 10 位触及 LIMIT 边缘,任何更冷门对阵将被完全截断。
+
     三轮实测一致确认:无 date 下 resolve_match 无法可靠定位 B04 男子国家队 A 级赛。
+
+    '
 cross_reference:
-  X06: |
-    X06(同 match_pair 无 date 语境)在带 date=2026-06-27 + swap 挪威主场后命中世界杯;
+  X06: 'X06(同 match_pair 无 date 语境)在带 date=2026-06-27 + swap 挪威主场后命中世界杯;
+
     B04 明确无 date,无法借 date 消歧,因此无法复用 X06 的 route。
+
+    '
   X12: X12 借 date+swap 解路由;B04 无 date 不可照搬。
 satisfied: []
-satisfied_note: |
-  T1-a1 未满足(match_id=null),传导性导致 T1-b1(委派 fundamentals/odds/intel)、
+satisfied_note: 'T1-a1 未满足(match_id=null),传导性导致 T1-b1(委派 fundamentals/odds/intel)、
+
   T1-a2/T1-b2(合成六段式)均无 match_id 输入,无法启动;故 satisfied 为空。
+
+  '
 blocking_gap:
   type: routing_gap
-  description: |
-    resolve_match 无 date 时采用 ORDER BY match_time DESC LIMIT 10 的排序与截断策略,
+  description: 'resolve_match 无 date 时采用 ORDER BY match_time DESC LIMIT 10 的排序与截断策略,
+
     近期女足/U17/U19/U21 等次级赛事占满窗口,男子国家队国际 A 级赛要么被完全截断
+
     (法国 vs 挪威),要么被淹没且非置顶(阿根廷 vs 巴西、中国 vs 日本),match_status
+
     始终为 ambiguous、match_id=null。B04 禁止引入俱乐部/世界杯会赛逻辑,只能依赖
+
     男子国家队 A 级赛,但工具层无 date 路由策略无法在 LIMIT 10 内唯一浮出该类赛事。
+
     DB 实际可能含数据(带 date 时 X06/X12 已验证可命中),故属路由策略 gap 而非纯 data_gap。
+
+    '
   failed_atomic: B04-T1-a1
-  suggested_fix: |
-    工具层可为 resolve_match 增加"仅男子国家队 A 级"过滤(按 competition 性质/球队
+  suggested_fix: '工具层可为 resolve_match 增加"仅男子国家队 A 级"过滤(按 competition 性质/球队
+
     national 标记/排除 U17~U23/女足/室内)或在无 date 时扩大 LIMIT 并优先返回
+
     国家队成年组。属 Phase 2 工具层重构范畴,本次不修改 foretell/tools/。
+
+    '
 route_complete: false
-verdict: |
-  ❌ route incomplete —— T1-a1(routing_gap)阻断,无 date 下 resolve_match 无法
+verdict: '❌ route incomplete —— T1-a1(routing_gap)阻断,无 date 下 resolve_match 无法
+
   唯一定位 B04 男子国家队国际 A 级赛;T1-b1/T1-a2/T1-b2 传导性未满足。
+
   倾向 ❌(工具层路由缺口需 Phase 2 工具层重构修复)。
+
+  '

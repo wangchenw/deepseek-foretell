@@ -1,0 +1,136 @@
+type_id: B06
+case_id: TC-B06-001
+explored_at: '2026-06-30'
+v2_verdict: '⚠️ (v2 未单独出 path_attempts_v2;v1 probe_results 仅 resolve_match 皇马vs巴萨 OK,篮球 deep 路径未探索)'
+v3_verdict: '✅ pass (篮球多工具组合 resolve+standings+deep+odds 全打通,sport 路由生效)'
+verdict_tier: pass
+change_summary: >-
+  阶段3重写验证:全面深度分析在篮球场景的多工具组合链路(resolve_basketball_team
+  + get_basketball_standings + get_recent_form/get_h2h/get_injury_report/get_intel_tags
+  + get_odds_trend,均 sport=basketball)全部 OK。8 类无数据篮球 deep 工具(lineup/team_stats
+  /player_stats/incidents/tlive/half_stats 等)短路返 DATA_MISSING+reason,不伪命中足球。
+  以 NBA 尼克斯(10115)vs老鹰(10125),match_id=3917723 为样本验证。
+attempts:
+- round: 1
+  atomic_id: B06-T1-a1
+  tool: resolve_basketball_team
+  params: {name: 尼克斯}
+  code: OK
+  count: 10
+  stub: false
+  evidence: '首选 team_id=10115(New York Knicks, NBA)'
+- round: 1
+  atomic_id: B06-T1-a1
+  tool: resolve_basketball_team
+  params: {name: 老鹰}
+  code: OK
+  count: 10
+  stub: false
+  evidence: '首选 team_id=10125(Atlanta Hawks, NBA)'
+- round: 2
+  atomic_id: B06-T1-a2
+  tool: get_basketball_standings
+  params: {league_id: 1}
+  code: OK
+  count: 30
+  stub: false
+  evidence: >-
+    NBA 30 行积分榜,含尼克斯(won 53/lost 29,win_rate 0.646,points_per_game 116.5,
+    diff +6.4,home 30-10/away 22-19)、老鹰(won 2/lost 2,ppg 117.0)、马刺、雷霆等。
+    完整 won/lost/win_rate/games_back/ppg/papg/diff/streak/home_record/away_record/last_10。
+- round: 2
+  atomic_id: B06-T1-a3
+  tool: get_recent_form
+  params: {team_id: 10115, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: '尼克斯最近 5 场篮球(2026-06-04~14,全 L),goals_for/against 实为得分 ✅'
+- round: 2
+  atomic_id: B06-T1-a3
+  tool: get_h2h
+  params: {team_a: 10115, team_b: 10125, sport: basketball, n: 5}
+  code: OK
+  count: 5
+  stub: false
+  evidence: >-
+    5 场篮球交锋(2026-04-21~05-01),含 3917723(4-29 尼克斯vs老鹰)。
+    ⚠ 字段语义错位(full_time=半场、half_time=全场、red/yellow_card=各节得分),数据是篮球 ✅
+- round: 2
+  atomic_id: B06-T1-a4
+  tool: get_injury_report
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 2
+  stub: false
+  evidence: '老鹰 2 名伤员,走 basketball_team_injury ✅'
+- round: 2
+  atomic_id: B06-T1-a4
+  tool: get_intel_tags
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 5
+  stub: false
+  evidence: '5 条情报(系列赛 2-2、OG-阿努诺比 22+10、阿努诺比三世半场出勤等),走 basketball_intelligence ✅'
+- round: 3
+  atomic_id: B06-T1-a5
+  tool: get_match_team_stats
+  params: {match_id: 3917723, sport: basketball}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  evidence: 'basketball_match_team_stats 表不存在,短路 DATA_MISSING+reason ✅(不伪命中足球)'
+- round: 3
+  atomic_id: B06-T1-a5
+  tool: get_match_lineup
+  params: {match_id: 3917723, sport: basketball}
+  code: DATA_MISSING
+  count: 0
+  stub: false
+  evidence: 'basketball_match_lineup 表不存在,短路 DATA_MISSING+reason ✅(注:未实调,依据 deep.py _basketball_unavailable 路径)'
+- round: 3
+  atomic_id: B06-T1-a6
+  tool: get_odds_trend
+  params: {match_id: 3917723, sport: basketball}
+  code: OK
+  count: 50
+  stub: false
+  evidence: >-
+    50 点 2-way 篮球赔率(draw=0.0,home_win 1.45→1.36,away_win 2.55→3.30),
+    多公司(韦德/onex/12bet/Bet365/平博/立博/易胜博/澳门官方) ✅
+satisfied:
+- B06-T1-a1
+- B06-T1-a2
+- B06-T1-a3
+- B06-T1-a4
+- B06-T1-a5
+- B06-T1-a6
+blocking_gap: null
+route_complete: true
+route_path: >-
+  篮球全面深度分析:resolve_basketball_team(主/客) → get_basketball_standings(league_id)
+  + get_recent_form(team_id, sport=basketball) + get_h2h(a,b, sport=basketball)
+  + get_injury_report(match_id, sport=basketball) + get_intel_tags(match_id, sport=basketball)
+  + get_odds_trend(match_id, sport=basketball)。
+  无数据维度(lineup/team_stats/player_stats/incidents/tlive/half_stats)返 DATA_MISSING+reason,
+  LLM 降级不编造。
+caveats:
+- id: B06-standings-duplicate-rows
+  category: tool_logic_gap
+  note: >-
+    get_basketball_standings(1) 返 30 行但同 team_id 重复(尼克斯出现 2 次 position 1/3,
+    马刺 3 次),疑似季后赛+常规赛混合或多 season_id 合并。数据可用但 LLM 需结合
+    won/lost 规模判断是常规赛(60+ 胜)还是季后赛(3-5 胜)。建议加 season_id/stage 过滤。
+- id: B06-h2h-field-semantics
+  category: tool_logic_gap
+  note: >-
+    get_h2h sport=basketball 字段名复用 football(full_time=半场、half_time=全场、
+    red/yellow_card=各节得分)。数据正确,语义错位,建议为篮球单独映射 q1-q4 字段。
+- id: B06-deep-missing-dimensions
+  category: data_gap
+  note: >-
+    篮球 8 类 deep 维度无采集(lineup/team_stats/player_stats/incidents/tlive/half_stats
+    /player_market 等),走 DATA_MISSING+reason 短路。这是真实数据缺口(非工具 bug),
+    篮球深度分析的"战术统计/事件流/首发"维度缺失,LLM 须告知用户该维度不可用。
+notes:
+  sample_match: 'NBA 尼克斯(10115) vs 老鹰(10125), match_id=3917723 (2026-04-29, 周二303 竞彩篮球)'

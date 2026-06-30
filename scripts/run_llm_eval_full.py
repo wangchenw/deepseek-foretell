@@ -63,7 +63,12 @@ def probe_to_path_attempt(type_id: str, route_entry: dict[str, Any]) -> dict[str
     """Convert script probe result + route_matrix gap into path_attempts shape."""
     path_file = PATH_DIR / f"{type_id}.yaml"
     if path_file.exists():
-        return load_yaml(path_file)
+        try:
+            return load_yaml(path_file)
+        except Exception:
+            # v1 path_attempts 含预存 yaml 格式 bug(嵌套引号/全角括号),
+            # 不阻塞 v3 打分:丢弃损坏的 v1 记录,用新 probe_results 重建。
+            pass
 
     probe = load_probe_case(type_id) or {}
     probe_result = load_probe_result(type_id)

@@ -7,9 +7,9 @@ turns:
   text: 曼城对利物浦的比赛怎么看
 context:
   today: '2026-06-29'
-  last_week_window: '2026-06-22 ~ 2026-06-28'
-  note: 用户口语「上周比赛复盘」隐含 last-week 时间窗，但实际 DB 中两队最近一场已完赛
-    是 2026-04-04 英足总杯（约 12 周前），last-week 窗口内无曼城vs利物浦 比赛。
+  last_week_window: 2026-06-22 ~ 2026-06-28
+  note: 用户口语「上周比赛复盘」隐含 last-week 时间窗，但实际 DB 中两队最近一场已完赛 是 2026-04-04 英足总杯（约 12 周前），last-week
+    窗口内无曼城vs利物浦 比赛。
 attempts:
 - round: 1
   atomic_id: C02-T1-a1
@@ -49,8 +49,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: ambiguous 10 候选；最近已完赛 2026-04-04(match_id=4512595 英足总杯 4-0)，下一场
-    2027-05-08(not_started)；窗口内 0 命中
+  note: ambiguous 10 候选；最近已完赛 2026-04-04(match_id=4512595 英足总杯 4-0)，下一场 2027-05-08(not_started)；窗口内
+    0 命中
 - round: 2
   atomic_id: C02-T1-a1
   tool: resolve_match
@@ -82,8 +82,7 @@ attempts:
   code: DATA_MISSING
   count: 0
   stub: false
-  note: 英超休赛期；当日 total_count=251 但 tier_count=6 无英超赛事，进一步佐证 last-week
-    无该对阵
+  note: 英超休赛期；当日 total_count=251 但 tier_count=6 无英超赛事，进一步佐证 last-week 无该对阵
 - round: 3
   atomic_id: C02-T1-a1
   tool: resolve_match
@@ -94,8 +93,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: fallback 至最近一场已完赛曼城vs利物浦 (match_id=4512595, 英足总杯, finished,
-    neutral=false)；用于验证复盘 toolchain
+  note: fallback 至最近一场已完赛曼城vs利物浦 (match_id=4512595, 英足总杯, finished, neutral=false)；用于验证复盘
+    toolchain
 - round: 3
   atomic_id: C02-T1-a2
   tool: get_match_result
@@ -113,8 +112,7 @@ attempts:
   code: OK
   count: 2
   stub: false
-  note: 曼城 11射7正进4 / 控球47% / 496传443准 / 16抢断；利物浦 11射5正进0 / 控球53%
-    / 502传448准 / 9抢断；曼城转化率碾压
+  note: 曼城 11射7正进4 / 控球47% / 496传443准 / 16抢断；利物浦 11射5正进0 / 控球53% / 502传448准 / 9抢断；曼城转化率碾压
 - round: 3
   atomic_id: C02-T1-a2
   tool: get_match_incidents
@@ -123,27 +121,24 @@ attempts:
   code: OK
   count: 24
   stub: false
-  note: 24 事件 — 哈兰德点球(39')+运动战双响(47',57')塞梅尼奥1球；萨拉赫64'点球不中；
-    各3黄牌；9次换人；type 语义映射正常
+  note: 24 事件 — 哈兰德点球(39')+运动战双响(47',57')塞梅尼奥1球；萨拉赫64'点球不中； 各3黄牌；9次换人；type 语义映射正常
 satisfied:
 - C02-T1-a1
 - C02-T1-a2
 blocking_gap:
   type: data_gap
-  description: 用户以「上周比赛复盘」前提提问曼城vs利物浦，但 DB 中 last-week 窗口(2026-06-22~28)
-    内并无该对阵；两队最近一场已完赛为 2026-04-04 英足总杯（约 12 周前）。工具链本身完全打通
-    (resolve_team/resolve_match/get_match_result/get_match_team_stats/get_match_incidents
+  description: 用户以「上周比赛复盘」前提提问曼城vs利物浦，但 DB 中 last-week 窗口(2026-06-22~28) 内并无该对阵；两队最近一场已完赛为
+    2026-04-04 英足总杯（约 12 周前）。工具链本身完全打通 (resolve_team/resolve_match/get_match_result/get_match_team_stats/get_match_incidents
     均 OK)，但前提假设与 DB 实际不符，属「premise vs data 不一致」型 data_gap。
   failed_atomic: C02-T1-a1
-  workaround: LLM 应主动澄清「上周无曼城vs利物浦 比赛」并提示最近一场已完赛(2026-04-04)
-    或下一场(2027-05-08)，由用户选择是否复盘历史场次；不应编造 last-week 赛果。
+  workaround: LLM 应主动澄清「上周无曼城vs利物浦 比赛」并提示最近一场已完赛(2026-04-04) 或下一场(2027-05-08)，由用户选择是否复盘历史场次；不应编造
+    last-week 赛果。
 route_complete: true
 data_quality_notes:
-- last-week 窗口内英超处于休赛期，get_schedule_by_date 当日 total_count=251 但 tier_count=6
-  无英超赛事
+- last-week 窗口内英超处于休赛期，get_schedule_by_date 当日 total_count=251 但 tier_count=6 无英超赛事
 - resolve_match 不带 date 返回 10 个跨年历史候选，LLM 须结合日期/赛事上下文自行选择 match_id
-- 复盘 toolchain 在最近一场已完赛(4512595)上全部 OK：result + team_stats + incidents 数据齐全，
-  incident type 语义映射正常
+- 复盘 toolchain 在最近一场已完赛(4512595)上全部 OK：result + team_stats + incidents 数据齐全， incident
+  type 语义映射正常
 phase2_verification:
   new_tools_implemented:
   - get_match_result: OK (4-0 比分 + 半场 + 角球 + 红黄牌)
@@ -153,5 +148,4 @@ phase2_verification:
 known_gap_status:
   previous: 未探索 (probe_results 仅 resolve_match 皇马vs巴萨 OK)
   current: data_gap (last-week 窗口无该对阵；复盘 toolchain 在历史场次上验证 OK)
-  resolution: 工具层无需修复；LLM eval 应考察 scenario_compliance / no_false_negative —
-    能否拒绝用户错误前提而非编造赛果
+  resolution: 工具层无需修复；LLM eval 应考察 scenario_compliance / no_false_negative — 能否拒绝用户错误前提而非编造赛果

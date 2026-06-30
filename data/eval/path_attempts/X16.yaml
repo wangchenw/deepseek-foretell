@@ -8,7 +8,8 @@ attempts:
 - round: 1
   atomic_id: T1-a1
   tool: resolve_team
-  params: {name: 银河战舰测试队}
+  params:
+    name: 银河战舰测试队
   code: ENTITY_NOT_FOUND
   count: 0
   stub: false
@@ -16,7 +17,9 @@ attempts:
 - round: 1
   atomic_id: T1-a1
   tool: resolve_match
-  params: {home: 银河战舰测试队, away: 宇宙联队测试队}
+  params:
+    home: 银河战舰测试队
+    away: 宇宙联队测试队
   code: ENTITY_NOT_FOUND
   count: 0
   stub: false
@@ -24,11 +27,16 @@ attempts:
 - round: 2
   atomic_id: T1-a2
   tool: internet_search
-  params: {query: '<队名+日期>', max_results: 5, topic: general}
+  params:
+    query: <队名+日期>
+    max_results: 5
+    topic: general
   code: SKIPPED
   count: null
   stub: false
-  note: Eval 约束禁止实调 Tavily；工具已注册（FORETELL_TOOLS 53 个含 internet_search；ENTITY_RESOLVER_TOOLS 含 internet_search），TAVILY_API_KEY 已配置。prompts.py 明确触发后流程=换 DB 路径 → 仍异常 → internet_search 1 次 → 提取队名+日期 → 回 DB 取 match_id → 仍无 → 答「未查到，已查范围…」
+  note: Eval 约束禁止实调 Tavily；工具已注册（FORETELL_TOOLS 53 个含 internet_search；ENTITY_RESOLVER_TOOLS
+    含 internet_search），TAVILY_API_KEY 已配置。prompts.py 明确触发后流程=换 DB 路径 → 仍异常 → internet_search
+    1 次 → 提取队名+日期 → 回 DB 取 match_id → 仍无 → 答「未查到，已查范围…」
 - round: 3
   atomic_id: T1-a2
   tool: none
@@ -36,7 +44,8 @@ attempts:
   code: PROMPT_POLICY
   count: null
   stub: false
-  note: 兜底内容使用规则定义于 prompts.py L96-101——联网内容低权重内部使用、不向用户标注「待核实」、只复述搜索结果明示信息、禁止用模型知识补全；关键维度全缺失时降级为「关注赛前首发」+ 置信度标「低」
+  note: 兜底内容使用规则定义于 prompts.py L96-101——联网内容低权重内部使用、不向用户标注「待核实」、只复述搜索结果明示信息、禁止用模型知识补全；关键维度全缺失时降级为「关注赛前首发」+
+    置信度标「低」
 - round: 3
   atomic_id: T1-x1
   tool: none
@@ -51,7 +60,9 @@ satisfied:
 - T1-x1
 blocking_gap:
   type: none
-  description: DB 穷尽路径已实调验证（ENTITY_NOT_FOUND）；internet_search 触发条件、兜底流程、兜底内容使用规则、输出纪律均明确写入 prompts.py；工具已注册且 API key 就位。唯一未验证项为 live Tavily 调用（Eval 约束 skipped），属验证侧约束而非实现 gap
+  description: DB 穷尽路径已实调验证（ENTITY_NOT_FOUND）；internet_search 触发条件、兜底流程、兜底内容使用规则、输出纪律均明确写入
+    prompts.py；工具已注册且 API key 就位。唯一未验证项为 live Tavily 调用（Eval 约束 skipped），属验证侧约束而非实现
+    gap
   failed_atomic: null
 route_complete: true
 fallback_path_clear: true

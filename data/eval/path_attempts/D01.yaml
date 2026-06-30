@@ -15,7 +15,8 @@ attempts:
   code: OK
   count: 3
   stub: false
-  note: 明天 top 层 3 场世界杯(league_id=1) — 巴西vs日本(4459720)、德国vs巴拉圭(4459718)、荷兰vs摩洛哥(4459719)，均 status=not_started，sport=football
+  note: 明天 top 层 3 场世界杯(league_id=1) — 巴西vs日本(4459720)、德国vs巴拉圭(4459718)、荷兰vs摩洛哥(4459719)，均
+    status=not_started，sport=football
 - round: 1
   atomic_id: T1-a1
   tool: get_schedule_by_date
@@ -46,13 +47,14 @@ attempts:
   count: 3
   stub: false
   fallback: list_active_lottery
-  note: fallback 成功，3 条竞彩足球条目(lottery_id 2040337/2040344/2040338 = 周一074/075/076)，home/away=巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥，league=世界杯；match_id=null(需经 home/away/date 回 football_match)
+  note: fallback 成功，3 条竞彩足球条目(lottery_id 2040337/2040344/2040338 = 周一074/075/076)，home/away=巴西vs日本/德国vs巴拉圭/荷兰vs摩洛哥，league=世界杯；match_id=null(需经
+    home/away/date 回 football_match)
 - round: 2
   atomic_id: T1-a1
   tool: sql
   params:
-    query: SELECT id,home,away,status_id,match_time_str FROM football_match WHERE competition_id=1
-      AND match_time_str LIKE '2026-06-30%'
+    query: SELECT id,home,away,status_id,match_time_str FROM football_match WHERE
+      competition_id=1 AND match_time_str LIKE '2026-06-30%'
   code: OK
   count: 3
   stub: false
@@ -66,28 +68,33 @@ attempts:
   code: OK
   count: 3
   stub: false
-  note: 3 场竞彩赔率齐全，直接覆盖用户四个预测维度 — spf(胜平负)、bf(比分 31 项)、jq(总进球数 8 档 0~7+)、bqc(半全场 9 项 胜胜/胜平/.../负负)；sell_status spf/bf/jq/bqc 均为 singles_and_parlay 可单关；无需调用 deep 工具即可合成"怎么买"建议
+  note: 3 场竞彩赔率齐全，直接覆盖用户四个预测维度 — spf(胜平负)、bf(比分 31 项)、jq(总进球数 8 档 0~7+)、bqc(半全场 9
+    项 胜胜/胜平/.../负负)；sell_status spf/bf/jq/bqc 均为 singles_and_parlay 可单关；无需调用 deep
+    工具即可合成"怎么买"建议
 satisfied:
 - T1-a1
 - T1-a2
 blocking_gap:
   type: data_gap
-  description: 用户文案为"四场世界杯预选赛"，但 DB/竞彩明天(2026-06-30)仅 3 场世界杯正赛(league_id=1)；第 4
-    场不存在。此外"预选赛"措辞与实际"世界杯正赛"不符 — 世亚预 3 场虽在赛程但未进入竞彩足球(play_type=101)售彩列表，无法"买"。resolve_lottery_match(code=074)
+  description: 用户文案为"四场世界杯预选赛"，但 DB/竞彩明天(2026-06-30)仅 3 场世界杯正赛(league_id=1)；第 4 场不存在。此外"预选赛"措辞与实际"世界杯正赛"不符
+    — 世亚预 3 场虽在赛程但未进入竞彩足球(play_type=101)售彩列表，无法"买"。resolve_lottery_match(code=074)
     返回 ENTITY_NOT_FOUND(routing_gap)，需 fallback get_lottery_schedule。三条可用场次赔率完整，路径不阻断，但数量/语义与用户预期存在偏差，LLM
     需向用户澄清"仅 3 场世界杯正赛可投"。
   failed_atomic: T1-a1
-  workaround: get_lottery_schedule(play_type=101, date=tomorrow) 列表 fallback + home/away 文本匹配
+  workaround: get_lottery_schedule(play_type=101, date=tomorrow) 列表 fallback + home/away
+    文本匹配
 route_complete: true
 data_quality_notes:
 - 用户"四场"与实际 3 场数量不符；第 4 场世界杯正赛明天不存在(SQL 确认 competition_id=1 仅 3 条)
 - 用户"预选赛"与实际"世界杯正赛(league_id=1)"不符；世亚预 3 场未进入竞彩售彩列表
-- lottery 条目 match_id=null，深度分析需经 resolve_match(home/away/date) 回链 football_match；本场景"怎么买"预测维度由竞彩赔率直接覆盖，无需 deep 工具
+- lottery 条目 match_id=null，深度分析需经 resolve_match(home/away/date) 回链 football_match；本场景"怎么买"预测维度由竞彩赔率直接覆盖，无需
+  deep 工具
 - 跨运动碰撞检查通过：3 场均 sport=football，team_id 来自 football_team，未触碰篮球工具
 cross_sport_check:
   sport_consistency: pass
-  note: 全程足球；get_schedule_by_date/get_lottery_schedule 返回 sport=football；未使用 deep 工具，无 team_id 误传篮球工具风险
+  note: 全程足球；get_schedule_by_date/get_lottery_schedule 返回 sport=football；未使用 deep
+    工具，无 team_id 误传篮球工具风险
 verdict: ⚠️
 verdict_reason: 路径打通 — get_lottery_schedule fallback 返回 3 场世界杯竞彩完整赔率(spf/bf/jq/bqc)直接覆盖四个预测维度，resolve_entity
-  与 synthesize_answer 均 satisfied；但用户"四场"与实际 3 场、"预选赛"与"正赛"存在数量/语义偏差，resolve_lottery_match 仍有
-  routing_gap，需 LLM 澄清并 fallback，故有隐患不干净。
+  与 synthesize_answer 均 satisfied；但用户"四场"与实际 3 场、"预选赛"与"正赛"存在数量/语义偏差，resolve_lottery_match
+  仍有 routing_gap，需 LLM 澄清并 fallback，故有隐患不干净。

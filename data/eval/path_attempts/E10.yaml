@@ -6,7 +6,6 @@ turns:
 - turn_index: 0
   text: 美国VS澳大利亚 比分预测
 attempts:
-# ---- Phase 1: 初筛 (batch screening via get_lottery_schedule) ----
 - round: 1
   atomic_id: E10-T1-a1
   tool: get_lottery_schedule
@@ -15,8 +14,7 @@ attempts:
   code: OK
   count: 15
   stub: false
-  note: 竞彩足球在售批次初筛 OK；扫描 entries 未命中 美国/澳大利亚 条目（该场为 2026-06-20
-    已完赛世界杯小组赛，不在当前在售竞彩批次内）
+  note: 竞彩足球在售批次初筛 OK；扫描 entries 未命中 美国/澳大利亚 条目（该场为 2026-06-20 已完赛世界杯小组赛，不在当前在售竞彩批次内）
 - round: 1
   atomic_id: E10-T1-a1
   tool: get_lottery_schedule
@@ -34,9 +32,7 @@ attempts:
   code: OK
   count: 0
   stub: false
-  note: 客户端字符串扫描竞彩 101 批次未发现 美国+澳大利亚 同条目；初筛未入围 → fallback
-    到 resolve_match 按队名直查
-# ---- Phase 2: 深度核验 (resolve_match → deep tool chain) ----
+  note: 客户端字符串扫描竞彩 101 批次未发现 美国+澳大利亚 同条目；初筛未入围 → fallback 到 resolve_match 按队名直查
 - round: 2
   atomic_id: E10-T1-a1
   tool: resolve_match
@@ -46,9 +42,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 锁定 match_id=4459828，home=美国(13611) away=澳大利亚(13832)，league_id=1
-    世界杯，date=2026-06-20，status=finished，neutral=false，round_group=4 round_num=2；
-    environment 含 23°C/47%/3.4m/s
+  note: 锁定 match_id=4459828，home=美国(13611) away=澳大利亚(13832)，league_id=1 世界杯，date=2026-06-20，status=finished，neutral=false，round_group=4
+    round_num=2； environment 含 23°C/47%/3.4m/s
 - round: 2
   atomic_id: E10-T1-a1
   tool: resolve_team
@@ -66,8 +61,8 @@ attempts:
   code: OK
   count: 10
   stub: false
-  note: 首候选=澳大利亚特选队 (team_id=11359, national=0)，非国家队 13832 — 实体碰撞；正确
-    team_id 须从 resolve_match 取
+  note: 首候选=澳大利亚特选队 (team_id=11359, national=0)，非国家队 13832 — 实体碰撞；正确 team_id 须从 resolve_match
+    取
 - round: 2
   atomic_id: E10-T1-a2
   tool: get_match_result
@@ -213,12 +208,10 @@ satisfied:
 - E10-T1-a2
 blocking_gap:
   type: routing_gap
-  description: 两处非阻断路由缺口。(1) 初筛缺口：美国vs澳大利亚为 2026-06-20 已完赛世界杯小组赛，
-    不在当前在售竞彩 101 批次内，get_lottery_schedule 初筛无法入围该场；需 fallback 到 resolve_match
-    按队名直查。(2) 实体解析碰撞：resolve_team("美国") 首候选=美国女足U18(12394)、resolve_team("澳大利亚")
-    首候选=澳大利亚特选队(11359,national=0)，均非世界杯成年国家队(13611/13832)；若 LLM 用 resolve_team
-    取 team_id 再查 form/h2h 会落到错误实体（假阴性风险）。正确 team_id 须从 resolve_match 的 match
-    记录(home_team_id/away_team_id)获取。
+  description: 两处非阻断路由缺口。(1) 初筛缺口：美国vs澳大利亚为 2026-06-20 已完赛世界杯小组赛， 不在当前在售竞彩 101 批次内，get_lottery_schedule
+    初筛无法入围该场；需 fallback 到 resolve_match 按队名直查。(2) 实体解析碰撞：resolve_team("美国") 首候选=美国女足U18(12394)、resolve_team("澳大利亚")
+    首候选=澳大利亚特选队(11359,national=0)，均非世界杯成年国家队(13611/13832)；若 LLM 用 resolve_team 取 team_id
+    再查 form/h2h 会落到错误实体（假阴性风险）。正确 team_id 须从 resolve_match 的 match 记录(home_team_id/away_team_id)获取。
   failed_atomic: E10-T1-a1
   workaround: resolve_match(home,away) 直接得 match_id + 双方 team_id；初筛未入围时跳过 lottery
     直进 resolve_match。不阻断 LLM eval。
@@ -226,11 +219,10 @@ route_complete: true
 data_quality_notes:
 - 美国vs澳大利亚 match_id=4459828 为 2026-06-20 世界杯小组赛(round_group=4 round_num=2)，status=finished；
   用户问"比分预测"时该场已完赛，比分核验可得(美国 2-0 澳大利亚，半场 2-0，角球 7-4)
-- resolve_team 对"美国/澳大利亚"单字面查询返回的是女足U18/特选队而非成年国家队，体现国家队实体消歧
-  须优先走 resolve_match 而非 resolve_team；与 db_schema_map 所记 basketball/football team_id 跨运动
-  碰撞风险同源（此处为同运动内国家队 vs 青训/特选队碰撞）
-- get_h2h 首条即本世界杯场本身（含 score_breakdown），说明 h2h 与本场结果重叠，分析时需去重避免
-  用本场数据"预测"本场
+- resolve_team 对"美国/澳大利亚"单字面查询返回的是女足U18/特选队而非成年国家队，体现国家队实体消歧 须优先走 resolve_match 而非
+  resolve_team；与 db_schema_map 所记 basketball/football team_id 跨运动 碰撞风险同源（此处为同运动内国家队
+  vs 青训/特选队碰撞）
+- get_h2h 首条即本世界杯场本身（含 score_breakdown），说明 h2h 与本场结果重叠，分析时需去重避免 用本场数据"预测"本场
 phase2_verification:
   new_tools_implemented:
   - get_match_lineup: OK (22 entries, confirmed)

@@ -1,0 +1,19 @@
+{
+  "type_id": "F03",
+  "case_id": "TC-F03-SYN",
+  "probe_status": "needs_manual",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "get_schedule_by_date",
+      "params": {
+        "date": "2026-06-30",
+        "tier": "top"
+      },
+      "code": "OK",
+      "count": 3,
+      "stub": false
+    }
+  ],
+  "error": null
+}

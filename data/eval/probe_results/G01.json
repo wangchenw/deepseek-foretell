@@ -1,6 +1,8 @@
 {
   "type_id": "G01",
   "case_id": "TC-G01-REG-004",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_lottery_match",
@@ -11,5 +13,6 @@
       "code": "ENTITY_NOT_FOUND",
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

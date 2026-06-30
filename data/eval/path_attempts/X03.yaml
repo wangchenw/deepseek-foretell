@@ -1,103 +1,15 @@
 type_id: X03
-case_id: TC-X03-001
-explored_at: '2026-06-29'
-phase2_regression: true
-source: direct_tool_invoke
-scenario_note: >
-  粤语意图场景：用户用粤语式译名“町田泽维 VS 青年国民”请求胜负走向分析。
-  X 场景（边界护栏类），atomic 含 resolve_entity(match) + synthesize_answer +
-  apply_guardrails。重点验证：粤语/非规范译名下的实体消歧正确性、假阴性风险、
-  护栏（不输出中间态）。Phase 2 工具层重构后实调验证。
-ambiguity_finding: >
-  关键发现：resolve_team 单独调用会落入歧义陷阱——“町田泽维”首候选是
-  “町田泽维亚青年队”(team_id=21873) 而非一线队；“青年国民”首候选是
-  “迪拜青年国民”(team_id=16201) 但同 name 下还有 U21/U19/U23 梯队。
-  但 resolve_match 内部消歧逻辑正确：从“町田泽维”选一线队“町田泽维亚”(25413)、
-  从“青年国民”选“迪拜青年国民”(16201)，并定位到唯一对阵 match_id=4532864
-  （2026-04-22 亚精英赛，中立场，已完场）。结论：对模糊/粤语译名对阵，
-  应优先走 resolve_match 而非分两步 resolve_team，避免梯队误选。
+case_id: null
+explored_at: '2026-06-30'
+source: route_matrix
 attempts:
 - round: 1
-  atomic_id: T1-a1
-  tool: resolve_team
-  params:
-    name: 町田泽维
-  code: OK
-  count: 3
-  stub: false
-  note: candidates=[町田泽维亚青年队(21873), 町田泽维亚U18(23139), 町田泽维亚(25413)]。
-    首候选是青年队，单用 resolve_team 会落入梯队误选陷阱。
-- round: 1
-  atomic_id: T1-a1
-  tool: resolve_team
-  params:
-    name: 青年国民
-  code: OK
-  count: 4
-  stub: false
-  note: candidates=[迪拜青年国民(16201), 迪拜青年国民U21(33605), U19(53902), U23(85613)]。
-    首候选为一线队，但同 name 下梯队众多，单调用仍有歧义。
-- round: 1
-  atomic_id: T1-a1
-  tool: resolve_match
-  params:
-    home: 町田泽维
-    away: 青年国民
-  code: OK
-  count: 1
-  stub: false
-  note: resolve_match 内部正确消歧——home_team_id=25413(町田泽维亚一线队)、
-    away_team_id=16201(迪拜青年国民一线队)、match_id=4532864、
-    2026-04-22 亚精英赛(league_id=6736)、中立场 neutral=true、status=finished、
-    home_position=日职联3、away_position=阿联酋超2。T1-a1 满足。
-- round: 1
-  atomic_id: T1-a2
-  tool: get_match_team_stats
-  params:
-    match_id: 4532864
-  code: OK
-  count: 2
-  stub: false
-  note: 两队完整统计可用（goals/shots/possession 等），支撑胜负走向分析。
-- round: 1
-  atomic_id: T1-a2
-  tool: get_match_incidents
-  params:
-    match_id: 4532864
-  code: OK
-  count: 24
-  stub: false
-  note: 24 条比赛事件（进球/卡片/换人等），支撑进程复盘。
-- round: 1
-  atomic_id: T1-a2
-  tool: get_match_lineup
-  params:
-    match_id: 4532864
-  code: OK
-  count: 15
-  stub: false
-  note: confirmed=true, home_formation=3-4-2-1, home 15 球员。阵容可用。
-- round: 1
-  atomic_id: T1-x1
-  tool: null
+  atomic_id: X03-prompt
   status: prompt_only
-  note: apply_guardrails 属护栏/输出纪律层，由 foretell-output-discipline skill 与
-    prompt 约束（hard_constraints: 不输出中间态）实现，无需工具调用。路径设计正确。
-satisfied:
-- T1-a1
-- T1-a2
-- T1-x1
+  note: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
+satisfied: []
 blocking_gap:
-  type: null
-  description: 无阻塞。resolve_match 正确处理粤语/非规范译名消歧；数据层 team_stats/
-    incidents/lineup 均 OK；护栏层 prompt-only 即正确设计。
+  type: routing_gap
+  description: 护栏/输出纪律，主要依赖 prompt 与 output-discipline skill
   failed_atomic: null
-route_complete: true
-grade: success
-grade_note: >
-  X03 路径完整。粤语意图 + 非规范译名场景下，resolve_match 内部消歧逻辑可靠地
-  跳过梯队候选、定位一线队对阵；核心分析数据层（team_stats/incidents/lineup）
-  全部可用；护栏层为 prompt-only 设计，符合“不输出中间态”约束。
-  唯一注意点：resolve_team 单独调用会落入梯队歧义，应在 skill/prompt 中引导
-  对阵类请求优先走 resolve_match（已在 answer_playbook 层记录）。
-  倾向 ✅。
+route_complete: false

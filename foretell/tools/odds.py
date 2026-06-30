@@ -24,20 +24,22 @@ def _odds_missing(snapshot: dict | None) -> bool:
 
 
 @tool
-def get_odds_snapshot(match_id: int | str) -> str:
+def get_odds_snapshot(match_id: int | str, sport: str = "football") -> str:
     """查询比赛盘口快照（欧赔、亚盘/让分、大小球/大小分）。
 
     Args:
-        match_id: MySQL football_match.id，须先通过实体定位获取。
+        match_id: MySQL football_match.id 或 basketball_match.id，须先通过实体定位获取。
+        sport: "football"(默认)或 "basketball"。篮球额外返回 over_under 大小分维度
+            (查 basketball_odds_over_down,修复 B08:原仅返胜平负+让分,缺大小分)。
     """
     client = get_crazy_sports_client()
-    result = client.get_odds_snapshot(match_id)
+    result = client.get_odds_snapshot(match_id, sport=sport)
 
     if _odds_missing(result):
         return make_envelope(
             StatusCode.SKIP_MATCH,
             "odds_snapshot",
-            {"match_id": match_id, "reason": "欧赔与亚盘均缺失"},
+            {"match_id": match_id, "sport": sport, "reason": "欧赔与亚盘均缺失"},
             match_id=match_id,
             meta=_default_meta(client),
         )
@@ -46,7 +48,11 @@ def get_odds_snapshot(match_id: int | str) -> str:
     if result is not None:
         has_european = "european" in result or "moneyline" in result
         has_asian = "asian" in result or "spread" in result
-        if not (has_european and has_asian):
+        has_over_under = "over_under" in result
+        # 篮球期望三维度,足球期望两维度;缺则 PARTIAL
+        expected_dims = 3 if sport == "basketball" else 2
+        present_dims = sum([has_european, has_asian, has_over_under][:expected_dims])
+        if present_dims < expected_dims:
             code = StatusCode.PARTIAL
 
     return make_envelope(
@@ -59,14 +65,16 @@ def get_odds_snapshot(match_id: int | str) -> str:
 
 
 @tool
-def get_odds_trend(match_id: int | str) -> str:
-    """查询赔率走势（初盘到即时盘变动）。
+def get_odds_trend(match_id: int | str, sport: str = "football") -> str:
+    """查询赔率走势（初盘到即时盘变动，支持足球/篮球）。
 
     Args:
-        match_id: MySQL football_match.id。
+        match_id: MySQL football_match.id 或 basketball_match.id。
+        sport: "football"(默认)或 "basketball"。
+            篮球路由 basketball_odds_europe_change 年分区表(修复 F03:原硬编码足球表对篮球 DATA_MISSING)。
     """
     client = get_crazy_sports_client()
-    results = client.get_odds_trend(match_id)
+    results = client.get_odds_trend(match_id, sport=sport)
 
     if not results:
         return make_envelope(

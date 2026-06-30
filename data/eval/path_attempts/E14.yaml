@@ -11,10 +11,8 @@ attempts:
   code: OK
   count: 4
   stub: false
-  note: play_type=201(JINGCAI_BASKETBALL) 路由到 lottery_jclq_odds；date 过滤命中今日 4
-    场 WNBA(美职女篮)：飞马vs天猫、神秘人vs火焰、天空vs王牌、女武神vs自由。
-    玩法 sf/rf/dxf/sfc(胜负/让分/大小分/胜分差)全为篮球玩法。sell_status 全 suspended
-    (查询时点 21:57 已停售)，不影响场次列表获取。
+  note: play_type=201(JINGCAI_BASKETBALL) 路由到 lottery_jclq_odds；date 过滤命中今日 4 场 WNBA(美职女篮)：飞马vs天猫、神秘人vs火焰、天空vs王牌、女武神vs自由。
+    玩法 sf/rf/dxf/sfc(胜负/让分/大小分/胜分差)全为篮球玩法。sell_status 全 suspended (查询时点 21:57 已停售)，不影响场次列表获取。
 - round: 1
   atomic_id: E14-T1-a1
   tool: resolve_basketball_team
@@ -22,19 +20,17 @@ attempts:
     name: 飞马
   code: OK
   stub: false
-  note: 交叉验证。返回 sport=basketball 候选(大邱石油公社飞马 team_id=10161 等)，
-    确认 lottery_jclq_odds.home_name/away_name 属篮球运动空间，非足球。
+  note: 交叉验证。返回 sport=basketball 候选(大邱石油公社飞马 team_id=10161 等)， 确认 lottery_jclq_odds.home_name/away_name
+    属篮球运动空间，非足球。
 satisfied:
 - E14-T1-a1
 blocking_gap: {}
 route_complete: true
 verdict: satisfied
 key_findings:
-- 篮球 lottery 支持已就绪：get_lottery_schedule(play_type=201, date=今日) 正确路由到
-  lottery_jclq_odds 表，返回今日 4 场竞篮场次及 sf/rf/dxf/sfc 篮球玩法赔率，Round 1
-  即命中，无需 fallback。
-- 无跨运动碰撞：deep 工具签名虽无 sport 参数，但通过 play_type(201=篮球/101=足球)
-  在 _LOTTERY_PLAY_TABLES 中路由隔离了 lottery_jclq_odds 与 lottery_jczq_odds，
-  不会静默返回足球数据；球队名经 resolve_basketball_team 交叉验证 sport=basketball。
-- entity_entry=date 路径成立：date 参数经 _sql_match_on_date 过滤精确命中当日场次，
-  E14 单 atomic(fetch_schedule)完全满足。
+- 篮球 lottery 支持已就绪：get_lottery_schedule(play_type=201, date=今日) 正确路由到 lottery_jclq_odds
+  表，返回今日 4 场竞篮场次及 sf/rf/dxf/sfc 篮球玩法赔率，Round 1 即命中，无需 fallback。
+- 无跨运动碰撞：deep 工具签名虽无 sport 参数，但通过 play_type(201=篮球/101=足球) 在 _LOTTERY_PLAY_TABLES
+  中路由隔离了 lottery_jclq_odds 与 lottery_jczq_odds， 不会静默返回足球数据；球队名经 resolve_basketball_team
+  交叉验证 sport=basketball。
+- entity_entry=date 路径成立：date 参数经 _sql_match_on_date 过滤精确命中当日场次， E14 单 atomic(fetch_schedule)完全满足。

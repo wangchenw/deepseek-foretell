@@ -1,6 +1,6 @@
 # Phase 2 Action Items → Phase 3
 
-Generated: 2026-06-28
+Generated: 2026-06-30
 
 ## P1 — Development (2–3 weeks)
 
@@ -23,12 +23,15 @@ Generated: 2026-06-28
 
 ## Gap Frequency
 
-- data_missing_gap: 18
-- routing_gap: 15
-- data_gap: 9
-- implementation_gap: 3
+- none: 25
+- implementation_gap: 17
+- routing_gap: 16
+- data_gap: 14
+- data_missing_gap: 5
+- None: 4
+- context_gap: 2
 
-## Fail Types (45)
+## Fail Types (83)
 
-A11, B01, B02, B09, B12, C04, C06, E05, F03, G01, G02, G03, G04, G05, G06, G07, G08, G09, G10, G11, G12, G13, G14, G15, G16, G17, G18, G19, G20, H01, H04, H07, X01, X02, X03, X04, X07, X08, X09, X10, X11, X13, X14, X15, X16
-
+A05, A06, A09, A10, A11, A14, B01, B02, B03, B04, B08, B09, B10, B12, B13, B14, C02, C03, C04, C05, C06, C07, D01, D05, D06, D07, D08, D09, D10, E01, E03, E04, E06, E07, E08, E09, E10, E11, E12, G01, G02, G03, G04, G05, G06, G08, G11, G12, X02, X03, X04, X05, X07, X09, X10, X11, X12, X13, X14, X16
+...

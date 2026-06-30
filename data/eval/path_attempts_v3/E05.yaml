@@ -1,0 +1,24 @@
+type_id: E05
+case_id: TC-E05-REG-007
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ tool_logic_gap(合成 ID 假命中,lottery_zc_match.match_id 实为合成 issue*10+no,与 2009/2019 历史 football_match.id 碰撞)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: "lottery_official_id(合成 260891~2608914)与 football_match_id(真实 4459720 系列)分离,entry.match_id 指向真实 football_match.id(JOIN lottery_match 回填)。生产环境下游 get_odds_snapshot(match_id) 不再撞 2009/2019 历史比赛。"
+attempts:
+  - round: 1
+    atomic_id: E05-T0-a1
+    tool: get_lottery_schedule
+    params: {play_type: "401", period: "26089"}
+    code: OK
+    count: 14
+    key_fields:
+      issue: "26089"
+      sample_entry_1: {lottery_official_id: 260891, football_match_id: 4459720, match_id: 4459720, home: 巴西, away: 日本}
+      sample_entry_2: {lottery_official_id: 260892, football_match_id: 4459718, match_id: 4459718, home: 德国, away: 巴拉圭}
+      sample_entry_14: {lottery_official_id: 2608914, football_match_id: 4459732, match_id: 4459732, home: 哥伦比亚, away: 加纳}
+    stub: false
+    note: "match_id 字段 = football_match_id 真实 ID,而非 v2 的合成 lottery_official_id;合成 ID 现单独暴露为 lottery_official_id 字段,不再混淆下游。"
+satisfied: [E05-T0-a1, E05-T0-a3, E05-T0-a4]
+blocking_gap: null
+route_complete: true

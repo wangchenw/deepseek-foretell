@@ -17,9 +17,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: 今日竞彩足球 count=1，周日073 南非VS加拿大（世界杯，issue=260628 issue_num=7073
-    lottery_id=2040327）；odds 含 spf/rq/bf(31项)/jq(8项)/bqc(9项) 全玩法；sell_status
-    全 suspended（今日已停售/封盘）
+  note: 今日竞彩足球 count=1，周日073 南非VS加拿大（世界杯，issue=260628 issue_num=7073 lottery_id=2040327）；odds
+    含 spf/rq/bf(31项)/jq(8项)/bqc(9项) 全玩法；sell_status 全 suspended（今日已停售/封盘）
 - round: 1
   atomic_id: E08-T1-a1
   tool: get_lottery_schedule
@@ -29,25 +28,24 @@ attempts:
   code: OK
   count: 4
   stub: false
-  note: 今日竞彩篮球 count=4，全美职女篮（周日301飞马VS天猫 / 302神秘人VS火焰 / 303天空VS王牌
-    / 304女武神VS自由，issue=260628）；odds 含 sf/rf/dxf/sfc(12项) 全玩法；sell_status
-    全 suspended
+  note: 今日竞彩篮球 count=4，全美职女篮（周日301飞马VS天猫 / 302神秘人VS火焰 / 303天空VS王牌 / 304女武神VS自由，issue=260628）；odds
+    含 sf/rf/dxf/sfc(12项) 全玩法；sell_status 全 suspended
 satisfied:
 - E08-T1-a1
 blocking_gap:
   type: none
-  description: 无阻断。get_lottery_schedule 按 date 拉今日竞彩足球(101)+竞彩篮球(201)两条均
-    OK，合计 5 场今日竞彩场次，列表完整、玩法赔率齐全，sport=any 跨运动覆盖满足。
+  description: 无阻断。get_lottery_schedule 按 date 拉今日竞彩足球(101)+竞彩篮球(201)两条均 OK，合计 5 场今日竞彩场次，列表完整、玩法赔率齐全，sport=any
+    跨运动覆盖满足。
   failed_atomic: null
 route_complete: true
 data_quality_notes:
-- 今日 5 场竞彩 sell_status 均为 suspended（已停售/封盘），属真实销售状态而非工具缺陷；fetch_schedule
-  只需枚举今日列表，销售状态作为元数据返回，不影响路径成立
+- 今日 5 场竞彩 sell_status 均为 suspended（已停售/封盘），属真实销售状态而非工具缺陷；fetch_schedule 只需枚举今日列表，销售状态作为元数据返回，不影响路径成立
 - 所有 entry 的 match_id=null（lottery_match 未与 football/basketball_match 关联），但 E08 仅需"今日竞彩列表"枚举，
   不要求关联比赛主体，不构成 gap
 - 跨运动碰撞提示：竞彩足球(101)与篮球(201)issue_num 整数空间不同（7073 vs 730x），按 play_type 区分无歧义
 verdict_lean: pass
 key_findings:
-- get_lottery_schedule 按 date 单轮直查即打通，无需 fallback；101 返回 1 场、201 返回 4 场，sport=any 需两条调用分别覆盖足球与篮球
+- get_lottery_schedule 按 date 单轮直查即打通，无需 fallback；101 返回 1 场、201 返回 4 场，sport=any
+  需两条调用分别覆盖足球与篮球
 - 今日竞彩全部 sell_status=suspended，反映 2026-06-29 当下竞彩已封盘的真实状态，工具 sell_status 中文映射正确
 - E08 atomic 仅 1 个 fetch_schedule(source=date)，路径极简，route_complete=true

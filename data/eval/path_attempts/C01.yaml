@@ -16,22 +16,22 @@ match:
   status: finished
   full_time: 0-2
 attempts:
-# ===== T1-a1 resolve_entity: match（昨日赛程定位） =====
 - round: 1
   atomic_id: T1-a1
   tool: get_schedule_by_date
-  params: {date: '2026-06-28', tier: top}
+  params:
+    date: '2026-06-28'
+    tier: top
   code: OK
   count: 8
   stub: false
-  note: tier=top 命中 8 场顶级赛事（世界杯 6 + 中超 2），全部 finished；总库 total_count=626，
-    tier_count=8，truncated=false。match 字段名 home_name/away_name（非 home_team_name）。
-
-# ===== T1-a2 复盘数据链（synthesize_answer 前置取证） =====
+  note: tier=top 命中 8 场顶级赛事（世界杯 6 + 中超 2），全部 finished；总库 total_count=626， tier_count=8，truncated=false。match
+    字段名 home_name/away_name（非 home_team_name）。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_result
-  params: {match_id: 4460937}
+  params:
+    match_id: 4460937
   code: OK
   stub: false
   note: full_time=0-2，score_breakdown 含 half_time(0-0)/red_card(0-0)/yellow_card(2-1)/corner(3-7)；
@@ -39,46 +39,56 @@ attempts:
 - round: 1
   atomic_id: T1-a2
   tool: get_match_team_stats
-  params: {match_id: 4460937}
+  params:
+    match_id: 4460937
   code: OK
   count: 2
   stub: false
-  note: 主客两队技术统计；英格兰 shots=17(6正)、passes=558(490准)、ball_possession=68、
-    corner_kicks=7、duels_won=61/104，技术统计维度齐全。
+  note: 主客两队技术统计；英格兰 shots=17(6正)、passes=558(490准)、ball_possession=68、 corner_kicks=7、duels_won=61/104，技术统计维度齐全。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_incidents
-  params: {match_id: 4460937}
+  params:
+    match_id: 4460937
   code: OK
   count: 21
   stub: false
-  note: 21 条关键事件（water_break/stoppage_time/half_time/substitution/进球/黄牌等按时间排序），
-    type_code 体系化，可还原比赛节奏。
+  note: 21 条关键事件（water_break/stoppage_time/half_time/substitution/进球/黄牌等按时间排序）， type_code
+    体系化，可还原比赛节奏。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_half_stats
-  params: {match_id: 4460937, scope: ft}
+  params:
+    match_id: 4460937
+    scope: ft
   code: OK
   stub: false
-  note: 全场 scope=ft OK；home_goals=0/away_goals=2、corner 3-7、shots 13-17、ball_possession 主队较低。
+  note: 全场 scope=ft OK；home_goals=0/away_goals=2、corner 3-7、shots 13-17、ball_possession
+    主队较低。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_half_stats
-  params: {match_id: 4460937, scope: p1}
+  params:
+    match_id: 4460937
+    scope: p1
   code: OK
   stub: false
   note: 上半场 p1 0-0，射门 3-9、角球 1-5，与 score_breakdown.half_time=0-0 一致。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_half_stats
-  params: {match_id: 4460937, scope: p2}
+  params:
+    match_id: 4460937
+    scope: p2
   code: OK
   stub: false
   note: 下半场 p2 0-2，射门 10-8、射正 0-4，两球均出现在下半场，复盘叙事可对照 incidents 时间点。
 - round: 1
   atomic_id: T1-a2
   tool: get_match_player_stats
-  params: {match_id: 4460937, limit: 30}
+  params:
+    match_id: 4460937
+    limit: 30
   code: OK
   count: 30
   stub: false
@@ -86,13 +96,12 @@ attempts:
 - round: 1
   atomic_id: T1-a2
   tool: get_match_lineup
-  params: {match_id: 4460937}
+  params:
+    match_id: 4460937
   code: OK
   stub: false
-  note: confirmed=true，home_formation=5-4-1（巴拿马）/away_formation=4-2-3-1（英格兰），
-    含教练 ID、球衣号、位置、坐标 x/y，结构与 player_stats 可交叉印证首发。
-
-# ===== synthesize_answer（LLM 综合，无工具调用） =====
+  note: confirmed=true，home_formation=5-4-1（巴拿马）/away_formation=4-2-3-1（英格兰）， 含教练
+    ID、球衣号、位置、坐标 x/y，结构与 player_stats 可交叉印证首发。
 - round: 1
   atomic_id: T1-a2
   tool: none
@@ -101,26 +110,24 @@ attempts:
   stub: false
   note: 复盘叙事由 LLM 基于 result+team_stats+incidents+half_stats+player_stats+lineup 综合产出，
     前置数据齐备，无工具调用。
-
-satisfied: [T1-a1, T1-a2]
+satisfied:
+- T1-a1
+- T1-a2
 blocking_gap: null
 route_complete: true
-verdict: "✅"
-summary: |
-  C01「昨天比赛复盘」路径完整。get_schedule_by_date(2026-06-28, tier=top) 命中 8 场顶级已完赛
-  （世界杯 6 + 中超 2），选取世界杯 巴拿马 0-2 英格兰 (match_id=4460937) 作为复盘样本。
-  复盘六链全部 OK 且数据非空：
-    1) get_match_result → full_time 0-2 + score_breakdown（半场 0-0、角球 3-7、黄牌 2-1）
-    2) get_match_team_stats → 主客两队 20+ 维度技术统计（射门/传球/控球率/对抗/角球等）
-    3) get_match_incidents → 21 条关键事件按时间排序，可还原比赛节奏
-    4) get_match_half_stats（ft/p1/p2） → 半场拆分与全场一致；两球均出现在下半场
-    5) get_match_player_stats → 30 名球员含评分（贝林厄姆 9.0 + 1球1助）
-    6) get_match_lineup → 阵型 5-4-1 vs 4-2-3-1，confirmed=true，含教练/坐标
-  synthesize_answer 为 LLM 综合环节，前置数据齐备，无 blocking_gap。
+verdict: ✅
+summary: "C01「昨天比赛复盘」路径完整。get_schedule_by_date(2026-06-28, tier=top) 命中 8 场顶级已完赛\n\
+  （世界杯 6 + 中超 2），选取世界杯 巴拿马 0-2 英格兰 (match_id=4460937) 作为复盘样本。\n复盘六链全部 OK 且数据非空：\n\
+  \  1) get_match_result → full_time 0-2 + score_breakdown（半场 0-0、角球 3-7、黄牌 2-1）\n\
+  \  2) get_match_team_stats → 主客两队 20+ 维度技术统计（射门/传球/控球率/对抗/角球等）\n  3) get_match_incidents\
+  \ → 21 条关键事件按时间排序，可还原比赛节奏\n  4) get_match_half_stats（ft/p1/p2） → 半场拆分与全场一致；两球均出现在下半场\n\
+  \  5) get_match_player_stats → 30 名球员含评分（贝林厄姆 9.0 + 1球1助）\n  6) get_match_lineup\
+  \ → 阵型 5-4-1 vs 4-2-3-1，confirmed=true，含教练/坐标\nsynthesize_answer 为 LLM 综合环节，前置数据齐备，无\
+  \ blocking_gap。\n"
 notes:
-- atomic_decompositions/C01.yaml 内 user 文案实为"未来四场世界杯预测"，与 type_name「昨天比赛复盘」
-  不符；本次按用户明确指令（C=赛后复盘）走 get_schedule_by_date(昨天)+复盘链路径。
-  建议后续 regenerate atomic decomposition 时改写 user prompt 为复盘语义，避免评估时文不对题。
+- atomic_decompositions/C01.yaml 内 user 文案实为"未来四场世界杯预测"，与 type_name「昨天比赛复盘」 不符；本次按用户明确指令（C=赛后复盘）走
+  get_schedule_by_date(昨天)+复盘链路径。 建议后续 regenerate atomic decomposition 时改写 user prompt
+  为复盘语义，避免评估时文不对题。
 - schedule 返回字段为 home_name/away_name（非 home_team_name/away_team_name），registry/下游消费方需注意。
 - get_match_half_stats 的 scope 枚举 ft/p1/p2/o1/o2，复盘常用 ft+p1+p2 三段；o1/o2 仅加时场景适用。
 - 全部 6 个复盘工具链 OK 无 stub，route_complete=true，倾向 ✅。

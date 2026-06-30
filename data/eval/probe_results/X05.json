@@ -1,6 +1,8 @@
 {
   "type_id": "X05",
   "case_id": "TC-X05-REG-008",
+  "probe_status": "ready",
+  "dry_run": false,
   "steps": [
     {
       "tool": "resolve_team",
@@ -13,13 +15,14 @@
     {
       "tool": "get_team_schedule",
       "params": {
-        "team_id": 11331,
+        "team_id": 12082,
         "direction": "all",
         "limit": 5
       },
       "code": "OK",
-      "count": 5,
+      "count": 1,
       "stub": false
     }
-  ]
+  ],
+  "error": null
 }

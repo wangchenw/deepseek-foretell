@@ -1,0 +1,25 @@
+type_id: C07
+case_id: TC-C07-001
+explored_at: '2026-06-30'
+v2_verdict: "⚠️ impl+cross_sport(勇士/太阳近期战绩+交锋完整存在,工具 cross_sport 碰撞)"
+v3_verdict: "✅"
+verdict_tier: "✅"
+change_summary: |
+  get_recent_form(team_id=10155 勇士, sport=basketball, n=3) 返 OK count=3,
+  走 basketball_match 表(完场 status_id=10),无 cross_sport 碰撞。
+  v2 的 cross_sport 碰撞(篮球 id 伪命中足球)由 sport 参数路由解决,升档 ✅。
+  小瑕疵:envelope.data 未带 sport 字段(包装层 stats.py get_recent_form 未透传 sport 到 data),
+  不影响数据正确性,后续可补。
+attempts:
+  - round: 1
+    atomic_id: C07-T0-a1
+    tool: get_recent_form
+    params: {team_id: 10155, sport: basketball, n: 3}
+    code: OK
+    key_fields: {count: 3, source_table: basketball_match}
+    stub: false
+satisfied: [C07-T0-a1]
+blocking_gap: null
+route_complete: true
+notes:
+  - "包装层 get_recent_form 未透传 sport 到 envelope.data(小瑕疵,不影响功能)"

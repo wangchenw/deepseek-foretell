@@ -6,8 +6,7 @@ entity_entry: lottery_batch
 sport: any
 turns:
 - turn_index: 1
-  text: v6.0 足球赛事分析工作流 第 1/10 部分——三段式闭环（扫盘→单场→组合）工作流确认，要求确认理解并执行扫盘筛选
-    候选场次，等待下一步指令。
+  text: v6.0 足球赛事分析工作流 第 1/10 部分——三段式闭环（扫盘→单场→组合）工作流确认，要求确认理解并执行扫盘筛选 候选场次，等待下一步指令。
 attempts:
 - round: 1
   atomic_id: E01-T1-a1
@@ -52,8 +51,8 @@ attempts:
   code: OK
   count: 1
   stub: false
-  note: fallback 用完整 lottery_code "周一074" 命中 lottery_id=2040337 巴西VS日本；match_candidates[0] 回填 match_id=4459720、
-    sport=football、league=世界杯、status=not_started、neutral=true、home_position=5/away_position=17、含天气环境。证明单场亦可通过
+  note: fallback 用完整 lottery_code "周一074" 命中 lottery_id=2040337 巴西VS日本；match_candidates[0]
+    回填 match_id=4459720、 sport=football、league=世界杯、status=not_started、neutral=true、home_position=5/away_position=17、含天气环境。证明单场亦可通过
     resolve_lottery_match 定位且 sport 字段显式 football（无跨运动碰撞）。E01 为批量扫盘，主路径仍为 get_lottery_schedule
     一次性拉全 15 条。
 - round: 1
@@ -79,11 +78,13 @@ cross_sport_check:
   sport_inferred: football
   entries_all_football: true
   collision: false
-  note: play_type=101 本身即竞彩足球，15 条 entries league_name 全部为"世界杯"，无篮球/北单混入，sport=any 风险不触发。
+  note: play_type=101 本身即竞彩足球，15 条 entries league_name 全部为"世界杯"，无篮球/北单混入，sport=any
+    风险不触发。
 data_quality_notes:
-- 15 条候选中 6 条(周四083~周五088) odds.spf=None，为未开盘场次；扫盘初筛可按 spf 是否存在过滤"已开售"候选，或按 bf/jq 仍可预筛。
-- 全部 entries.match_id=None（赛事未开赛，lottery_match 未回填 match_id）；扫盘阶段不阻塞，单场深度阶段需 home/away+date 二次
-  resolve_match 定位。
+- 15 条候选中 6 条(周四083~周五088) odds.spf=None，为未开盘场次；扫盘初筛可按 spf 是否存在过滤"已开售"候选，或按 bf/jq
+  仍可预筛。
+- 全部 entries.match_id=None（赛事未开赛，lottery_match 未回填 match_id）；扫盘阶段不阻塞，单场深度阶段需 home/away+date
+  二次 resolve_match 定位。
 - 样本批次 date 落在 2026-06-30（今日+1 的销售批次），覆盖周一~周五 5 个比赛日，符合"当日竞彩扫盘"批量初筛语义。
 verdict: pass
 verdict_reason: E01 扫盘批量初筛核心路径 get_lottery_schedule(play_type=101) 单轮 OK 返回 15 条候选场次，含完整赔率面（spf/rq/bf/jq/bqc）
