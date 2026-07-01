@@ -1,3 +1,4 @@
+from foretell.tools.bracket import get_season_bracket
 from foretell.tools.code_sandbox import execute_code
 from foretell.tools.deep import (
     get_basketball_standings,
@@ -153,6 +154,10 @@ CODE_TOOLS = [
     execute_code,
 ]
 
+BRACKET_TOOLS = [
+    get_season_bracket,
+]
+
 FORETELL_TOOLS = (
     ENTITY_TOOLS
     + SCHEDULE_TOOLS
@@ -165,6 +170,7 @@ FORETELL_TOOLS = (
     + REVIEW_TOOLS
     + SEARCH_TOOLS
     + CODE_TOOLS
+    + BRACKET_TOOLS
 )
 
 

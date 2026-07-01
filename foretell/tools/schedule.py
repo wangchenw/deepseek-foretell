@@ -150,6 +150,9 @@ def get_lottery_schedule(
             北单(301/404) odds 内层为 JSON(列表[{label,odds}])。解析时按 play_type 分支。
         - lottery_zc_match(sfc/rj/bqc/jqc) 与 lottery_match(竞彩/北单) 分表存储,
             issue_num=issue*10+match_no(十四场/任九合成编号)。
+        - correct_score(比分)含 31 档,其中含 3 个"其他"合计项(主其他/平其他/客其他),
+            与 28 个具体比分重叠;各档赔率倒数归一后总和 >1 属正常(合计项重叠所致),
+            非数据错误。归一化取 Top-N 概率比分时,需向用户说明此特性。
     """
     client = get_crazy_sports_client()
     pt = PlayType(play_type)

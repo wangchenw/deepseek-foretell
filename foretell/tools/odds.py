@@ -31,6 +31,13 @@ def get_odds_snapshot(match_id: int | str, sport: str = "football") -> str:
         match_id: MySQL football_match.id 或 basketball_match.id，须先通过实体定位获取。
         sport: "football"(默认)或 "basketball"。篮球额外返回 over_under 大小分维度
             (查 basketball_odds_over_down,修复 B08:原仅返胜平负+让分,缺大小分)。
+
+    返回结构(data):
+        - european[]: 各公司欧赔,每家含 initial(初盘)/current(即时)/latest(最新)三档,
+          每档 {home_win, draw, away_win}。归一化隐含概率用 current:
+          probs=[1/x for x in (home_win,draw,away_win)], s=sum(probs), norm=[p/s for p in probs]
+        - asian_handicap[]: 亚盘/让分,含 handicap(让球数)+ home/away 水位
+        - over_under[]: 大小球,含 total(盘口线)+ over/under 水位
     """
     client = get_crazy_sports_client()
     result = client.get_odds_snapshot(match_id, sport=sport)
@@ -100,6 +107,12 @@ def get_same_odds_history(match_id: int | str) -> str:
 
     Args:
         match_id: MySQL football_match.id。
+
+    返回结构(data): 离散场次列表,每条含:
+        - host_score / guest_score: 赛果比分,推导胜负: host>guest 主胜 / =平 / <负
+        - win / same / lost: 该场欧赔(主胜/平/客胜)
+        - real_win / real_same / real_lost: 实际结算赔率
+    统计胜率须用 execute_code 按 host_score vs guest_score groupby 胜/平/负,禁止逐行心算。
     """
     client = get_crazy_sports_client()
     results = client.get_same_odds_history(match_id)

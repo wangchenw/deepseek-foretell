@@ -146,6 +146,13 @@ class CrazySportsClient(Protocol):
     def get_basketball_standings(self, league_id: int | str) -> list[dict]:
         """返回篮球联赛积分榜。"""
 
+    def get_season_bracket(
+        self,
+        season_id: int | str,
+        sport: str = "football",
+    ) -> dict | None:
+        """返回淘汰赛对阵树(brackets + rounds + match_ups 含 parent_id/children_ids 拓扑)。"""
+
     def get_match_tlive(self, match_id: int | str, limit: int = 100, sport: str = "football") -> list[dict]:
         """返回比赛实时文字直播事件流。"""
 

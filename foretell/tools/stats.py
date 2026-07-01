@@ -186,6 +186,9 @@ def get_standings_full(
     Returns:
         envelope dimension="standings_full",data={standings, promotions, season_id,
         competition_type},meta={lead, played, remaining_rounds, total_rounds, source}。
+
+    争冠锁定判定(足球): lead > remaining_rounds * 3 → 数学锁定(剩余全胜也追不上榜首)。
+    复杂并列/净胜球相互战绩判定走 execute_code 沙箱算。
     """
     client = get_crazy_sports_client()
     standings_result = client.get_standings(league_id, season_id=season_id)

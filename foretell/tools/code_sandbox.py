@@ -72,14 +72,14 @@ def _build_script(code: str, data_json: str) -> str:
     """组装受限执行脚本:注入 data,捕获输出,隔离 import。"""
     return textwrap.dedent(
         f"""\
-        import json as _json
+        import json
         import sys as _sys
-        import statistics as _statistics
-        import math as _math
-        import collections as _collections
-        import re as _re
+        import statistics
+        import math
+        import collections
+        import re
 
-        _data = _json.loads({data_json!r})
+        _data = json.loads({data_json!r})
 
         _out = []
         def print(*args, **kwargs):
@@ -90,9 +90,9 @@ def _build_script(code: str, data_json: str) -> str:
 {chr(10).join("            " + line for line in code.splitlines())}
             if _result is None:
                 _result = chr(10).join(_out) if _out else ""
-            _json.dump({{"ok": True, "result": _result, "stdout": chr(10).join(_out)}}, _sys.stdout, ensure_ascii=False, default=str)
+            json.dump({{"ok": True, "result": _result, "stdout": chr(10).join(_out)}}, _sys.stdout, ensure_ascii=False, default=str)
         except Exception as _e:
-            _json.dump({{"ok": False, "error": repr(_e), "stdout": chr(10).join(_out)}}, _sys.stdout, ensure_ascii=False, default=str)
+            json.dump({{"ok": False, "error": repr(_e), "stdout": chr(10).join(_out)}}, _sys.stdout, ensure_ascii=False, default=str)
         """
     )
 
@@ -108,6 +108,12 @@ def execute_code(
     用途:工具返回离散列表(如 same_odds_history/odds_trend/h2h)时,先写脚本
     聚合统计(胜率/均值/分布/趋势),再基于统计量分析,禁止心算离散数据。
     能用 get_*/resolve_* 直接查的数据不要用本工具。
+
+    数据传入规则(强制):
+        - **禁止手抄工具返回的数值进 code**(易传输出错/幻觉);必须用 data 参数传
+          envelope.data 或离散列表的 JSON,脚本内通过 _data 读取。
+        - 例: 前一步调 get_same_odds_history 返回 envelope,取其 data 字段序列化为
+          JSON 传给本工具 data 参数,脚本内 `_data` 即为已解析的列表。
 
     Args:
         code: Python 脚本(纯标准库,无网络/文件写)。可用 json/statistics/math/

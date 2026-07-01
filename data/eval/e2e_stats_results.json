@@ -1,0 +1,236 @@
+[
+  {
+    "id": "RT01_BRACKET",
+    "category": "bracket_path",
+    "prompt": "2026世界杯(season_id=13776)葡萄牙夺冠概率多大?先用get_season_bracket(season_id=13776)拿对阵树,再用execute_code沿parent_id路径累乘胜率算夺冠概率。葡萄牙在1/16决赛对阵克罗地亚。",
+    "tool_calls": [
+      {
+        "name": "get_season_bracket",
+        "args": {
+          "season_id": 13776
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459727
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459804
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459809
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459812
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459815
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459728
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459725
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459726
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459731
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459797
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459729
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459732
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459805
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459802
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459803
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459806
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459807
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459808
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459810
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459811
+        }
+      },
+      {
+        "name": "get_odds_snapshot",
+        "args": {
+          "match_id": 4459813
+        }
+      },
+      {
+        "name": "execute_code",
+        "args": {
+          "code": "import random\nfrom collections import defaultdict\n\nrandom.seed(42)\nN = 100000\n\ndef norm(h, d, a):\n    \"\"\"欧赔归一化 -> [P_home, P_draw, P_away]\"\"\"\n    inv = [1/h, 1/d, 1/a]\n    s = sum(inv)\n    return [p/s for p in inv]\n\n# ---------- 1/16 比赛赔率(已开盘的用 current 归一化) ----------\n# matchup_id -> (home_team_id, away_team_id, [P_home, P_draw, P_away])\nmatches_1_16 = {\n    880358: (11746, 13449, 'FIXED_AWAY'),   # 德国 vs 巴拉圭 → 巴拉圭 5-4 客胜\n    880359: (10234, 10869, 'FIXED_HOME'),   # 法国 vs 瑞典 → 法国 3-0 主胜\n    880360: (10310, 11138, 'FIXED_AWAY'),   # 南非 vs 加拿大 → 加拿大 1-0 客胜\n    880361: (10870, 11763, 'FIXED_AWAY'),   # 荷兰 vs 摩洛哥 → 摩洛哥 4-3 客胜\n    880362: (13152, 11606, norm(1.76, 3.45, 4.78)),   # 葡萄牙 vs 克罗地亚\n    880363: (14227, 13226, norm(1.32, 4.98, 9.53)),   # 西班牙 vs 奥地利\n    880364: (13611, 10478, norm(1.38, 4.70, 8.25)),   # 美国 vs 波黑\n    880365: (10316, 13365, norm(2.18, 3.35, 3.60)),   # 比利时 vs 塞内加尔\n    880366: (10477, 14529, 'FIXED_HOME'),   # 巴西 vs 日本 → 巴西 2-1 主胜\n    880367: (11141, 13820, 'FIXED_AWAY'),   # 科特迪瓦 vs 挪威 → 挪威 2-1 客胜\n    880368: (11764, 11082, [0.55, 0.27, 0.18]),         # 墨西哥 vs 厄瓜多尔(in_play 假设主胜占优)\n    880369: (11079, 11142, [0.78, 0.15, 0.07]),         # 英格兰 vs 刚果(金)(假设)\n    880370: (13727, 11083, norm(1.16, 7.01, 16.9)),   # 阿根廷 vs 佛得角\n    880371: (13832, 13464, norm(3.20, 2.80, 2.38)),   # 澳大利亚 vs 埃及\n    880372: (10871, 23383, norm(2.02, 3.21, 3.86)),   # 瑞士 vs 阿尔及利亚\n    880373: (10476, 11017, norm(1.48, 4.00, 7.50)),   # 哥伦比亚 vs 加纳\n}\n\n# ---------- 队伍\"实力评分\"= 1/16 隐含胜率(用作后续轮次的相对实力) ----------\nstrength = {}\nfor mu, (h_id, a_id, p) in matches_1_16.items():\n    if p == 'FIXED_HOME':\n        strength[h_id] = 1.0\n        strength[a_id] = 0.0\n    elif p == 'FIXED_AWAY':\n        strength[h_id] = 0.0\n        strength[a_id] = 1.0\n    else:\n        strength[h_id] = p[0]\n        strength[a_id] = p[2]\n\n# 打印各队 1/16 隐含实力\nprint(\"=== 1/16 各队实力(隐含胜率) ===\")\nname_map = {\n    11746: '德国', 13449: '巴拉圭', 10234: '法国', 10869: '瑞典',\n    10310: '南非', 11138: '加拿大', 10870: '荷兰', 11763: '摩洛哥',\n    13152: '葡萄牙', 11606: '克罗地亚', 14227: '西班牙', 13226: '奥地利',\n    13611: '美国', 10478: '波黑', 10316: '比利时', 13365: '塞内加尔',\n    10477: '巴西', 14529: '日本', 11141: '科特迪瓦', 13820: '挪威',\n    11764: '墨西哥', 11082: '厄瓜多尔', 11079: '英格兰', 11142: '刚果(金)',\n    13727: '阿根廷', 11083: '佛得角', 13832: '澳大利亚', 13464: '埃及',\n    10871: '瑞士', 23383: '阿尔及利亚', 10476: '哥伦比亚', 11017: '加纳',\n}\nfor tid, s in sorted(strength.items(), key=lambda x: -x[1]):\n    print(f\"  {name_map.get(tid, tid)}: {s:.3f}\")\n\n# ---------- 蒙特卡洛 ----------\ndef match_outcome(team_a, team_b):\n    \"\"\"基于 Bradley-Terry 简化:胜率 = s_a/(s_a+s_b),平局概率 25%(点球 50/50)\"\"\"\n    s_a = strength.get(team_a, 0.5)\n    s_b = strength.get(team_b, 0.5)\n    if s_a + s_b == 0:\n        return random.choice([team_a, team_b])\n    p_a = s_a / (s_a + s_b)\n    # 加 25% 平局概率(简化,实际淘汰赛无平局走加时/点球)\n    p_draw = 0.25\n    p_a_win = p_a * (1 - p_draw) + p_draw * 0.5\n    r = random.random()\n    if r < p_a_win:\n        return team_a\n    else:\n        return team_b\n\nportugal_id = 13152\nportugal_wins = 0\n\n# 统计每轮晋级概率\nstage_advance = {'1/16': 0, '1/8': 0, '1/4': 0, '半决赛': 0, '决赛': 0, '夺冠': 0}\n\nfor _ in range(N):\n    # 1/16\n    r16_winners = {}\n    for mu, (h_id, a_id, p) in matches_1_16.items():\n        if p == 'FIXED_HOME':\n            r16_winners[mu] = h_id\n        elif p == 'FIXED_AWAY':\n            r16_winners[mu] = a_id\n        else:\n            r = random.random()\n            if r < p[0]:\n                r16_winners[mu] = h_id\n            elif r < p[0] + p[1]:\n                r16_winners[mu] = h_id if random.random() < 0.5 else a_id\n            else:\n                r16_winners[mu] = a_id\n\n    # 葡萄牙是否晋级 1/8?\n    if r16_winners[880362] == portugal_id:\n        stage_advance['1/16'] += 1\n        # 1/8: 880376 = 葡/克胜者 vs 西/奥胜者\n        r8_376_winner = match_outcome(r16_winners[880362], r16_winners[880363])\n        if r8_376_winner == portugal_id:\n            stage_advance['1/8'] += 1\n            # 1/4: 880383 = 880376胜者 vs 880377胜者\n            r8_377_winner = match_outcome(r16_winners[880364], r16_winners[880365])\n            r4_383_winner = match_outcome(r8_376_winner, r8_377_winner)\n            if r4_383_winner == portugal_id:\n                stage_advance['1/4'] += 1\n                # 半决赛: 880386 = 880382胜者 vs 880383胜者\n                r8_374 = match_outcome(r16_winners[880358], r16_winners[880359])\n                r8_375 = match_outcome(r16_winners[880360], r16_winners[880361])\n                r4_382 = match_outcome(r8_374, r8_375)\n                r2_386 = match_outcome(r4_382, r4_383_winner)\n                if r2_386 == portugal_id:\n                    stage_advance['半决赛'] += 1\n                    # 决赛: 880388 = 880386 vs 880387\n                    r8_378 = match_outcome(r16_winners[880366], r16_winners[880367])\n                    r8_379 = match_outcome(r16_winners[880368], r16_winners[880369])\n                    r8_380 = match_outcome(r16_winners[880370], r16_winners[880371])\n                    r8_381 = match_outcome(r16_winners[880372], r16_winners[880373])\n                    r4_384 = match_outcome(r8_378, r8_379)\n                    r4_385 = match_outcome(r8_380, r8_381)\n                    r2_387 = match_outcome(r4_384, r4_385)\n                    champion = match_outcome(r2_386, r2_387)\n                    if champion == portugal_id:\n                        stage_advance['决赛'] += 1\n                        stage_advance['夺冠'] += 1\n                        portugal_wins += 1\n\nprint(f\"\\n=== 蒙特卡洛 {N:,} 次模拟结果 ===\")\nfor stage, cnt in stage_advance.items():\n    print(f\"  葡萄牙{stage}概率: {cnt/N*100:.2f}%\")\nprint(f\"\\n>>> 葡萄牙夺冠概率: {portugal_wins/N*100:.2f}% <<<\")\n\n# 路径单线累乘(沿 parent_id 链)\nprint(\"\\n=== 沿 parent_id 路径单线累乘 ===\")\nP_r16 = norm(1.76, 3.45, 4.78)[0]      # 葡萄牙 vs 克罗地亚\n# 1/8:对手最佳=西班牙(实力 0.713)\ns_por = P_r16\ns_esp = norm(1.32, 4.98, 9.53)[0]\nP_r8 = s_por / (s_por + s_esp)\n# 1/4:对手=美国/比利时胜者,取 max(美实力 0.769, 比实力 0.464)=0.769\n# 我方=葡/西胜者(本轮实际西更可能晋级,实力用 s_esp=0.713)\ns_us = norm(1.38, 4.70, 8.25)[0]\ns_bel = norm(2.18, 3.35, 3.60)[0]\ns_qf_opp = max(s_us, s_bel)  # 美国更可能晋级 1/4\nP_qf = s_esp / (s_esp + s_qf_opp)\n# 半决赛:对手=880382 区(巴拉圭/法国/加拿大/摩洛哥 胜者)\n# 假设 880382 区的\"代表实力\"= 这4队实力均值(已开赛=1.0)\ns_sf_opp = (1.0 + 1.0 + 1.0 + 1.0) / 4  # 都已晋级,均值 1.0\nP_sf = s_esp / (s_esp + s_sf_opp)\n# 决赛:对手=下半区胜者(880387),含巴西、阿根廷、英格兰、哥伦比亚等强队\n# 下半区平均实力 ≈ (巴西1.0 + 阿根廷0.79 + 英格兰0.78 + 哥伦比亚0.62 + 其他)/ 8\ns_final_opp = (1.0 + 0.79 + 0.78 + 0.62 + 0.55 + 0.30 + 0.40 + 0.62) / 8\nP_final = s_esp / (s_esp + s_final_opp)\n\nprint(f\"  1/16 vs 克罗地亚(实力 0.196): {P_r16*100:.1f}%\")\nprint(f\"  1/8  vs 西班牙(实力 {s_esp:.3f}): {P_r8*100:.1f}%\")\nprint(f\"  1/4  vs 美/比胜者(实力 {s_qf_opp:.3f}): {P_qf*100:.1f}%\")\nprint(f\"  半决赛 vs 巴/法/加/摩胜者(实力 {s_sf_opp:.3f}): {P_sf*100:.1f}%\")\nprint(f\"  决赛  vs 下半区胜者(综合实力 {s_final_opp:.3f}): {P_final*100:.1f}%\")\nprint(f\"  >>> 单线累乘夺冠概率: {P_r16*P_r8*P_qf*P_sf*P_final*100:.2f}% <<<\")"
+        }
+      }
+    ],
+    "tool_call_count": 23,
+    "sandbox_code": "import random\nfrom collections import defaultdict\n\nrandom.seed(42)\nN = 100000\n\ndef norm(h, d, a):\n    \"\"\"欧赔归一化 -> [P_home, P_draw, P_away]\"\"\"\n    inv = [1/h, 1/d, 1/a]\n    s = sum(inv)\n    return [p/s for p in inv]\n\n# ---------- 1/16 比赛赔率(已开盘的用 current 归一化) ----------\n# matchup_id -> (home_team_id, away_team_id, [P_home, P_draw, P_away])\nmatches_1_16 = {\n    880358: (11746, 13449, 'FIXED_AWAY'),   # 德国 vs 巴拉圭 → 巴拉圭 5-4 客胜\n    880359: (10234, 10869, 'FIXED_HOME'),   # 法国 vs 瑞典 → 法国 3-0 主胜\n    880360: (10310, 11138, 'FIXED_AWAY'),   # 南非 vs 加拿大 → 加拿大 1-0 客胜\n    880361: (10870, 11763, 'FIXED_AWAY'),   # 荷兰 vs 摩洛哥 → 摩洛哥 4-3 客胜\n    880362: (13152, 11606, norm(1.76, 3.45, 4.78)),   # 葡萄牙 vs 克罗地亚\n    880363: (14227, 13226, norm(1.32, 4.98, 9.53)),   # 西班牙 vs 奥地利\n    880364: (13611, 10478, norm(1.38, 4.70, 8.25)),   # 美国 vs 波黑\n    880365: (10316, 13365, norm(2.18, 3.35, 3.60)),   # 比利时 vs 塞内加尔\n    880366: (10477, 14529, 'FIXED_HOME'),   # 巴西 vs 日本 → 巴西 2-1 主胜\n    880367: (11141, 13820, 'FIXED_AWAY'),   # 科特迪瓦 vs 挪威 → 挪威 2-1 客胜\n    880368: (11764, 11082, [0.55, 0.27, 0.18]),         # 墨西哥 vs 厄瓜多尔(in_play 假设主胜占优)\n    880369: (11079, 11142, [0.78, 0.15, 0.07]),         # 英格兰 vs 刚果(金)(假设)\n    880370: (13727, 11083, norm(1.16, 7.01, 16.9)),   # 阿根廷 vs 佛得角\n    880371: (13832, 13464, norm(3.20, 2.80, 2.38)),   # 澳大利亚 vs 埃及\n    880372: (10871, 23383, norm(2.02, 3.21, 3.86)),   # 瑞士 vs 阿尔及利亚\n    880373: (10476, 11017, norm(1.48, 4.00, 7.50)),   # 哥伦比亚 vs 加纳\n}\n\n# ---------- 队伍\"实力评分\"= 1/16 隐含胜率",
+    "final_text": "<think>蒙特卡洛跑了 100,000 次,葡萄牙夺冠概率约为 **3.08%**,单线累乘约为 2.56%。两者接近,数量级一致。\n\n注意蒙特卡洛中\"葡萄牙 1/16 概率\"显示 66.87%,这有点高(单线累乘只有 53.2%)。原因:蒙特卡洛的\"1/16 概率\"实际包含了葡萄牙在 1/16 之后所有轮次的胜率,即它不只是 1/16 胜率,而是累乘到夺冠的总概率。等等,我看代码:`stage_advance['1/16'] += 1` 只在 880362 葡萄牙赢时累加 1,后续不会再减。所以 66.87% 是\"葡萄牙通过 1/16 的总模拟数 / 总模拟数\"。\n\n哦等等,66.87% 太高了。1/16 葡萄牙 vs 克罗地亚归一化胜率是 53.2%,怎么变成 66.87%?\n\n让我看代码:`if r16_winners[880362] == portugal_id: stage_advance['1/16'] += 1`。这个判断只是\"葡萄牙是否晋级 1/8\",理论上应该是 53.2% 左右。\n\n为什么是 66.87%?让我想想...\n\n哦,可能是因为我设置了固定胜率(1.0)给已开赛队伍(巴拉圭、法国等),导致它们在 1/8、1/4、半决赛中\"必胜\",这反而不会影响 1/16 的概率。\n\n等等,我重看代码:`stage_advance['1/16'] += 1` 在 `if r16_winners[880362] == portugal_id:` 内。`r16_winners[880362]` 是 880362 的胜者。代码:\n```python\nr = random.random()\nif r < p[0]:  # p[0] = 0.532\n    r16_winners[mu] = h_id  # 葡萄牙\nelif r < p[0] + p[1]:  # p[1] = 0.272\n    r16_winners[mu] = h_id if random.random() < 0.5 else a_id\n    # 平局后 50/50,所以总 P(葡晋级) = 0.532 + 0.272*0.5 = 0.532 + 0.136 = 0.668\nelse:\n    r16_winners[mu] = a_id\n```\n\n啊!问题在这里:**平局后 50/50 给主队或客队**,所以 P(葡晋级 1/8) = 0.532 + 0.272×0.5 = 0.668 = 66.8%。这正确反映了\"加时/点球\"后葡萄牙晋级概率,而不仅是 90 分钟内胜率。\n\n但 1/16 实际胜率(90分钟内)只有 53.2%。如果考虑点球大战,葡萄牙晋级概率会更高(~66.8%)。\n\n不过严格来说,这是合理的——淘汰赛中\"晋级\"才是关键。\n\n但用户问\"夺冠概率\",我应该用 P(晋级 1/8) 来累乘,所以 66.8% 更合理。但 1/16 胜率单独说 53.2% 也没错(90 分钟内)。\n\n最终答案:\n- **蒙特卡洛:葡萄牙夺冠概率约 3.08%**\n- **单线累乘:约 2.56%**\n\n这两个数字差异主要来自蒙特卡洛考虑了平局(点球)后 50/50 的运气加成。\n\n让我向用户报告最终结果。置信度中等偏低,因为:\n1. 1/8、1/4、半决赛、决赛没有赔率,只能基于 1/16 实力推算\n2. 1/16 中 880368 (in_play) 和 880369 (没拉赔率) 用了假设值\n3. 整体模型简化(Bradley-Terry + 平局概率)\n\n数据缺口:\n- 1/8 及之后比赛的赔率(尚未开盘)\n- 880369 英格兰 vs 刚果(金) 的赔率\n- 880368 墨西哥 vs 厄瓜多尔(in_play)的赔率\n\n我应该给用户清晰的答案,说明方法和不确定性。</think>\n\n## 2026 世界杯(season_id=13776)葡萄牙夺冠概率\n\n### 一、计算方法\n沿对阵树 `parent_id` 链: **880362(1/16) → 880376(1/8) → 880383(1/4) → 880386(半决赛) → 880388(决赛)**,用各场胜率累乘。\n\n由于 1/8 及之后比赛尚未开盘(返回 SKIP_MATCH),采用**蒙特卡洛 + Bradley-Terry 简化模型**:\n- 已开盘 1/16 场次:用欧赔归一化隐含概率(共 8 场)\n- 已完赛 1/16 场次:固定结果(6 场,德国 4-5 巴拉圭、法国 3-0 瑞典、巴西 2-1 日本、挪威 2-1 科特迪瓦等)\n- 后续轮次:基于双方在 1/16 的隐含胜率推算相对实力,胜率 = s_a/(s_a+s_b),加 25% 平局概率(点球 50/50)",
+    "scores": {
+      "tool_path": true,
+      "numeric_correctness": true,
+      "no_mental_math": true,
+      "code_reasonable": true,
+      "bracket_path": true,
+      "overall": true
+    },
+    "gap": null,
+    "elapsed_s": 270.1,
+    "status": "ok"
+  },
+  {
+    "id": "RT06_BF_NORMALIZE",
+    "category": "bf_normalize",
+    "prompt": "2026世界杯1/16决赛葡萄牙vs克罗地亚,竞彩比分赔率归一化。先resolve_lottery_match或get_official_handicap_odds拿比分赔率,再execute_code对各比分赔率倒数归一化,取隐含概率最高的5个比分,并说明归一化总和情况(是否≈1,若不是请解释原因)。",
+    "tool_calls": [
+      {
+        "name": "resolve_match",
+        "args": {
+          "home": "葡萄牙",
+          "away": "克罗地亚",
+          "date": "2026-07-01",
+          "national": true
+        }
+      },
+      {
+        "name": "get_lottery_schedule",
+        "args": {
+          "play_type": "101",
+          "date": "2026-07-01"
+        }
+      },
+      {
+        "name": "internet_search",
+        "args": {
+          "query": "2026世界杯 葡萄牙 克罗地亚 1/16决赛 日期",
+          "max_results": 5
+        }
+      },
+      {
+        "name": "resolve_match",
+        "args": {
+          "home": "葡萄牙",
+          "away": "克罗地亚",
+          "date": "2026-06-30",
+          "national": true
+        }
+      },
+      {
+        "name": "resolve_match",
+        "args": {
+          "home": "葡萄牙",
+          "away": "克罗地亚",
+          "date": "2026-07-03",
+          "national": true
+        }
+      },
+      {
+        "name": "get_lottery_schedule",
+        "args": {
+          "play_type": "101",
+          "date": "2026-07-03"
+        }
+      },
+      {
+        "name": "execute_code",
+        "args": {
+          "code": "\nimport json\nimport statistics\nfrom collections import OrderedDict\n\n# 28 个具体比分 + 3 个「其他」合计项(共 31 档)\nscores = [\n    # 主胜\n    (\"1:0\",  6.5),  (\"2:0\",  7.0),  (\"2:1\",  6.0),  (\"3:0\", 12.0),\n    (\"3:1\", 11.0),  (\"3:2\", 20.0),  (\"4:0\", 30.0),  (\"4:1\", 28.0),\n    (\"4:2\", 65.0),  (\"5:0\", 80.0),  (\"5:1\", 80.0),  (\"5:2\",150.0),\n    # 平\n    (\"0:0\", 11.0),  (\"1:1\",  7.0),  (\"2:2\", 14.0),  (\"3:3\", 70.0),\n    # 客胜\n    (\"0:1\", 12.0),  (\"0:2\", 26.0),  (\"1:2\", 15.0),  (\"0:3\", 80.0),\n    (\"1:3\", 45.0),  (\"2:3\", 50.0),  (\"0:4\",300.0),  (\"1:4\",150.0),\n    (\"2:4\",200.0),  (\"0:5\",600.0),  (\"1:5\",500.0),  (\"2:5\",500.0),\n    # 三个「其他」合计项(与上面具体比分有重叠)\n    (\"胜其他\", 65.0), (\"平其他\",400.0), (\"负其他\",200.0),\n]\n\n# 拆分成「具体比分(28)」与「含合计(31)」\nspecific = scores[:28]\nall31   = scores\n\n# ---- 关键指标 1: 原始隐含概率(1/odds 之和) ----\nraw_inv_specific = sum(1/o for _, o in specific)        # 28 档具体比分\nraw_inv_all31    = sum(1/o for _, o in all31)          # 31 档含合计项\n\n# ---- 关键指标 2: 归一化(分母=各自集合之和)----\n# A) 仅 28 档具体比分归一化(忽略合计项)\np_28 = {l: (1/o)/raw_inv_specific for l, o in specific}\n# B) 全部 31 档归一化\np_31 = {l: (1/o)/raw_inv_all31    for l, o in all31}\n\n# 校验\nsum_p28 = sum(p_28.values())\nsum_p31 = sum(p_31.values())\n\n# ---- Top-5(按 A 集合 28 档归一化口径)----\ntop5_A = sorted(p_28.items(), key=lambda x: -x[1])[:5]\n# ---- 同时给 B 口径的 Top-5,以便对照----\ntop5_B = sorted(p_31.items(), key=lambda x: -x[1])[:5]\n\n# ---- 分组小计(用于核对主/平/客分布与「其他」重叠程度)----\ndef groups(p):\n    g = {\"主胜合计\":0.0, \"平局合计\":0.0, \"客胜合计\":0.0,\n         \"其他(胜/平/负)\":0.0}\n    for l,v in p.items():\n        if l in (\"胜其他\",):\n            g[\"其他(胜/平/负)\"] += v\n        elif l in (\"平其他\",):\n            g[\"其他(胜/平/负)\"] += v\n        elif l in (\"负其他\",):\n            g[\"其他(胜/平/负)\"] += v\n        elif l == \"0:0\" or \":\" in l and l.split(\":\")[0]==l.split(\":\")[1]:\n            g[\"平局合计\"] += v\n        elif int(l.split(\":\")[0]) > int(l.split(\":\")[1]):\n            g[\"主胜合计\"] += v\n        else:\n            g[\"客胜合计\"] += v\n    return g\n\ng_A = groups(p_28)\ng_B = groups(p_31)\n\nresult = {\n    \"raw_inv_sum_28specific_only\": round(raw_inv_specific, 6),\n    \"raw_inv_sum_all_31_with_others\": round(raw_inv_all31, 6),\n    \"normalized_sum_28\": round(sum_p28, 6),\n    \"normalized_sum_31\": round(sum_p31, 6),\n    \"overround_28\": round((raw_inv_specific-1)*100, 2),\n    \"overround_31\": round((raw_inv_all31-1)*100, 2),\n    \"top5_score_implied(A:仅 28 档归一)\": [(l, round(v*100,2)) for l,v in top5_A],\n    \"top5_score_implied(B:含合计 31 档归一)\": [(l, round(v*100,2)) for l,v in top5_B],\n    \"groups_pct_A_28\": {k:round(v*100,2) for k,v in g_A.items()},\n    \"groups_pct_B_31\": {k:round(v*100,2) for k,v in g_B.items()},\n}\nprint(json.dumps(result, ensure_ascii=False, indent=2))\n\n_result = result\n"
+        }
+      }
+    ],
+    "tool_call_count": 7,
+    "sandbox_code": "\nimport json\nimport statistics\nfrom collections import OrderedDict\n\n# 28 个具体比分 + 3 个「其他」合计项(共 31 档)\nscores = [\n    # 主胜\n    (\"1:0\",  6.5),  (\"2:0\",  7.0),  (\"2:1\",  6.0),  (\"3:0\", 12.0),\n    (\"3:1\", 11.0),  (\"3:2\", 20.0),  (\"4:0\", 30.0),  (\"4:1\", 28.0),\n    (\"4:2\", 65.0),  (\"5:0\", 80.0),  (\"5:1\", 80.0),  (\"5:2\",150.0),\n    # 平\n    (\"0:0\", 11.0),  (\"1:1\",  7.0),  (\"2:2\", 14.0),  (\"3:3\", 70.0),\n    # 客胜\n    (\"0:1\", 12.0),  (\"0:2\", 26.0),  (\"1:2\", 15.0),  (\"0:3\", 80.0),\n    (\"1:3\", 45.0),  (\"2:3\", 50.0),  (\"0:4\",300.0),  (\"1:4\",150.0),\n    (\"2:4\",200.0),  (\"0:5\",600.0),  (\"1:5\",500.0),  (\"2:5\",500.0),\n    # 三个「其他」合计项(与上面具体比分有重叠)\n    (\"胜其他\", 65.0), (\"平其他\",400.0), (\"负其他\",200.0),\n]\n\n# 拆分成「具体比分(28)」与「含合计(31)」\nspecific = scores[:28]\nall31   = scores\n\n# ---- 关键指标 1: 原始隐含概率(1/odds 之和) ----\nraw_inv_specific = sum(1/o for _, o in specific)        # 28 档具体比分\nraw_inv_all31    = sum(1/o for _, o in all31)          # 31 档含合计项\n\n# ---- 关键指标 2: 归一化(分母=各自集合之和)----\n# A) 仅 28 档具体比分归一化(忽略合计项)\np_28 = {l: (1/o)/raw_inv_specific for l, o in specific}\n# B) 全部 31 档归一化\np_31 = {l: (1/o)/raw_inv_all31    for l, o in all31}\n\n# 校验\nsum_p28 = sum(p_28.values())\nsum_p31 = sum(p_31.values())\n\n# ---- Top-5(按 A 集合 28 档归一化口径)----\ntop5_A = sorted(p_28.items(), key=lambda x: -x[1])[:5]\n# ---- 同时给 B 口径的 Top-5,以便对照----\ntop5_B = sorted(p_31.items(), key=lambda x: -x[1])[:5]\n\n# ---- 分组小计(用于核对主/平/客分布与「其他」重叠程度)----\ndef groups(p):\n    g = {\"主胜合计\":0.0, \"平局合计\":0.0, \"客胜合计\":0.0,\n         \"其他(胜/平/负)\":0.0}\n    for l,v in p.items(",
+    "final_text": "<think>All calculations done. Now let me present the result clearly following the output rules.\n\nKey findings:\n1. 比赛定位：match_id=4459727, 周四084\n2. 28 档原始隐含概率之和 = 1.387（含 38.7% 的庄家抽水/超额）\n3. 31 档（含三个「其他」）= 1.410（含 41.0% 的超额）\n4. 归一化分母为原始倒数和，所以归一化后总和必为 1（这是数学定义）\n5. A 口径（仅 28 档归一）Top 5：\n   - 2:1 — 12.02%\n   - 1:0 — 11.09%\n   - 2:0 — 10.30%\n   - 1:1 — 10.30%\n   - 3:1 — 6.55%\n6. B 口径（含合计 31 档归一）Top 5 与 A 接近，差异在 B 多了「其他」吸收 1.62% 的长尾\n\n「归一化总和情况」说明：\n- 把所有 28 档具体比分的 1/odds 直接相加 = 1.387，**大于 1**，说明存在约 38.7% 的庄家利润/超额（overround/抽水）。竞彩比分玩法各档赔率本身就含庄家利润，1/odds 之和 > 1 是正常的。\n- 由于分母选的是这个 1.387，所以归一化后总和必然 = 1（数学定义）。\n- 用 28 档口径（不含「其他」）和 31 档口径（含「其他」）的区别：31 档多吸收了「6:0 以上的极端比分」约 1.62% 的概率质量。\n\nTop 5 的特征：Top 4 比分（2:1, 1:0, 2:0, 1:1）各自仅相差 1-2 个百分点，分布非常均匀——这是葡萄牙 vs 克罗地亚这种「实力有差距但淘汰赛防守偏紧」对阵的典型盘口特征。\n\n注意一个细节：1:1 和 2:0 都是 10.30%，并列第 3；3:1 是 6.55%，与前 4 拉开差距。\n\n我按要求输出结论先置顶，然后解释归一化总和。但本场景是「比分赔率归一化计算问题」，不是「比赛预测/分析」场景。所以不需要走六段式深度分析模板，只需要清晰回答用户问题即可。\n\n让我组织输出：</think>\n\n## 比赛定位\n\n- **比赛**：葡萄牙 vs 克罗地亚（2026 世界杯 1/16 决赛）\n- **比赛 ID**：4459727 ｜ **竞彩编号**：周四084（玩法 101）\n- **开球**：北京时间 2026-07-03 07:00，多伦多 BMO 球场，中立场\n- 玩法状态：单关 + 串关 可售（含比分赔率）\n\n## 归一化计算结果\n\n把 31 档比分赔率取倒数 (1/odds)，再用「自身倒数总和」做分母归一化。结果如下：\n\n**原始倒数总和（即归一化前的分母）**\n\n| 口径 | 1/odds 累加 | 庄家抽水（overround） |\n|---|---|---|\n| 仅 28 档具体比分 | **1.3870** | +38.70% |\n| 含 3 档「其他」合计（31 档） | **1.4099** | +40.99% |\n\n**归一化后的隐含概率 Top 5**\n\n| 排名 | 比分 | 赔率 | 隐含概率（A：28 档口径） | 隐含概率（B：31 档含合计口径） |\n|---|---|---|---|---|\n| 1 | **2:1** | 6.00 | **12.02%** | 11.82% |\n| 2 | **1:0** | 6.50 | **11.09%** | 10.91% |\n| 3 | **2:0** | 7.00 | **10.30%** | 10.13% |\n| 3 | **1:1** | 7.00 | **10.30%** | 10.13% |\n| 5 | **3:1** | 11.00 | **6.55%** | 6.45% |\n\n**主/平/客分布（按隐含概率汇总）**\n\n| 分组 | A：28 档口径 | B：31 档含合计口径 |\n|---|---|---|\n| 主胜（葡萄牙 90 分钟内胜） | 57.94% | 57.00% |\n| 平局 | 23.03% | 22.66% |\n| 客胜（克罗地亚 90 分钟内胜） | 19.02% | 18.71% |\n| 「胜/平/负其他」（长尾吸收项） | — | 1.62% |\n\n## 归一化总和是否 ≈ 1 的解释\n\n**归一化后总和 = 1.0000（精确等于 1）**。这不是巧合，而是数学定义本身——当你把每个分组的 1/odds 除以「所有 1/odds 的总和」，各组加总必然等于 1。\n\n真正**不等于 1** 的是「归一化之前」那个分母：\n\n- **28 档 1/odds",
+    "scores": {
+      "tool_path": true,
+      "numeric_correctness": true,
+      "no_mental_math": true,
+      "code_reasonable": true,
+      "bracket_path": true,
+      "overall": true
+    },
+    "gap": null,
+    "elapsed_s": 54.5,
+    "status": "ok"
+  }
+]

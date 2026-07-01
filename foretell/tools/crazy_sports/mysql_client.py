@@ -1961,6 +1961,77 @@ class MySQLCrazySportsClient:
             rows = cur.fetchall()
         return [_format_series_matchup_row(r) for r in rows]
 
+    def get_season_bracket(
+        self,
+        season_id: int | str,
+        sport: str = "football",
+    ) -> dict | None:
+        """导出淘汰赛对阵树(用于夺冠路径概率计算)。
+
+        数据源:football_brackets(赛季→对阵图) + football_bracket_rounds(阶段) +
+        football_bracket_match_up(对阵节点,含 parent_id/children_id 拓扑)。
+        """
+        sid = _parse_int_id(season_id)
+        if sid is None:
+            return None
+        if sport == "basketball":
+            brackets_tbl = "basketball_brackets"
+            rounds_tbl = "basketball_bracket_rounds"
+            match_up_tbl = "basketball_bracket_match_up"
+            team_tbl = "basketball_team"
+        else:
+            brackets_tbl = "football_brackets"
+            rounds_tbl = "football_bracket_rounds"
+            match_up_tbl = "football_bracket_match_up"
+            team_tbl = "football_team"
+
+        # 1. 查该赛季的 brackets
+        sql_brackets = f"SELECT id, competition_id, name_zh, name_en, start_time, end_time FROM {brackets_tbl} WHERE season_id = %s"
+        with mysql_connection() as cur:
+            cur.execute(sql_brackets, (sid,))
+            brackets = cur.fetchall()
+        if not brackets:
+            return None
+
+        # 2. 查各 bracket 的 rounds
+        bracket_ids = [b["id"] for b in brackets]
+        sql_rounds = f"SELECT id, bracket_id, name_zh, name_en, number FROM {rounds_tbl} WHERE bracket_id IN (%s)" % ",".join(
+            ["%s"] * len(bracket_ids)
+        )
+        with mysql_connection() as cur:
+            cur.execute(sql_rounds, bracket_ids)
+            rounds = cur.fetchall()
+
+        # 3. 查各 round 的 match_ups(JOIN team 取队名 + JOIN round 取阶段名)
+        round_ids = [r["id"] for r in rounds]
+        if not round_ids:
+            return {"brackets": brackets, "rounds": [], "match_ups": []}
+        sql_match_ups = f"""
+            SELECT bu.id, bu.round_id, bu.number, bu.type_id, bu.state_id,
+                   bu.home_team_id, bu.away_team_id, bu.winner_team_id,
+                   bu.home_score, bu.away_score, bu.parent_id,
+                   bu.children_id1, bu.children_id2, bu.match_ids, bu.note,
+                   ht.short_name_zh AS home_name, at.short_name_zh AS away_name,
+                   r.name_zh AS round_name
+            FROM {match_up_tbl} bu
+            LEFT JOIN {team_tbl} ht ON bu.home_team_id = ht.id
+            LEFT JOIN {team_tbl} at ON bu.away_team_id = at.id
+            LEFT JOIN {rounds_tbl} r ON bu.round_id = r.id
+            WHERE bu.round_id IN (%s)
+            ORDER BY r.number ASC, bu.number ASC
+        """ % ",".join(["%s"] * len(round_ids))
+        with mysql_connection() as cur:
+            cur.execute(sql_match_ups, round_ids)
+            match_up_rows = cur.fetchall()
+
+        return {
+            "season_id": sid,
+            "brackets": brackets,
+            "rounds": [{"id": r["id"], "bracket_id": r["bracket_id"], "name": r["name_zh"], "number": r["number"]} for r in rounds],
+            "match_ups": [_format_bracket_match_up_row(r) for r in match_up_rows],
+            "count": len(match_up_rows),
+        }
+
     def get_basketball_standings(self, league_id: int | str) -> list[dict]:
         comp_id = _parse_int_id(league_id)
         if comp_id is None:
@@ -2965,6 +3036,32 @@ def _format_series_matchup_row(row: dict) -> dict:
         "away_wins": row.get("away_score"),
         "match_ids": match_ids,
         "note": row.get("note"),
+    }
+
+
+def _format_bracket_match_up_row(row: dict) -> dict:
+    """格式化对阵节点(用于夺冠路径概率计算)。
+
+    parent_id 指向下一轮(晋级方向),children_id1/children_id2 指向上一轮来源对阵,
+    构成淘汰赛树。state_id: 1未开赛/2等待对手/6进行中/7主场胜/8客场胜/9取消/10轮空/11等待抽签。
+    """
+    children = [c for c in (row.get("children_id1"), row.get("children_id2")) if c]
+    return {
+        "matchup_id": row.get("id"),
+        "round_id": row.get("round_id"),
+        "round_name": row.get("round_name"),
+        "number": row.get("number"),
+        "state": _series_state_from_id(row.get("state_id")),
+        "home_team_id": row.get("home_team_id"),
+        "home_name": row.get("home_name"),
+        "away_team_id": row.get("away_team_id"),
+        "away_name": row.get("away_name"),
+        "winner_team_id": row.get("winner_team_id"),
+        "home_score": row.get("home_score"),
+        "away_score": row.get("away_score"),
+        "parent_id": row.get("parent_id"),  # 下一对阵(晋级方向)
+        "children_ids": children,  # 上一对阵来源
+        "match_ids": _parse_match_ids(row.get("match_ids")),
     }
 
 

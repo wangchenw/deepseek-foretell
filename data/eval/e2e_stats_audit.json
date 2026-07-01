@@ -1,0 +1,390 @@
+[
+  {
+    "id": "RT01_BRACKET",
+    "category": "bracket_path",
+    "execute_code_runs": 2,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "=== 已开盘比赛盘口均值胜率(主/客,排除平) ===\n  葡vs克: 主胜0.734 / 客胜0.266\n  西vs奥: 主胜0.881 / 客胜0.119\n  美vs波黑: 主胜0.862 / 客胜0.138\n  比vs塞内加尔: 主胜0.618 / 客胜0.382\n  加vs摩(1/8): 主胜0.278 / 客胜0.722\n\n=== 蒙特卡洛结果(N=50000) ===\n葡萄牙夺冠概率: 3.20%\n\n=== 各阶段晋级概率(独立累计) ===\n  1/16: 73.36%\n  1/8: 29.10%\n  1/4: 17.15%\n  半决赛: 7.40%\n  决赛: 3.20% =",
+    "sandbox_nums": [
+      0.03,
+      0.07,
+      0.12,
+      0.14,
+      0.17,
+      0.27,
+      0.28,
+      0.29,
+      0.38,
+      0.62,
+      0.72,
+      0.73,
+      0.86,
+      0.88
+    ],
+    "final_nums": [
+      0.03,
+      0.07,
+      0.17,
+      0.29,
+      0.36,
+      0.4,
+      0.43,
+      0.59,
+      0.6,
+      0.73,
+      0.75,
+      0.86,
+      0.88
+    ],
+    "numeric_consistency": 1.0,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 20
+    }
+  },
+  {
+    "id": "RT02_POISSON",
+    "category": "poisson",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\"lambda_home\": 1.45, \"lambda_away\": 0.75, \"top5_scores\": [[1, 0, 0.1606645796253841], [1, 1, 0.12049843471903807], [2, 0, 0.11648182022840349], [0, 0, 0.11080315836233388], [2, 1, 0.08736136517130261]], \"1x2\": [0.5342722401117057, 0.2683014294261209, 0.19350605184565572], \"over25\": 0.37336597138716",
+    "sandbox_nums": [
+      0.0,
+      0.01,
+      0.02,
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.08,
+      0.09,
+      0.11,
+      0.12,
+      0.16,
+      0.19,
+      0.2,
+      0.27
+    ],
+    "final_nums": [
+      0.0,
+      0.01,
+      0.02,
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.08,
+      0.09,
+      0.11,
+      0.12,
+      0.16,
+      0.19,
+      0.2,
+      0.27
+    ],
+    "numeric_consistency": 0.96,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": true,
+      "sums": [
+        1.0001,
+        0.9961,
+        0.9917
+      ],
+      "prob_count": 33
+    }
+  },
+  {
+    "id": "RT03_SAME_ODDS",
+    "category": "same_odds",
+    "execute_code_runs": 2,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "样本总数:10场\n----------------------------------------\n主胜: 5 场  占比 50.0%\n平局: 3 场  占比 30.0%\n主负: 2 场  占比 20.0%\n----------------------------------------\n当前赔率隐含概率(归一化,主2.75/平3.10/客2.70):\n  主胜 34.4%  平 30.5%  客胜 35.1% 样本总数:10场\n----------------------------------------\n主胜: 5 场  占比 50.0%\n平局: 3 场  占比 30.0%\n主负: 2 ",
+    "sandbox_nums": [
+      0.2,
+      0.3,
+      0.34,
+      0.35,
+      0.5,
+      2.7,
+      2.75,
+      3.1
+    ],
+    "final_nums": [
+      0.2,
+      0.3,
+      0.34,
+      0.35,
+      0.5,
+      2.7,
+      2.75,
+      3.1
+    ],
+    "numeric_consistency": 1.0,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 0
+    }
+  },
+  {
+    "id": "RT04_EURO_NORMALIZE",
+    "category": "implied_prob",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "raw reciprocals: [0.5618, 0.2857, 0.2128]\nsum (overround): 1.0603\nnormalized home/draw/away: [0.5299, 0.2695, 0.2007]\nsum normalized: 1.0001\npct home: 52.99%  draw: 26.95%  away: 20.07% raw reciprocals: [0.5618, 0.2857, 0.2128]\nsum (overround): 1.0603\nnormalized home/draw/away: [0.5299, 0.2695, 0.20",
+    "sandbox_nums": [
+      0.2,
+      0.21,
+      0.27,
+      0.29,
+      0.53,
+      0.56,
+      1.0,
+      1.06
+    ],
+    "final_nums": [
+      0.06,
+      0.2,
+      0.21,
+      0.27,
+      0.29,
+      0.53,
+      0.56,
+      1.0,
+      1.06,
+      1.78,
+      3.5,
+      4.7
+    ],
+    "numeric_consistency": 0.75,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": true,
+      "sums": [
+        1.0284,
+        1.0122,
+        1.0001
+      ],
+      "prob_count": 12
+    }
+  },
+  {
+    "id": "RT05_ODDS_CHANGE",
+    "category": "odds_change",
+    "execute_code_runs": 2,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\"rows\": [{\"company\": \"18Bet\", \"ih\": 2.25, \"id_\": 3.05, \"ia\": 3.4, \"ch\": 1.78, \"cd\": 3.5, \"ca\": 4.7, \"ph\": -20.89, \"pd\": 14.75, \"pa\": 38.24}, {\"company\": \"公司A(均)\", \"ih\": 2.25, \"id_\": 3.08, \"ia\": 3.45, \"ch\": 1.77, \"cd\": 3.45, \"ca\": 4.77, \"ph\": -21.33, \"pd\": 12.01, \"pa\": 38.26}, {\"company\": \"易胜博\", \"ih",
+    "sandbox_nums": [
+      0.0,
+      0.03,
+      0.08,
+      0.1,
+      0.11,
+      0.12,
+      0.14,
+      0.15,
+      0.17,
+      0.19,
+      0.21,
+      0.24,
+      0.25,
+      0.27,
+      0.3
+    ],
+    "final_nums": [
+      0.0,
+      0.03,
+      0.08,
+      0.1,
+      0.11,
+      0.12,
+      0.14,
+      0.15,
+      0.17,
+      0.19,
+      0.21,
+      0.24,
+      0.25,
+      0.27,
+      0.3
+    ],
+    "numeric_consistency": 1.0,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 1
+    }
+  },
+  {
+    "id": "RT06_BF_NORMALIZE",
+    "category": "bf_normalize",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\"top5_specific\": [[\"2:1\", 0.1202], [\"1:0\", 0.1109], [\"2:0\", 0.103], [\"1:1\", 0.103], [\"3:1\", 0.0655]], \"top5_sum_pct\": 50.26, \"full_count\": 31, \"specific_count\": 28} === 28 项具体比分归一化(标准做法,总和=1.3870)===\n   2:1  概率 12.02%\n   1:0  概率 11.09%\n   2:0  概率 10.30%\n   1:1  概率 10.30%\n   3:1  概率  6.55%\n  Top5 累计",
+    "sandbox_nums": [
+      0.06,
+      0.07,
+      0.1,
+      0.11,
+      0.12,
+      0.5,
+      1.39,
+      1.41,
+      50.26
+    ],
+    "final_nums": [
+      0.07,
+      0.1,
+      0.11,
+      0.12,
+      0.4,
+      0.5,
+      0.75,
+      1.41,
+      1.59,
+      3.4,
+      4.85,
+      6.0,
+      6.5,
+      7.0,
+      11.0
+    ],
+    "numeric_consistency": 0.6,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 5
+    }
+  },
+  {
+    "id": "RT07_H2H",
+    "category": "h2h",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\"total\": 7, \"france\": {\"W\": 5, \"D\": 0, \"L\": 2, \"win_rate\": 71.4, \"unbeaten_rate\": 71.4}, \"sweden\": {\"W\": 2, \"D\": 0, \"L\": 5, \"win_rate\": 28.6, \"unbeaten_rate\": 28.6}, \"goals\": {\"france\": 12, \"sweden\": 7, \"avg_per_match\": 2.71}} 总场次: 7\n法国: 胜 5 / 平 0 / 负 2  胜率 71.4%  胜平率 71.4%\n瑞典: 胜 2 / 平 0 / 负 5  胜率 ",
+    "sandbox_nums": [
+      0.29,
+      0.71,
+      2.71
+    ],
+    "final_nums": [
+      0.29,
+      0.71,
+      1.0,
+      2.71
+    ],
+    "numeric_consistency": 1.0,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 0
+    }
+  },
+  {
+    "id": "RT08_RECENT_FORM",
+    "category": "recent_form",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\n  \"场次\": 10,\n  \"胜\": 6,\n  \"平\": 4,\n  \"负\": 0,\n  \"胜率\": 0.6,\n  \"不败率(胜+平)\": 1.0,\n  \"总进球\": 22,\n  \"总失球\": 4,\n  \"场均进球\": 2.2,\n  \"场均失球\": 0.4,\n  \"净胜场均\": 1.8,\n  \"主场胜率\": 0.4286,\n  \"客场胜率\": 1.0,\n  \"零封场次\": 7\n}\n\n--- 比赛明细(由近到远) ---\n2026-06-27  away  胜  1-0\n2026-06-22  home  胜  4-0\n2026-06-16  home  平  0-0\n06-09  away ",
+    "sandbox_nums": [
+      0.43
+    ],
+    "final_nums": [
+      0.0,
+      0.4,
+      0.6,
+      0.7,
+      1.0,
+      1.8,
+      2.2
+    ],
+    "numeric_consistency": 0.57,
+    "accuracy": "partial",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 2
+    }
+  },
+  {
+    "id": "RT09_OVER_UNDER",
+    "category": "over_under",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "==============================================================================\n【即时盘(current)】各公司按盘口分组 → 大球/小球隐含概率\n==============================================================================\n\n■ 盘口 total = 2.25 球(共 5 家公司)\n  10bet       大球水位 0.79 / 小球水位 0.99  →  P(大)=55.6%  P(小)=44.4%\n  12bet/沙巴    ",
+    "sandbox_nums": [
+      0.07,
+      0.44,
+      0.45,
+      0.46,
+      0.49,
+      0.51,
+      0.54,
+      0.55,
+      0.56,
+      0.79,
+      0.85,
+      0.88,
+      0.89,
+      0.94,
+      0.99
+    ],
+    "final_nums": [
+      0.07,
+      0.44,
+      0.46,
+      0.49,
+      0.51,
+      0.54,
+      0.56,
+      0.77,
+      0.79,
+      0.84,
+      0.85,
+      0.88,
+      0.89,
+      0.92,
+      0.94
+    ],
+    "numeric_consistency": 1.0,
+    "accuracy": "consistent",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 14
+    }
+  },
+  {
+    "id": "RT10_LOCK_MATH",
+    "category": "league_math",
+    "execute_code_runs": 1,
+    "sandbox_exec_ok": true,
+    "sandbox_error": null,
+    "sandbox_result_preview": "{\"lead\": 19, \"remaining_rounds\": 0, \"threshold\": 0, \"locked\": true, \"season_finished\": true} 若剩余 1 轮，阈值=3, lead=19 > 3 ? True\n若剩余 2 轮，阈值=6, lead=19 > 6 ? True\n若剩余 3 轮，阈值=9, lead=19 > 9 ? True\n若剩余 4 轮，阈值=12, lead=19 > 12 ? True\n\n实际 lead          = 19\n实际 remaining_rounds = 0\n锁定阈值 threshold = remaining",
+    "sandbox_nums": [],
+    "final_nums": [],
+    "numeric_consistency": null,
+    "accuracy": "unknown",
+    "normalization_check": {
+      "has_norm_sum_near_1": false,
+      "sums": [],
+      "prob_count": 0
+    }
+  }
+]

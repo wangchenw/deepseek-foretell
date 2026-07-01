@@ -220,3 +220,63 @@ v2 25 个确认 ⚠️ 中:18 个升档 ✅,7 个残留 ⚠️(主 gap 多为数
 - 改动:`foretell/tools/__init__.py`、`stats.py`、`review.py`、`schedule.py`、`entity.py`、`prompts.py`、`crazy_sports/mysql_client.py`、`crazy_sports/client.py`、`tests/unit/test_subagents.py`
 - 工具总数:53 → 56(+execute_code +get_standings_full +get_match_review)
 
+## 七、端到端统计验证(T1-T5)
+
+阶段5 聚焦"LLM 真会用沙箱算统计量"端到端验证,补 bracket 工具 + 补强 prompt + 三层测试框架 + 真实 LLM 端到端。详见 `data/eval/e2e_stats_summary.md`。
+
+| 任务 | 状态 | 验证 |
+|------|------|------|
+| T1 get_season_bracket | ✅ | 真实 DB 导出世界杯 32 场对阵树,含 parent_id/children_ids 拓扑 |
+| T2 prompt 补强 | ✅ | 7 类公式模板(Poisson/H类/bracket路径/欧赔归一/bf/同赔/走势) |
+| T3a L1 沙箱单元 | ✅ | 6 金标准 fixture 全过(含 Poisson 矩阵/H04 锁定/危险模块拒绝) |
+| T3b L2 agent 轨迹 | ✅ | 5 passed 1 skipped(工具注册+编译+bracket 拓扑+数据流就绪) |
+| T4 L3 真实 LLM | ⚠️ 框架就绪,DB 限流阻塞 | 脚本+LLM 连通已证(F04 LLM 引用归一化公式),DB 服务端连接限流阻断 15 场景完整跑通 |
+| T5 报告 | ✅ | e2e_stats_summary.md + 本节 |
+
+**关键发现**:
+- bracket DB 表用扁平字段 `parent_id`(单 int,晋级方向)/`children_id1`/`children_id2`,工具归一为 `parent_id` + `children_ids` 列表
+- 沙箱 `_build_script` 改为标准库原名 import(`math` 而非 `math as _math`),匹配 prompt 模板与 LLM 自然写法
+- T4 DB 限流为服务端连接频率限制(单次连接 OK,agent 多连接被限流),非工具层问题;mysql_client 连接池化可作后续优化
+
+**产物**:新建 `bracket.py`/`test_code_sandbox.py`/`test_agent_trace.py`/`run_agent_eval_stats.py`/`e2e_stats_summary.md`;工具总数 56 → 57
+
+## 八、10 实时世界杯沙箱统计场景端到端验证(D0-P3)
+
+阶段6 在 T1-T5 基础上,加固 DB 连接层根治限流,用 2026-07-01 世界杯 32 强赛开打的实时语境跑 10 个沙箱统计场景全真实 LLM 端到端。详见 `data/eval/e2e_stats_realtime_summary.md`。
+
+| 步骤 | 改动 | 验证 |
+|------|------|------|
+| D0 DB 连接层加固 | `db.py` Queue 连接池(大小 3)+ 借出 ping + 失败重试 2 次,零新依赖 | 连续 10 次 SELECT 1 + 嵌套 with 通过;RT01 25 次 tool call 零超时 |
+| P1 数据探查 | 2026 世界杯 season_id=13776,32 强对阵树 32 场完整,葡萄牙在 1/16 vs 克罗地亚 | odds_snapshot.european[0].current 有赔率;同赔 10 条;荷甲 standings_full 有 lead/remaining |
+| P2 10 场景真实 LLM | `run_agent_eval_stats.py` 10 实时场景,5 维度评分 | **10/10 通过 (overall), 0 错误, 739s** |
+| P3 报告 | `e2e_stats_realtime_summary.md` + 本节 | 最终结论:agent 沙箱统计稳定可用 |
+
+**10 场景结果**:
+
+| 场景 | tools | 沙箱代码核心 | overall |
+|------|-------|------------|---------|
+| RT01 夺冠路径(葡萄牙) | 25 | FIFA 积分+隐含概率+沿 parent_id 累乘(1/16 73%→决赛 5.4%) | ✅ |
+| RT02 Poisson 比分 | 4 | 网格搜索反推 λ(loss=0.000132)+ math.exp 矩阵 + Top5 | ✅ |
+| RT03 同赔胜率 | 3 | Counter groupby(主胜 50%/平 30%/客 20%) | ✅ |
+| RT04 欧赔归一 | 5 | 倒数归一 + overround | ✅ |
+| RT05 盘口变动 | 6 | 5 家公司 initial→current 变动% + 方向(internet_search 编排) | ✅ |
+| RT06 bf 归一 | 6 | 31 项比分赔率倒数归一 Top5 | ✅ |
+| RT07 H2H 交锋 | 7 | 7 次交锋胜负平(法国 5胜0平2负,write_todos 规划) | ✅ |
+| RT08 近期战绩 | 3 | 10 场 W/D/L + 场均进球聚合 | ✅ |
+| RT09 大小球归一 | 9 | 5 家公司大小球水位归一(大 53.7%/小 46.3%) | ✅ |
+| RT10 争冠锁定 | 2 | lead=19 > remaining×3 + 敏感性分析 | ✅ |
+
+**最终结论**:agent 使用沙箱做统计分析**稳定可用,数值质量过硬**。10/10 场景 LLM 都正确调 execute_code 写真实统计代码(非心算);**正确性审计(独立重跑 LLM 沙箱 code 比对):9/10 数值准确,0 个数值臆造,1 个完整性瑕疵(RT06 bf 归一和>1 未说明)**。编排路径多样(bracket+odds×15+results+fifa+execute_code / internet_search / write_todos),数据缺失时鲁棒降级(RT02 team_season_stats 无数据→用赔率反推 λ)。
+
+**质量分层(正确性审计)**:
+- 数值准确(consistent):RT01-07/09 共 8 个,LLM 声称数值与沙箱真实输出一致
+- 表达形式差异(实质一致):RT08(LLM 报"零封70%",沙箱输出"7场"整数)
+- 完整性瑕疵:RT06(bf 31项含3个"其他"合计项重叠,归一和=1.387>1,LLM 代码注释了但未向用户说明)
+- 布尔判定正确:RT10(locked=true)
+- 数值臆造/误读:0 个
+
+**设计层隐患**:LLM 经常把工具返回数据硬编码进 code 而非用 `_data` 注入(RT01/06/09/10),有转录错误风险,本次未发现实际错误但建议 prompt 补强"优先用 data 参数传 JSON"。
+
+**产物**:改动 `db.py`/`run_agent_eval_stats.py`;新建 `e2e_stats_realtime_summary.md`/`e2e_stats_results.json`/`e2e_stats_audit.json`/`audit_eval_accuracy.py`
+
+

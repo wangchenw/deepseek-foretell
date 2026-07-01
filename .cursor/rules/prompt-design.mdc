@@ -1,0 +1,61 @@
+---
+description: foretell 智能体提示词分层设计准则(system prompt vs 工具 docstring)
+alwaysApply: true
+---
+
+# Prompt 分层设计准则
+
+foretell 智能体开发的**基本准则**,后续所有 prompt 与工具瑕疵修复严格遵守。
+
+## 一、核心原则:职责分层
+
+> **system prompt 只放跨工具的通用编排原则;具体工具字段解释、数据特性、业务语义放工具 docstring。**
+
+### 1.1 system prompt 的职责(只放这些)
+- 跨工具的编排策略(何时先查实体、何时走聚合工具、何时走沙箱)
+- 通用行为约束(禁心算离散数据、能用 `get_*`/`resolve_*` 就别用沙箱绕路)
+- 沙箱通用机制(`_data` 注入、标准库白名单、`print` 捕获、`_result` 结构化)
+- 统计方法索引(只点名,不展开公式、不提字段名):欧赔归一化 / 同赔胜率 groupby / Poisson 比分矩阵 / 路径概率累乘 / 走势统计 / 联赛锁定判定
+- 输出风格与禁词规范
+
+### 1.2 工具 docstring 的职责(必须自解释)
+- 返回字段结构与业务语义(如 `european[].current.home_win/draw/away_win`)
+- 数据特性与边界情况(如 bf 比分 31 项含"其他"合计项,归一和 >1 属正常)
+- 该工具的典型统计用法(如 `get_season_bracket` 沿 `parent_id` 累乘路径概率)
+- 字段推导规则(如 `host_score > guest_score` → 主胜)
+
+### 1.3 禁止事项
+- **禁止在 system prompt 重复任何工具的字段名、数据结构、业务规则**
+- 禁止在 system prompt 写死某个工具的公式本体(公式属于"该工具典型统计用法",放 docstring)
+- 禁止在多个工具 docstring 之间复制粘贴同一段字段说明(公共说明归 system prompt 通用机制)
+
+## 二、为什么是职责分层而不是"省 token"
+
+工具 docstring 与 system prompt 一样,**在 agent 编译时全量注入上下文,每次 invoke 都在**(不是调用时才占)。所以下沉到 docstring 不省 token。本准则的理由是:
+
+- **维护性**:字段解释跟着工具走,改工具时一起改,不散落两处导致不一致
+- **关注点分离**:system prompt 保持通用编排,不被工具细节污染、无限膨胀
+- **工具自解释**:LLM 看到工具描述就懂字段,无需在 system prompt 翻找;新增工具时无需改 system prompt
+
+## 三、瑕疵修复流程(强制)
+
+发现 LLM 行为瑕疵时,先判断根因属于哪一层,再改对应层:
+
+1. **通用原则缺失** → 改 system prompt
+   - 例:LLM 心算离散数据 → system prompt 补"禁心算"原则
+   - 例:LLM 手抄数值进沙箱 code → system prompt 补"必须用 `_data` 读取"
+2. **工具自解释缺失** → 改工具 docstring
+   - 例:LLM 没解释 bf 归一和 >1 → `get_lottery_schedule` docstring 补数据特性
+   - 例:LLM 用错欧赔字段 → `get_odds_snapshot` docstring 补字段结构与归一用 current
+   - 例:LLM 不知道同赔字段含义 → `get_same_odds_history` docstring 补字段语义
+3. **不要**:在 system prompt 里针对某个具体工具补字段说明(违背本准则)
+
+## 四、新增工具时的检查清单
+
+新工具上线前,docstring 必须包含:
+- [ ] 一句话用途(用于什么类型的问题)
+- [ ] 返回 envelope 的 dimension 与 data 关键字段
+- [ ] 数据特性/边界情况(若存在,如合计项、归一和异常、缺失语义)
+- [ ] 该工具典型统计/分析用法(若涉及沙箱计算)
+
+**不要**为新工具在 system prompt 加任何字段解释。
