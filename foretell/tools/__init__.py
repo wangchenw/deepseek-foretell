@@ -1,3 +1,4 @@
+from foretell.tools.code_sandbox import execute_code
 from foretell.tools.deep import (
     get_basketball_standings,
     get_injury_report,
@@ -45,14 +46,14 @@ from foretell.tools.player import (
     get_team_honors,
     resolve_basketball_team,
 )
-from foretell.tools.review import get_match_result
+from foretell.tools.review import get_match_result, get_match_review
 from foretell.tools.schedule import (
     get_lottery_schedule,
     get_schedule_by_date,
     get_team_schedule,
 )
 from foretell.tools.search import internet_search
-from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_team_season_stats
+from foretell.tools.stats import get_h2h, get_recent_form, get_standings, get_standings_full, get_team_season_stats
 from foretell.tools.tournament import (
     get_coach,
     get_goals_lost_rate,
@@ -80,6 +81,7 @@ SCHEDULE_TOOLS = [
 
 STATS_TOOLS = [
     get_standings,
+    get_standings_full,
     get_team_season_stats,
     get_recent_form,
     get_h2h,
@@ -140,10 +142,15 @@ EXTRA_TOOLS = [
 
 REVIEW_TOOLS = [
     get_match_result,
+    get_match_review,
 ]
 
 SEARCH_TOOLS = [
     internet_search,
+]
+
+CODE_TOOLS = [
+    execute_code,
 ]
 
 FORETELL_TOOLS = (
@@ -157,6 +164,7 @@ FORETELL_TOOLS = (
     + EXTRA_TOOLS
     + REVIEW_TOOLS
     + SEARCH_TOOLS
+    + CODE_TOOLS
 )
 
 

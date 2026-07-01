@@ -100,6 +100,13 @@ def resolve_lottery_match(
             402=半全场、403=进球彩、404=北单让球胜平负。
         code: 场次编号，如「周二004」「周一305」。
         date: 开奖/销售日期 YYYY-MM-DD（可选）。
+
+    业务规则:
+        - 返回 match_id 为 football_match.id(数据库主键,用于查赔率/赛果/统计等);
+            另有 lottery_official_id 为彩票官方编号,两者不同,勿混用。
+        - issue_num(十四场/任九合成编号)= issue*10 + match_no,仅 zc 类玩法有效。
+        - collision_warning: 北单/十四场可能出现同一球队多期并存,需结合 date 消歧。
+        - 裸 code(无星期前缀)+ 无 date 时返回 DATA_MISSING(ambiguous),需补完整编号或 date。
     """
     client = get_crazy_sports_client()
     pt = PlayType(play_type)

@@ -138,6 +138,18 @@ def get_lottery_schedule(
             402=半全场、403=进球彩、404=北单让球胜平负。
         date: 销售日期 YYYY-MM-DD（可选，默认当日样本数据）。
         period: 彩票期号（可选，十四场/任九等使用）。
+
+    业务规则:
+        - entries[].odds 键为英文全称(消除拼音缩写歧义):
+            win_draw_loss=胜平负(原 spf)、handicap_wdl=让球胜平负(原 rq)、
+            correct_score=比分(原 bf)、total_goals=进球数(原 jq)、
+            half_full_result=半全场(原 bqc)、win_loss=胜负(原 sf,篮球)、
+            handicap_wl=让球胜负(原 rf)、over_under=大小分(原 dxf)、
+            fourteen_wdl=十四场胜平负(原 sfc)、six_x_po=六选波(原 sxp,北单)。
+        - 竞彩(101/201) odds 内层为 CSV 字符串(如 "3.52,3.66,2.00");
+            北单(301/404) odds 内层为 JSON(列表[{label,odds}])。解析时按 play_type 分支。
+        - lottery_zc_match(sfc/rj/bqc/jqc) 与 lottery_match(竞彩/北单) 分表存储,
+            issue_num=issue*10+match_no(十四场/任九合成编号)。
     """
     client = get_crazy_sports_client()
     pt = PlayType(play_type)

@@ -22,6 +22,28 @@ _COMPETITION_TYPE_MAP: dict[int, str] = {
     3: "friendly",
 }
 
+# basketball_competition_team_stats.scope 列枚举(来源:nami_field_map_full.yaml)
+# 4季前赛/5常规赛/6季后赛/7全明星/8杯赛
+_BASKETBALL_SCOPE_MAP: dict[int, str] = {
+    4: "preseason",
+    5: "regular_season",
+    6: "playoffs",
+    7: "all_star",
+    8: "cup",
+}
+
+# basketball_match.kind 列枚举(来源:nami_field_map_full.yaml)
+# 0无/1常规赛/2季后赛/3季前赛/4全明星/5杯赛/6附加赛
+_BASKETBALL_KIND_MAP: dict[int, str] = {
+    0: "none",
+    1: "regular_season",
+    2: "playoffs",
+    3: "preseason",
+    4: "all_star",
+    5: "cup",
+    6: "play_in",
+}
+
 # 仅 status_id=8(完场)才算真正踢完、有赛果可统计；
 # 9推迟/10中断/11腰斩/12取消 属异常，不应进入战绩/赛果统计。
 _FINISHED_STATUS_IDS = {8}
@@ -256,6 +278,21 @@ _LOTTERY_ODDS_COLUMNS = {
     PlayType.BEIDAN_HANDICAP: ("sf",),
 }
 
+# DB 拼音缩写列名 → 英文全称输出键(消除歧义,LLM 直接懂)。
+# 仅改输出键,内部分支仍用 DB 列名匹配。
+_LOTTERY_ODDS_KEY_LABELS: dict[str, str] = {
+    "spf": "win_draw_loss",      # 胜平负
+    "rq": "handicap_wdl",        # 让球胜平负
+    "bf": "correct_score",       # 比分
+    "jq": "total_goals",         # 进球数
+    "bqc": "half_full_result",   # 半全场
+    "sf": "win_loss",            # 胜负(篮球)
+    "rf": "handicap_wl",         # 让球胜负
+    "dxf": "over_under",         # 大小分
+    "sfc": "fourteen_wdl",       # 十四场胜平负
+    "sxp": "six_x_po",           # 六选波(北单)
+}
+
 # 顶级赛事 competition_id 白名单（ID 硬编码，依赖 data_center competition_id 稳定性；
 # DB 重导或 ID 变更需同步。来源：2026-06-28 probe football_competition/basketball_competition）。
 _TOP_TIER_FOOTBALL_COMPETITION_IDS: frozenset[int] = frozenset({
@@ -383,6 +420,7 @@ def _row_basketball_match(row: dict) -> dict:
         "sport": "basketball",
         "series_game": None,
         "status": _status_from_id(row.get("status_id"), sport="basketball"),
+        "kind": _BASKETBALL_KIND_MAP.get(row.get("kind"), "unknown"),
         "match_time_beijing": row.get("match_time_str") or date_str,
     }
     home_scores = _parse_scores(row.get("home_scores"))
@@ -480,7 +518,8 @@ def _row_lottery_entry(row: dict, play_type: PlayType) -> dict:
     for key in ("spf", "rq", "bf", "jq", "bqc", "sf", "rf", "dxf", "sfc", "sxp"):
         value = row.get(key)
         if value not in (None, ""):
-            odds[key] = _parse_lottery_play(key, value, play_type)
+            label = _LOTTERY_ODDS_KEY_LABELS.get(key, key)
+            odds[label] = _parse_lottery_play(key, value, play_type)
     if odds:
         entry["odds"] = odds
     sell_raw = row.get("sell_status")
@@ -1188,6 +1227,93 @@ class MySQLCrazySportsClient:
             "competition_type_name": _COMPETITION_TYPE_MAP.get(comp_type, "unknown"),
             "rows": [_format_standings_row(r) for r in rows],
         }
+
+    def _compute_remaining_rounds(
+        self,
+        competition_id: int,
+        season_id: int | None,
+        sport: str = "football",
+    ) -> dict:
+        """计算剩余轮次(用于 H 类争冠/保级悬念判断)。
+
+        优先用 stage.round_count(总轮数,纳米文档字段) - 榜首 played;
+        round_count 缺失时 fallback 到未赛场次 COUNT。
+        """
+        if sport == "basketball":
+            stage_table = "basketball_stage"
+            match_table = "basketball_match"
+            team_stats_table = "basketball_competition_team_stats"
+        else:
+            stage_table = "football_stage"
+            match_table = "football_match"
+            team_stats_table = "football_points_table_team"
+        # season_id 未传时自动取该 competition 的 MAX(season_id)(与 get_standings 智能选择对齐)
+        if season_id is None:
+            if sport == "basketball":
+                sql_sid = f"SELECT MAX(season_id) AS sid FROM {team_stats_table} WHERE competition_id = %s"
+            else:
+                sql_sid = f"""
+                    SELECT MAX(p.season_id) AS sid
+                    FROM football_points_table p
+                    JOIN {team_stats_table} pt ON pt.table_id = p.id
+                    WHERE p.competition_id = %s AND pt.total > 0
+                """
+            with mysql_connection() as cur:
+                cur.execute(sql_sid, (competition_id,))
+                row = cur.fetchone()
+            season_id = (row or {}).get("sid")
+        if season_id is None:
+            return {"total_rounds": None, "played": None, "remaining_rounds": None, "source": "no_season"}
+        # 优先:stage.round_count
+        sql_round = f"""
+            SELECT MAX(round_count) AS total_rounds
+            FROM {stage_table}
+            WHERE season_id = %s
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql_round, (season_id,))
+            row = cur.fetchone()
+        total_rounds = (row or {}).get("total_rounds") or 0
+        # 榜首已赛场次(played)
+        played = None
+        if sport == "basketball":
+            sql_played = f"""
+                SELECT MAX(matches) AS played
+                FROM {team_stats_table}
+                WHERE competition_id = %s AND season_id = %s
+            """
+            with mysql_connection() as cur:
+                cur.execute(sql_played, (competition_id, season_id))
+                row = cur.fetchone()
+            played = (row or {}).get("played")
+        else:
+            sql_played = f"""
+                SELECT MAX(pt.total) AS played
+                FROM {team_stats_table} pt
+                JOIN football_points_table p ON pt.table_id = p.id
+                WHERE p.competition_id = %s AND p.season_id = %s
+            """
+            with mysql_connection() as cur:
+                cur.execute(sql_played, (competition_id, season_id))
+                row = cur.fetchone()
+            played = (row or {}).get("played")
+        played = played or 0
+        # 优先用 total_rounds - played
+        if total_rounds and total_rounds > 0 and played > 0:
+            remaining = max(total_rounds - played, 0)
+            return {"total_rounds": total_rounds, "played": played, "remaining_rounds": remaining, "source": "stage"}
+        # Fallback:未赛场次 COUNT
+        sql_future = f"""
+            SELECT COUNT(*) AS future
+            FROM {match_table}
+            WHERE competition_id = %s AND season_id = %s
+              AND status_id NOT IN ({",".join(str(s) for s in _FINISHED_STATUS_IDS | {9, 10, 11, 12})})
+        """
+        with mysql_connection() as cur:
+            cur.execute(sql_future, (competition_id, season_id))
+            row = cur.fetchone()
+        future = (row or {}).get("future") or 0
+        return {"total_rounds": total_rounds or None, "played": played, "remaining_rounds": future, "source": "future_matches"}
 
     def get_team_season_stats(self, team_id: int | str, sport: str = "football") -> dict | None:
         raw_id = _parse_int_id(team_id)
@@ -2757,15 +2883,16 @@ def _parse_sell_status(raw: str, play_keys: tuple[str, ...], is_beidan: bool) ->
     result: dict[str, str] = {}
     for i, key in enumerate(play_keys):
         if i < len(parts):
+            label = _LOTTERY_ODDS_KEY_LABELS.get(key, key)
             try:
                 code = int(parts[i])
             except ValueError:
-                result[key] = "unknown"
+                result[label] = "unknown"
                 continue
             if is_beidan:
-                result[key] = _BD_SELL_STATUS_MAP.get(code, "unknown")
+                result[label] = _BD_SELL_STATUS_MAP.get(code, "unknown")
             else:
-                result[key] = _SELL_STATUS_MAP.get(code, "unknown")
+                result[label] = _SELL_STATUS_MAP.get(code, "unknown")
     return result
 
 
@@ -3015,6 +3142,7 @@ def _format_basketball_team_season_stats(row: dict) -> dict:
         "season_id": row.get("season_id"),
         "competition_id": row.get("competition_id"),
         "competition_name": row.get("competition_name"),
+        "scope": _BASKETBALL_SCOPE_MAP.get(row.get("scope"), "unknown"),
         "matches": row.get("matches"),
         # 得分/失分
         "points": row.get("points"),

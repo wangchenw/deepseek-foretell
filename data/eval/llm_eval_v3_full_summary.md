@@ -193,3 +193,30 @@ v2 25 个确认 ⚠️ 中:18 个升档 ✅,7 个残留 ⚠️(主 gap 多为数
 4. **非工具层 4 项记录不做**:D09 评测夹具 / D10 LLM 澄清 / X02 真数据不支持 / G07 跨窗口(需 checkpointer,按用户指示不做)
 5. **产物落 path_attempts_v3/G08.yaml、D06.yaml**
 
+## 六、S1-S6 工具层严肃设计(代码沙箱 + 聚合工具 + 字段语义化)
+
+阶段4 聚焦"数据统计分析能力 + 高价值聚合 + 字段语义对齐",新增 3 个工具(第 54-56 个)、字段语义化改名、docstring 补强。
+
+| 步骤 | 改动 | 验证 |
+|------|------|------|
+| S1 代码沙箱 | 新建 `foretell/tools/code_sandbox.py` `execute_code(code, config, data)`,RunnableConfig+InjectedToolArg 注入 thread_id,会话内单沙箱复用(LRU 8),纯标准库,超时15s,无网络/文件写,危险模块静态拒绝 | schema 只含 [code,data];同赔历史胜率聚合 79ms;import os 被拒;prompts 加 `## 代码计算` 引导 |
+| S2 get_standings_full | `stats.py` 新增聚合工具(standings+promotions+remaining_rounds+lead);`mysql_client._compute_remaining_rounds` 优先 stage.round_count 缺失 fallback 未赛场次,season_id 自动推断 | 荷甲18队 lead=19 played=34 remaining=0 total_rounds=34 source=stage |
+| S3 get_match_review | `review.py` 新增聚合工具(result+incidents+team_stats+tlive+odds_trend),支持 sections 精简,赛前拦截 NOT_APPLICABLE | 完赛 sections=[result,odds_trend] 精简返回;赛前 NOT_APPLICABLE sections=[] |
+| S4 lottery odds 键名 | `mysql_client._LOTTERY_ODDS_KEY_LABELS` 映射,spf→win_draw_loss/rq→handicap_wdl/bf→correct_score 等,直接替换不保留旧键 | test_lottery_odds_keys 5 passed,4 玩法无残留旧缩写键 |
+| S5 枚举字符串化+docstring | `_BASKETBALL_SCOPE_MAP`/`_BASKETBALL_KIND_MAP`,team_season_stats 输出 scope 字符串,basketball_match 输出 kind 字符串;get_standings/get_lottery_schedule/resolve_lottery_match docstring 补业务规则 | 湖人 scope=regular_season;70+ 单元测试 passed |
+| S6 回归 | 修正 test_subagents 过时断言(6→9);全量 unit 测试 | 104 passed 零回归 |
+
+### 关键设计决策
+
+- **沙箱注入**:langchain_core 1.4.8 的 ToolRuntime 未被 `@tool` schema 排除,改用 `Annotated[RunnableConfig, InjectedToolArg]`(成熟 schema 排除),LLM 只见 [code,data]
+- **字段语义化形式**:字段名/枚举值语义化 + docstring 业务规则释义,**不加内嵌 `_desc`**(home_win/over 等已语义化字段加 _desc 是画蛇添足)
+- **S2 remaining_rounds**:纳米文档 stage.round_count(总轮数)为权威源,缺失时 fallback 未赛场次 COUNT
+- **S3 sections**:None=全取 5 维,LLM 可传子集精简返回省 token
+- **新增 3 工具仅主 agent 可见**:不加入 subagent definitions.py 的 tools 列表
+
+### 产物
+
+- 新建:`foretell/tools/code_sandbox.py`、`tests/unit/test_lottery_odds_keys.py`
+- 改动:`foretell/tools/__init__.py`、`stats.py`、`review.py`、`schedule.py`、`entity.py`、`prompts.py`、`crazy_sports/mysql_client.py`、`crazy_sports/client.py`、`tests/unit/test_subagents.py`
+- 工具总数:53 → 56(+execute_code +get_standings_full +get_match_review)
+

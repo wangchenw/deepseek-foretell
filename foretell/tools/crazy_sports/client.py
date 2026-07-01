@@ -76,6 +76,14 @@ class CrazySportsClient(Protocol):
     ) -> dict:
         """返回联赛/杯赛积分榜（含 competition_type + promotion_id + group）。"""
 
+    def _compute_remaining_rounds(
+        self,
+        competition_id: int,
+        season_id: int | None,
+        sport: str = "football",
+    ) -> dict:
+        """返回 {total_rounds, played, remaining_rounds, source}。"""
+
     def get_team_season_stats(self, team_id: int | str, sport: str = "football") -> dict | None:
         """返回球队赛季统计。"""
 
